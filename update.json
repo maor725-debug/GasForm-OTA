@@ -1,6 +1,6 @@
 {
-  "versionCode": 8,
-  "versionName": "1.8",
-  "apkUrl": "https://github.com/maor725-debug/GasForm-OTA/releases/download/V1.8/app-debug.apk",
-  "releaseNotes": "גרסה 1.8 זמינה! שדרוגים מרכזיים: מנגנון הגנה חכם למניעת דוחות חסרים, , שדרוג יצרן ה-PDF, תיקון מערכת שיתוף הדוחות לוואטסאפ/מייל ולוגו רשמי חדש לאפליקציה."
+  "versionCode": 9,
+  "versionName": "1.9",
+  "apkUrl": "https://github.com/maor725-debug/GasForm-OTA/releases/download/V1.9/app-debug.apk",
+  "releaseNotes": "גרסה 1.9 זמינה! שדרוגים מרכזיים: מנגנון הגנה חכם למניעת דוחות חסרים, , שדרוג יצרן ה-PDF, תיקון מערכת שיתוף הדוחות לוואטסאפ/מייל ולוגו רשמי חדש לאפליקציה."
 }
