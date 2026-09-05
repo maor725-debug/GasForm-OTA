@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- הרשאה למצלמה לשמור קבצים בתיקייה הפנימית של האפליקציה -->
+    <files-path name="internal_files" path="." />
+    <!-- הרשאה לתיקיית המטמון (Cache) -->
+    <cache-path name="cache_files" path="." />
+    <!-- הרשאה לתיקייה החיצונית של האפליקציה (לגיבויים ו-PDF) -->
+    <external-files-path name="external_files" path="." />
+</paths>
