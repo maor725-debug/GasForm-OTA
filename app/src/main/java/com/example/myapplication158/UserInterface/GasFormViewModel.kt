@@ -71,11 +71,6 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
             }
             val updatedOrder = workOrder.copy(id = id)
             workOrderReminderManager.scheduleReminders(updatedOrder)
-            try {
-                supabaseManager.syncWorkOrderToCloud(updatedOrder)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
             withContext(Dispatchers.Main) { onComplete?.invoke() }
         }
     }
@@ -84,11 +79,6 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             workOrderDao.updateWorkOrder(workOrder)
             workOrderReminderManager.scheduleReminders(workOrder)
-            try {
-                supabaseManager.syncWorkOrderToCloud(workOrder)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
         }
     }
 

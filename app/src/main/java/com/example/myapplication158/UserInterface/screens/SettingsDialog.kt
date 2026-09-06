@@ -418,14 +418,14 @@ private fun SupabaseCloudCard(
     Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CloudSync, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Security, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("סנכרון ענן Supabase Cloud", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+                Text("שומר סף ורישיונות Supabase (SaaS)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            Text("כתובת הפרויקט: https://ztwqnsnzyfkawxhpgjme.supabase.co", fontSize = 11.sp, color = textGray)
+            Text("מודל Zero-Storage: הנתונים והטפסים נשמרים מקומית בבטחה במכשיר בלבד.", fontSize = 11.sp, color = textGray)
 
             if (statusText != null) {
                 Spacer(modifier = Modifier.height(8.dp))
