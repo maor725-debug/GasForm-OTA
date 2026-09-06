@@ -4,10 +4,12 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
@@ -17,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -65,16 +68,16 @@ fun WorkOrdersListDialog(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.88f)
-                .padding(8.dp),
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.90f)
+                .padding(4.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
+                    .padding(14.dp)
             ) {
                 // Header
                 Row(
@@ -83,13 +86,21 @@ fun WorkOrdersListDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.EventNote,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.EventNote,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "יומן עבודות ותזכורות",
                             fontSize = 18.sp,
@@ -111,13 +122,13 @@ fun WorkOrdersListDialog(
                 ) {
                     Button(
                         onClick = onAddNewWorkOrder,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(44.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("הוסף עבודה", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("הוסף עבודה ליומן", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
                     OutlinedButton(
@@ -125,6 +136,7 @@ fun WorkOrdersListDialog(
                             isMultiSelectMode = !isMultiSelectMode
                             if (!isMultiSelectMode) selectedIds.clear()
                         },
+                        modifier = Modifier.height(44.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = if (isMultiSelectMode) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
@@ -136,7 +148,7 @@ fun WorkOrdersListDialog(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isMultiSelectMode) "בטל בחירה" else "בחירה מרובה", fontSize = 12.sp)
+                        Text(if (isMultiSelectMode) "סיים בחירה" else "בחירה מרובה", fontSize = 12.sp)
                     }
                 }
 
@@ -151,47 +163,43 @@ fun WorkOrdersListDialog(
                             selectedIds.clear()
                             isMultiSelectMode = false
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("מחק ${selectedIds.size} משימות שנבחרו", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("מחק ${selectedIds.size} משימות שנבחרו 🗑️", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Filter Tabs
-                ScrollableTabRow(
+                // Equal Weight Filter Tabs (No Overflow)
+                TabRow(
                     selectedTabIndex = selectedFilterTab,
-                    edgePadding = 0.dp,
-                    divider = {},
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
                 ) {
                     Tab(
                         selected = selectedFilterTab == 0,
                         onClick = { selectedFilterTab = 0 },
-                        text = { Text("הכל (${workOrders.size})", fontSize = 12.sp) }
+                        text = { Text("הכל (${workOrders.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
                     )
                     Tab(
                         selected = selectedFilterTab == 1,
                         onClick = { selectedFilterTab = 1 },
-                        text = { Text("ממתין", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                        text = { Text("ממתין", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
                     )
                     Tab(
                         selected = selectedFilterTab == 2,
                         onClick = { selectedFilterTab = 2 },
-                        text = { Text("בוצע ✅", fontSize = 12.sp) }
+                        text = { Text("בוצע ✅", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
                     )
                     Tab(
                         selected = selectedFilterTab == 3,
                         onClick = { selectedFilterTab = 3 },
-                        text = { Text("בוטל ❌", fontSize = 12.sp) }
+                        text = { Text("בוטל ❌", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
                     )
                 }
 
@@ -386,11 +394,11 @@ private fun WorkOrderItemCard(
     val context = LocalContext.current
     val isCompleted = item.status == WorkOrder.STATUS_COMPLETED
 
-    val statusBg = when (item.status) {
-        WorkOrder.STATUS_COMPLETED -> Color(0xFFE8F5E9)
-        WorkOrder.STATUS_CANCELED -> Color(0xFFFFEBEE)
-        WorkOrder.STATUS_RESCHEDULED -> Color(0xFFFFF3E0)
-        else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+    val accentColor = when (item.status) {
+        WorkOrder.STATUS_COMPLETED -> Color(0xFF2E7D32)
+        WorkOrder.STATUS_CANCELED -> Color(0xFFD32F2F)
+        WorkOrder.STATUS_RESCHEDULED -> Color(0xFFE65100)
+        else -> MaterialTheme.colorScheme.primary
     }
 
     val statusText = when (item.status) {
@@ -406,276 +414,286 @@ private fun WorkOrderItemCard(
             .clickable {
                 if (isMultiSelectMode) onSelectToggle()
             },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = statusBg),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
         )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            // Header: Date, Status Badge, Prominent Edit Pencil Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (isMultiSelectMode) {
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { onSelectToggle() },
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
+        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            // Accent Status Strip on the Right Edge (In RTL: Start)
+            Box(
+                modifier = Modifier
+                    .width(6.dp)
+                    .fillMaxHeight()
+                    .background(accentColor)
+            )
 
-                    if (isCompleted) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "בוצע",
-                            tint = Color(0xFF2E7D32),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.CalendarToday,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-
-                    Text(
-                        text = "${item.targetDate} בשעה ${item.targetTime}",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = if (isCompleted) Color(0xFF1B5E20) else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
+            Column(modifier = Modifier.padding(12.dp).weight(1f)) {
+                // Header Row 1: Date & Time + Status Tag + Edit Button
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Status Badge
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isMultiSelectMode) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { onSelectToggle() },
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
+                        if (isCompleted) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "בוצע",
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.CalendarToday,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+
                         Text(
-                            text = statusText,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            fontSize = 11.sp,
+                            text = "${item.targetDate} בשעה ${item.targetTime}",
                             fontWeight = FontWeight.Bold,
-                            color = if (isCompleted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurface
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
-                    // Prominent Clear Edit Pencil Button
-                    Surface(
-                        onClick = onEdit,
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
+                    // Action Controls: Status Chip & Edit Button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = accentColor.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = statusText,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = accentColor
+                            )
+                        }
+
+                        // Prominent Clear Edit Pencil Button
+                        Button(
+                            onClick = onEdit,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(28.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "ערוך משימה",
                                 tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(13.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text("ערוך ✏️", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Job Description & Location
-            if (item.jobDescription.isNotBlank()) {
-                Text(
-                    text = "🛠️ ${item.jobDescription}",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                )
-            }
-
-            if (item.location.isNotBlank()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clickable { NavigationUtils.navigateToAddress(context, item.location) }
-                        .padding(vertical = 2.dp)
-                ) {
+                // Job Description
+                if (item.jobDescription.isNotBlank()) {
                     Text(
-                        text = "📍 ${item.location}",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "🛠️ ${item.jobDescription}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFF0288D1)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Navigation,
-                                contentDescription = "נווט",
-                                tint = Color.White,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("נווט ב-Waze", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
-            }
 
-            // Client Phone & Quoted Price Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (item.clientPhone.isNotBlank()) {
+                // Location & Waze Navigation Button
+                if (item.location.isNotBlank()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable {
-                            try {
-                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${item.clientPhone}"))
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
+                        modifier = Modifier
+                            .clickable { NavigationUtils.navigateToAddress(context, item.location) }
+                            .padding(vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "📍 ${item.location}",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFF0288D1)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Navigation,
+                                    contentDescription = "נווט",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("נווט ב-Waze", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Phone,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = item.clientPhone,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
                     }
                 }
 
-                if (item.quotedPrice.isNotBlank()) {
-                    Text(
-                        text = "💰 מחיר: ${item.quotedPrice} ₪",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Generate Report Button
-            OutlinedButton(
-                onClick = onGenerateReportClick,
-                modifier = Modifier.fillMaxWidth().height(36.dp),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-                Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("הפק דוח ללקוח 📄 (פרטים אוטומטיים)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Action Buttons: Status Updates ("בוצע", "תואם מחדש", "מחק/בוטל 🗑️") & Controls
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Status buttons
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Button(
-                        onClick = { onStatusChange(WorkOrder.STATUS_COMPLETED) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(30.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                    ) {
-                        Text("בוצע ✅", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    OutlinedButton(
-                        onClick = { onStatusChange(WorkOrder.STATUS_RESCHEDULED) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Text("תואם מחדש 🔄", fontSize = 11.sp)
-                    }
-
-                    // Direct Delete / Cancel Button
-                    Button(
-                        onClick = onDelete,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(30.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text("מחק 🗑️", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                // Extra Utility Badges (Notification Mute & Native Calendar Sync)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Surface(
-                        onClick = onToggleMute,
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp)) {
+                // Client Phone & Quoted Price Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (item.clientPhone.isNotBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                try {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${item.clientPhone}"))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                        ) {
                             Icon(
-                                imageVector = if (item.isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.Default.NotificationsActive,
-                                contentDescription = "התראות",
-                                tint = if (item.isMuted) Color.Gray else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                imageVector = Icons.Default.Phone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = item.clientPhone,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
 
-                    Surface(
-                        onClick = onExportCalendar,
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp)) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarMonth,
-                                contentDescription = "סנכרן ליומן",
-                                tint = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(18.dp)
-                            )
+                    if (item.quotedPrice.isNotBlank()) {
+                        Text(
+                            text = "💰 מחיר: ${item.quotedPrice} ₪",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Generate Report Button for Technician
+                OutlinedButton(
+                    onClick = onGenerateReportClick,
+                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("הפק דוח ללקוח 📄 (עם פרטים אוטומטיים)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Action Buttons Row: Status Updates & Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Status Actions: "בוצע", "תואם מחדש", "מחק"
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Button(
+                            onClick = { onStatusChange(WorkOrder.STATUS_COMPLETED) },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                        ) {
+                            Text("בוצע ✅", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { onStatusChange(WorkOrder.STATUS_RESCHEDULED) },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Text("תואם מחדש 🔄", fontSize = 11.sp)
+                        }
+
+                        // Direct Delete Button (Deletes task immediately without opening edit)
+                        Button(
+                            onClick = onDelete,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("מחק 🗑️", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Extra Utility Badges (Notification Mute & Native Calendar Sync)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Surface(
+                            onClick = onToggleMute,
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp)) {
+                                Icon(
+                                    imageVector = if (item.isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.Default.NotificationsActive,
+                                    contentDescription = "התראות",
+                                    tint = if (item.isMuted) Color.Gray else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            onClick = onExportCalendar,
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "סנכרן ליומן",
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
