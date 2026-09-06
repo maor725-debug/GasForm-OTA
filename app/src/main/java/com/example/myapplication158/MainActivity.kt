@@ -23,6 +23,7 @@ import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.screens.FormEditScreen
 import com.example.myapplication158.UserInterface.screens.FormListScreen
+import com.example.myapplication158.UserInterface.screens.OnboardingScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreen
 import com.example.myapplication158.util.OtaUpdateManager
 import com.example.myapplication158.util.SettingsManager
@@ -133,6 +134,7 @@ fun AppRoot() {
 }
 
 sealed class Screen {
+    object Onboarding : Screen()
     object List : Screen()
     data class Edit(val form: GasForm) : Screen()
     data class EditPeriodic(val form: PeriodicGasForm) : Screen()
@@ -140,14 +142,33 @@ sealed class Screen {
 
 @Composable
 fun MainNavigation() {
+    val context = LocalContext.current
+    val settingsManager = remember { SettingsManager(context) }
     val viewModel: GasFormViewModel = viewModel()
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.List) }
+
+    val isOnboardingComplete = remember {
+        settingsManager.contractorHeader.isNotBlank() &&
+        !settingsManager.savedSignatureUri.isNullOrBlank() &&
+        settingsManager.defaultTechnicianName.isNotBlank() &&
+        settingsManager.currentFormNumber > 0
+    }
+
+    var currentScreen by remember {
+        mutableStateOf<Screen>(if (!isOnboardingComplete) Screen.Onboarding else Screen.List)
+    }
 
     // מצב ששולט בהצגת חלון הבחירה לטפסים נוספים
     var showFormTypeDialog by remember { mutableStateOf(false) }
 
     Crossfade(targetState = currentScreen, label = "screen_transition") { screen ->
         when (screen) {
+            is Screen.Onboarding -> {
+                OnboardingScreen(
+                    onCompleteOnboarding = {
+                        currentScreen = Screen.List
+                    }
+                )
+            }
             is Screen.List -> {
                 FormListScreen(
                     viewModel = viewModel,
