@@ -381,6 +381,14 @@ fun FormListScreen(
                     onEditWorkOrder = { item ->
                         editingWorkOrder = item
                         showWorkOrderCreateDialog = true
+                    },
+                    onGenerateNormativeForm = { prefilledForm ->
+                        showWorkOrdersListDialog = false
+                        onEditForm(prefilledForm)
+                    },
+                    onGeneratePeriodicForm = { prefilledPeriodic ->
+                        showWorkOrdersListDialog = false
+                        onEditPeriodicForm(prefilledPeriodic)
                     }
                 )
             }

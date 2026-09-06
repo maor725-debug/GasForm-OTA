@@ -20,10 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.myapplication158.data.GasForm
+import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.util.NavigationUtils
@@ -34,12 +37,18 @@ fun WorkOrdersListDialog(
     viewModel: GasFormViewModel,
     onDismiss: () -> Unit,
     onAddNewWorkOrder: () -> Unit,
-    onEditWorkOrder: (WorkOrder) -> Unit
+    onEditWorkOrder: (WorkOrder) -> Unit,
+    onGenerateNormativeForm: (GasForm) -> Unit,
+    onGeneratePeriodicForm: (PeriodicGasForm) -> Unit
 ) {
     val context = LocalContext.current
     val workOrders by viewModel.allWorkOrders.collectAsState()
 
     var selectedFilterTab by remember { mutableIntStateOf(0) }
+    var isMultiSelectMode by remember { mutableStateOf(false) }
+    val selectedIds = remember { mutableStateListOf<Int>() }
+
+    var formSelectionForWorkOrder by remember { mutableStateOf<WorkOrder?>(null) }
 
     val filteredOrders = remember(workOrders, selectedFilterTab) {
         when (selectedFilterTab) {
@@ -95,16 +104,61 @@ fun WorkOrdersListDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Action Bar: Add New Work Order Button
-                Button(
-                    onClick = onAddNewWorkOrder,
+                // Action Bar: Add New + Multi-Select Delete
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("הוסף עבודה חדשה ליומן", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Button(
+                        onClick = onAddNewWorkOrder,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("הוסף עבודה", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            isMultiSelectMode = !isMultiSelectMode
+                            if (!isMultiSelectMode) selectedIds.clear()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = if (isMultiSelectMode) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (isMultiSelectMode) Icons.Default.Checklist else Icons.Default.SelectAll,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(if (isMultiSelectMode) "בטל בחירה" else "בחירה מרובה", fontSize = 12.sp)
+                    }
+                }
+
+                // Batch Delete Bar if items are selected
+                if (isMultiSelectMode && selectedIds.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            val itemsToDelete = workOrders.filter { selectedIds.contains(it.id) }
+                            itemsToDelete.forEach { viewModel.deleteWorkOrder(it) }
+                            Toast.makeText(context, "נמחקו ${selectedIds.size} משימות מהיומן", Toast.LENGTH_SHORT).show()
+                            selectedIds.clear()
+                            isMultiSelectMode = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("מחק ${selectedIds.size} משימות שנבחרו", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -127,7 +181,7 @@ fun WorkOrdersListDialog(
                     Tab(
                         selected = selectedFilterTab == 1,
                         onClick = { selectedFilterTab = 1 },
-                        text = { Text("ממתין לביצוע", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                        text = { Text("ממתין", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                     )
                     Tab(
                         selected = selectedFilterTab == 2,
@@ -174,14 +228,25 @@ fun WorkOrdersListDialog(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(filteredOrders, key = { it.id }) { item ->
+                            val isSelected = selectedIds.contains(item.id)
+
                             WorkOrderItemCard(
                                 item = item,
+                                isMultiSelectMode = isMultiSelectMode,
+                                isSelected = isSelected,
+                                onSelectToggle = {
+                                    if (isSelected) selectedIds.remove(item.id)
+                                    else selectedIds.add(item.id)
+                                },
                                 onStatusChange = { newStatus ->
-                                    if (newStatus == WorkOrder.STATUS_RESCHEDULED) {
+                                    if (newStatus == WorkOrder.STATUS_CANCELED) {
+                                        viewModel.deleteWorkOrder(item)
+                                        Toast.makeText(context, "המשימה בוטלה ונמחקה מהיומן", Toast.LENGTH_SHORT).show()
+                                    } else if (newStatus == WorkOrder.STATUS_RESCHEDULED) {
                                         onEditWorkOrder(item)
                                     } else {
                                         viewModel.updateWorkOrder(item.copy(status = newStatus))
-                                        Toast.makeText(context, "סטטוס העבודה עודכן", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "סטטוס העבודה עודכן ל-בוצע ✅", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 onToggleMute = {
@@ -198,6 +263,9 @@ fun WorkOrdersListDialog(
                                 },
                                 onEdit = {
                                     onEditWorkOrder(item)
+                                },
+                                onGenerateReportClick = {
+                                    formSelectionForWorkOrder = item
                                 }
                             )
                         }
@@ -206,18 +274,120 @@ fun WorkOrdersListDialog(
             }
         }
     }
+
+    // Form Selection Modal Dialog for Pre-Filling
+    formSelectionForWorkOrder?.let { workOrder ->
+        AlertDialog(
+            onDismissRequest = { formSelectionForWorkOrder = null },
+            icon = { Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp)) },
+            title = {
+                Text(
+                    "הפקת דוח חדש מהמשימה",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "פרטי הלקוח והכתובת יתווספו אוטומטית לדוח שתבחר:",
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Option 1: Normative Form 158
+                    Button(
+                        onClick = {
+                            val nextPartnerNum = viewModel.getNextPartnerNumber()
+                            val prefilled = createPrefilledGasForm(workOrder, nextPartnerNum)
+                            formSelectionForWorkOrder = null
+                            onDismiss()
+                            onGenerateNormativeForm(prefilled)
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("1. טופס נורמטיבי (158)", fontWeight = FontWeight.Bold)
+                    }
+
+                    // Option 2: Periodic Form D-1
+                    Button(
+                        onClick = {
+                            val prefilled = createPrefilledPeriodicForm(workOrder)
+                            formSelectionForWorkOrder = null
+                            onDismiss()
+                            onGeneratePeriodicForm(prefilled)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("2. דוח בדיקה תקופתית (ד-1)", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { formSelectionForWorkOrder = null }) {
+                    Text("ביטול", color = Color.Gray)
+                }
+            }
+        )
+    }
+}
+
+private fun createPrefilledGasForm(workOrder: WorkOrder, nextPartnerNum: String): GasForm {
+    val addressParts = workOrder.location.split(",", "-").map { it.trim() }
+    val city = if (addressParts.isNotEmpty()) addressParts[0] else ""
+    val street = if (addressParts.size > 1) addressParts[1] else ""
+
+    return GasForm(
+        partnerNumber = nextPartnerNum,
+        clientPhone = workOrder.clientPhone,
+        clientCity = city,
+        clientStreet = street,
+        clientName = if (workOrder.jobDescription.isNotBlank()) workOrder.jobDescription else "לקוח $city",
+        executionRemarks = "הוזמן מיומן עבודה: ${workOrder.jobDescription} | מחיר: ${workOrder.quotedPrice} ₪"
+    )
+}
+
+private fun createPrefilledPeriodicForm(workOrder: WorkOrder): PeriodicGasForm {
+    val addressParts = workOrder.location.split(",", "-").map { it.trim() }
+    val city = if (addressParts.isNotEmpty()) addressParts[0] else ""
+    val street = if (addressParts.size > 1) addressParts[1] else ""
+
+    return PeriodicGasForm(
+        clientPhone = workOrder.clientPhone,
+        city = city,
+        street = street,
+        clientName = if (workOrder.jobDescription.isNotBlank()) workOrder.jobDescription else "לקוח $city",
+        executionRemarks = "הוזמן מיומן עבודה: ${workOrder.jobDescription} | מחיר: ${workOrder.quotedPrice} ₪"
+    )
 }
 
 @Composable
 private fun WorkOrderItemCard(
     item: WorkOrder,
+    isMultiSelectMode: Boolean,
+    isSelected: Boolean,
+    onSelectToggle: () -> Unit,
     onStatusChange: (String) -> Unit,
     onToggleMute: () -> Unit,
     onExportCalendar: () -> Unit,
     onDelete: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onGenerateReportClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val isCompleted = item.status == WorkOrder.STATUS_COMPLETED
 
     val statusBg = when (item.status) {
         WorkOrder.STATUS_COMPLETED -> Color(0xFFE8F5E9)
@@ -234,42 +404,71 @@ private fun WorkOrderItemCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                if (isMultiSelectMode) onSelectToggle() else onEdit()
+            },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = statusBg),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Header: Date, Time & Status
+            // Header: Checkbox (if multi-select), Green V Checkmark (if completed), Date & Time
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarToday,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    if (isMultiSelectMode) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { onSelectToggle() },
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
+                    if (isCompleted) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "בוצע",
+                            tint = Color(0xFF2E7D32),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+
                     Text(
                         text = "${item.targetDate} בשעה ${item.targetTime}",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        color = if (isCompleted) Color(0xFF1B5E20) else MaterialTheme.colorScheme.onSurface
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                 ) {
                     Text(
                         text = statusText,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = if (isCompleted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -366,10 +565,24 @@ private fun WorkOrderItemCard(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
+
+            // Generate Report Button for Technician
+            OutlinedButton(
+                onClick = onGenerateReportClick,
+                modifier = Modifier.fillMaxWidth().height(34.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("הפק דוח ללקוח 📄 (עם פרטים אוטומטיים)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Action Buttons: Status Updates ("בוצע", "בוטל", "תואם ליום אחר") & Controls
+            // Action Buttons: Status Updates ("בוצע", "בוטל", "תואם מחדש") & Controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -383,7 +596,7 @@ private fun WorkOrderItemCard(
                         modifier = Modifier.height(28.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
                     ) {
-                        Text("בוצע", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("בוצע ✅", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -404,7 +617,7 @@ private fun WorkOrderItemCard(
                     }
                 }
 
-                // Control icons (Mute, Export to Native Calendar, Edit, Delete)
+                // Control icons (Mute, Export to Native Calendar, Edit, Delete Trash icon)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = onToggleMute,
@@ -448,9 +661,9 @@ private fun WorkOrderItemCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "מחק",
+                            contentDescription = "מחק מודעה",
                             tint = Color(0xFFD32F2F),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
