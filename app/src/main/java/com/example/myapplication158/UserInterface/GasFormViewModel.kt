@@ -15,6 +15,7 @@ import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.data.isNotEmptyOrBlank
 import com.example.myapplication158.util.PdfGenerator
+import com.example.myapplication158.util.SupabaseManager
 import com.example.myapplication158.util.WorkOrderReminderManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +33,7 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     private val periodicGasFormDao = AppDatabase.getDatabase(application).periodicGasFormDao()
     private val workOrderDao = AppDatabase.getDatabase(application).workOrderDao()
     private val workOrderReminderManager = WorkOrderReminderManager(application)
+    private val supabaseManager = SupabaseManager(application)
 
     // --- 1. זרמי נתונים (StateFlows) לטפסים נורמטיביים ---
     val allForms: StateFlow<List<GasForm>> = gasFormDao.getAllForms()
@@ -69,6 +71,11 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
             }
             val updatedOrder = workOrder.copy(id = id)
             workOrderReminderManager.scheduleReminders(updatedOrder)
+            try {
+                supabaseManager.syncWorkOrderToCloud(updatedOrder)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             withContext(Dispatchers.Main) { onComplete?.invoke() }
         }
     }
@@ -77,6 +84,11 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             workOrderDao.updateWorkOrder(workOrder)
             workOrderReminderManager.scheduleReminders(workOrder)
+            try {
+                supabaseManager.syncWorkOrderToCloud(workOrder)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

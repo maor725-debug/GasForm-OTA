@@ -43,6 +43,7 @@ import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.SignaturePad
 import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
 import com.example.myapplication158.util.SettingsManager
+import com.example.myapplication158.util.SupabaseManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -272,6 +273,10 @@ fun SettingsDialog(
                                         }
                                     }
                                 }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                SupabaseCloudCard(context = context, cardBg = cardBg, primaryColor = primaryColor, textWhite = textWhite, textGray = textGray)
                             }
                             2 -> {
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
@@ -393,6 +398,60 @@ fun SettingsDialog(
                         Text("שמירת הגדרות וסגירה", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SupabaseCloudCard(
+    context: Context,
+    cardBg: Color,
+    primaryColor: Color,
+    textWhite: Color,
+    textGray: Color
+) {
+    val supabaseManager = remember { SupabaseManager(context) }
+    var statusText by remember { mutableStateOf<String?>(null) }
+    var isChecking by remember { mutableStateOf(false) }
+
+    Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.CloudSync, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("סנכרון ענן Supabase Cloud", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text("כתובת הפרויקט: https://ztwqnsnzyfkawxhpgjme.supabase.co", fontSize = 11.sp, color = textGray)
+
+            if (statusText != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(statusText!!, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = primaryColor)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    isChecking = true
+                    statusText = "בודק חיבור ל-Supabase Cloud..."
+                    supabaseManager.testConnection { success, message ->
+                        isChecking = false
+                        statusText = message
+                    }
+                },
+                enabled = !isChecking,
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)
+            ) {
+                if (isChecking) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text("בדוק חיבור ל-Supabase Cloud ☁️", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         }
     }
