@@ -7,10 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [GasForm::class, PeriodicGasForm::class], version = 18, exportSchema = false)
+@Database(entities = [GasForm::class, PeriodicGasForm::class, WorkOrder::class], version = 19, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gasFormDao(): GasFormDao
-    abstract fun periodicGasFormDao(): PeriodicGasFormDao // הגישה לטפסים החדשים
+    abstract fun periodicGasFormDao(): PeriodicGasFormDao
+    abstract fun workOrderDao(): WorkOrderDao
 
     companion object {
         @Volatile
@@ -111,6 +112,25 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `work_orders` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `targetDate` TEXT NOT NULL,
+                        `targetTime` TEXT NOT NULL,
+                        `location` TEXT NOT NULL,
+                        `clientPhone` TEXT NOT NULL,
+                        `jobDescription` TEXT NOT NULL,
+                        `quotedPrice` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `isMuted` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -118,7 +138,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gas_forms_database"
                 )
-                    .addMigrations(MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
+                    .addMigrations(MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

@@ -1,6 +1,7 @@
 package com.example.myapplication158.UserInterface.screens
 
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.BorderStroke
@@ -9,9 +10,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,10 +35,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.data.PeriodicGasForm
+import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.FinancialReportDialog
 import com.example.myapplication158.UserInterface.components.FormListItemAiStyle
 import com.example.myapplication158.UserInterface.components.PricingDialog
+import com.example.myapplication158.UserInterface.components.WorkOrderDialog
+import com.example.myapplication158.UserInterface.components.WorkOrdersListDialog
 import com.example.myapplication158.util.SettingsManager
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -74,6 +80,10 @@ fun FormListScreen(
     var showReportDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var settingsInitialTab by remember { mutableIntStateOf(0) }
+
+    var showWorkOrdersListDialog by remember { mutableStateOf(false) }
+    var showWorkOrderCreateDialog by remember { mutableStateOf(false) }
+    var editingWorkOrder by remember { mutableStateOf<WorkOrder?>(null) }
 
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
@@ -210,8 +220,9 @@ fun FormListScreen(
             },
             modifier = modifier.fillMaxSize()
         ) { innerPadding ->
-            Column(modifier = Modifier.fillMaxSize().padding(innerPadding).background(aiBgColor)) {
-                Spacer(modifier = Modifier.height(10.dp))
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxSize().padding(innerPadding).background(aiBgColor)) {
+                    Spacer(modifier = Modifier.height(10.dp))
                 OutlinedTextField(
                     value = searchQuery, onValueChange = { searchQuery = it },
                     placeholder = { Text("חפש לפי שם לקוח, ישוב, מס' טופס...", textAlign = TextAlign.Right, fontSize = 12.sp) },
@@ -285,7 +296,25 @@ fun FormListScreen(
                 }
             }
 
-            if (!isSetupComplete && !suppressOnboarding) {
+            // Work Log FAB on Bottom Right (BottomStart in RTL layout)
+            FloatingActionButton(
+                onClick = { showWorkOrdersListDialog = true },
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = Color.White,
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 16.dp, bottom = 24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EditCalendar,
+                    contentDescription = "יומן עבודה",
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
+
+        if (!isSetupComplete && !suppressOnboarding) {
                 AlertDialog(
                     onDismissRequest = { /* לא ניתן לסגור בלחיצה בחוץ */ },
                     properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
@@ -338,6 +367,40 @@ fun FormListScreen(
             if (showSettingsDialog) {
                 val act = LocalActivity.current
                 SettingsDialog(onDismissRequest = { showSettingsDialog = false; settingsInitialTab = 0 }, onDismiss = { showSettingsDialog = false; settingsInitialTab = 0 }, onAppThemeChange = { act?.recreate() }, viewModel = viewModel, initialCategoryIndex = settingsInitialTab)
+            }
+
+            // Dialog: Work Orders List (יומן עבודות)
+            if (showWorkOrdersListDialog) {
+                WorkOrdersListDialog(
+                    viewModel = viewModel,
+                    onDismiss = { showWorkOrdersListDialog = false },
+                    onAddNewWorkOrder = {
+                        editingWorkOrder = null
+                        showWorkOrderCreateDialog = true
+                    },
+                    onEditWorkOrder = { item ->
+                        editingWorkOrder = item
+                        showWorkOrderCreateDialog = true
+                    }
+                )
+            }
+
+            // Dialog: Work Order Create / Edit Form
+            if (showWorkOrderCreateDialog) {
+                WorkOrderDialog(
+                    initialWorkOrder = editingWorkOrder,
+                    onDismiss = {
+                        showWorkOrderCreateDialog = false
+                        editingWorkOrder = null
+                    },
+                    onSave = { order ->
+                        viewModel.saveWorkOrder(order) {
+                            showWorkOrderCreateDialog = false
+                            editingWorkOrder = null
+                            Toast.makeText(context, "העבודה נשמרה בהצלחה ביומן", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
             }
         }
     }

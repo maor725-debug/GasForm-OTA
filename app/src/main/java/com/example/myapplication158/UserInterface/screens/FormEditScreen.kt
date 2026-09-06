@@ -55,6 +55,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
+import com.example.myapplication158.util.NavigationUtils
 import com.example.myapplication158.UserInterface.components.FormCard
 import com.example.myapplication158.UserInterface.components.CheckboxWithLabel
 import com.example.myapplication158.data.GasForm
@@ -366,6 +367,20 @@ fun FormEditScreen(
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 OutlinedTextField(value = street, onValueChange = { street = it; saveToDatabase() }, label = { Text("רחוב") }, modifier = Modifier.weight(2f), colors = textFieldColors)
                                 OutlinedTextField(value = apartment, onValueChange = { apartment = it; saveToDatabase() }, label = { Text("בניין/דירה") }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                            }
+
+                            if (city.isNotBlank() || street.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = { NavigationUtils.navigateToAddress(context, "$city $street $apartment") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0288D1)),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("נווט לכתובת ב-Waze", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
                             }
                         }
                     }

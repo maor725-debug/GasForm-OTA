@@ -12,8 +12,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.myapplication158.data.AppDatabase
 import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.data.PeriodicGasForm
+import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.data.isNotEmptyOrBlank
 import com.example.myapplication158.util.PdfGenerator
+import com.example.myapplication158.util.WorkOrderReminderManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,8 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     // חיבור לשני מסדי הנתונים בנפרד
     private val gasFormDao = AppDatabase.getDatabase(application).gasFormDao()
     private val periodicGasFormDao = AppDatabase.getDatabase(application).periodicGasFormDao()
+    private val workOrderDao = AppDatabase.getDatabase(application).workOrderDao()
+    private val workOrderReminderManager = WorkOrderReminderManager(application)
 
     // --- 1. זרמי נתונים (StateFlows) לטפסים נורמטיביים ---
     val allForms: StateFlow<List<GasForm>> = gasFormDao.getAllForms()
@@ -46,6 +50,51 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
             initialValue = emptyList()
         )
     val currentPeriodicForm = MutableStateFlow<PeriodicGasForm?>(null)
+
+    // --- 3. זרמי נתונים וניהול יומן עבודה ---
+    val allWorkOrders: StateFlow<List<WorkOrder>> = workOrderDao.getAllWorkOrders()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun saveWorkOrder(workOrder: WorkOrder, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val id = if (workOrder.id == 0) {
+                workOrderDao.insertWorkOrder(workOrder).toInt()
+            } else {
+                workOrderDao.updateWorkOrder(workOrder)
+                workOrder.id
+            }
+            val updatedOrder = workOrder.copy(id = id)
+            workOrderReminderManager.scheduleReminders(updatedOrder)
+            withContext(Dispatchers.Main) { onComplete?.invoke() }
+        }
+    }
+
+    fun updateWorkOrder(workOrder: WorkOrder) {
+        viewModelScope.launch(Dispatchers.IO) {
+            workOrderDao.updateWorkOrder(workOrder)
+            workOrderReminderManager.scheduleReminders(workOrder)
+        }
+    }
+
+    fun deleteWorkOrder(workOrder: WorkOrder) {
+        viewModelScope.launch(Dispatchers.IO) {
+            workOrderDao.deleteWorkOrder(workOrder)
+            workOrderReminderManager.cancelReminders(workOrder.id)
+        }
+    }
+
+    fun toggleMuteWorkOrder(workOrder: WorkOrder) {
+        val updated = workOrder.copy(isMuted = !workOrder.isMuted)
+        updateWorkOrder(updated)
+    }
+
+    fun addToNativeCalendar(workOrder: WorkOrder) {
+        workOrderReminderManager.addToNativeCalendar(workOrder)
+    }
 
     init {
         // מנקה אוטומטית טפסים ריקים (נורמטיבי)

@@ -17,7 +17,7 @@ class SettingsManager(context: Context) {
         set(value) = prefs.edit().putString(KEY_TEXT_SIZE_LEVEL, value).apply()
 
     var isDarkMode: Boolean
-        get() = prefs.getBoolean(KEY_IS_DARK_MODE, true)
+        get() = prefs.getBoolean(KEY_IS_DARK_MODE, false)
         set(value) = prefs.edit().putBoolean(KEY_IS_DARK_MODE, value).apply()
 
     var pinCode: String?
