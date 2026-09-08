@@ -25,6 +25,7 @@ import com.example.myapplication158.UserInterface.screens.FormEditScreen
 import com.example.myapplication158.UserInterface.screens.FormListScreen
 import com.example.myapplication158.UserInterface.screens.OnboardingScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreen
+import com.example.myapplication158.UserInterface.screens.LoginScreen // הוספנו את הייבוא של מסך ההתחברות
 import com.example.myapplication158.util.OtaUpdateManager
 import com.example.myapplication158.util.SettingsManager
 import com.example.myapplication158.util.UpdateInfo
@@ -134,6 +135,7 @@ fun AppRoot() {
 }
 
 sealed class Screen {
+    object Login : Screen() // הוספנו את מצב מסך ההתחברות למערכת הניווט
     object Onboarding : Screen()
     object List : Screen()
     data class Edit(val form: GasForm) : Screen()
@@ -148,20 +150,27 @@ fun MainNavigation() {
 
     val isOnboardingComplete = remember {
         settingsManager.contractorHeader.isNotBlank() &&
-        !settingsManager.savedSignatureUri.isNullOrBlank() &&
-        settingsManager.defaultTechnicianName.isNotBlank() &&
-        settingsManager.currentFormNumber > 0
+                !settingsManager.savedSignatureUri.isNullOrBlank() &&
+                settingsManager.defaultTechnicianName.isNotBlank() &&
+                settingsManager.currentFormNumber > 0
     }
 
-    var currentScreen by remember {
-        mutableStateOf<Screen>(if (!isOnboardingComplete) Screen.Onboarding else Screen.List)
-    }
+    // הגדרנו שהאפליקציה תמיד תתחיל ממסך ההתחברות!
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Login) }
 
     // מצב ששולט בהצגת חלון הבחירה לטפסים נוספים
     var showFormTypeDialog by remember { mutableStateOf(false) }
 
     Crossfade(targetState = currentScreen, label = "screen_transition") { screen ->
         when (screen) {
+            is Screen.Login -> {
+                // מסך ההתחברות מפעיל את הפונקציה הזו ברגע שההתחברות/בדיקת הרישיון עברה בהצלחה
+                LoginScreen(
+                    onLoginSuccess = {
+                        currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List
+                    }
+                )
+            }
             is Screen.Onboarding -> {
                 OnboardingScreen(
                     onCompleteOnboarding = {
