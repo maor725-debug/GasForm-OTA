@@ -63,7 +63,9 @@ fun WorkOrderDialog(
         { _, hourOfDay, minute ->
             targetTime = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute)
         },
-        10, 0, true
+        targetTime.substringBefore(":").toIntOrNull() ?: 10,
+        targetTime.substringAfter(":").toIntOrNull() ?: 0,
+        true
     )
 
     Dialog(

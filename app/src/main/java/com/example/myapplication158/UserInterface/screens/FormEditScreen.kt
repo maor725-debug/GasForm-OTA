@@ -371,16 +371,6 @@ fun FormEditScreen(
 
                             if (city.isNotBlank() || street.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Button(
-                                    onClick = { NavigationUtils.navigateToAddress(context, "$city $street $apartment") },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0288D1)),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(36.dp)
-                                ) {
-                                    Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("נווט לכתובת ב-Waze", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
                             }
                         }
                     }
