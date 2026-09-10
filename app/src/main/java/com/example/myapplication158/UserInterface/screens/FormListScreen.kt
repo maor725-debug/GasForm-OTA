@@ -178,7 +178,7 @@ fun FormListScreen(
             topBar = {
                 Surface(color = aiHeaderBg, modifier = Modifier.fillMaxWidth(), shadowElevation = 4.dp) {
                     Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.clickable { settingsInitialTab = 0; showSettingsDialog = true }.size(22.dp))
                             Icon(if (isDark) Icons.Default.Brightness7 else Icons.Default.Brightness4, "מצב לילה/יום", tint = primaryColor, modifier = Modifier.size(22.dp).clickable { settingsManager.isDarkMode = !isDark; activity?.recreate() })
                             Icon(Icons.Default.BarChart, "דוחות", tint = primaryColor, modifier = Modifier.size(22.dp).clickable { showReportDialog = true })
@@ -223,100 +223,99 @@ fun FormListScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 Column(modifier = Modifier.fillMaxSize().padding(innerPadding).background(aiBgColor)) {
                     Spacer(modifier = Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = searchQuery, onValueChange = { searchQuery = it },
-                    placeholder = { Text("חפש לפי שם לקוח, ישוב, מס' טופס...", textAlign = TextAlign.Right, fontSize = 12.sp) },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = aiTextGray, modifier = Modifier.size(20.dp)) },
-                    trailingIcon = { if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, null, tint = aiTextGray, modifier = Modifier.size(20.dp)) } },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(24.dp), singleLine = true, textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = aiCardBg, unfocusedContainerColor = aiCardBg, focusedBorderColor = primaryColor, unfocusedBorderColor = aiBorderColor, focusedTextColor = aiTextColor, unfocusedTextColor = aiTextColor, cursorColor = primaryColor)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = aiStatTotalBg), shape = RoundedCornerShape(10.dp)) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-                            Text("סה\"כ טפסים", color = statLabelColor, fontSize = 11.sp); Spacer(Modifier.height(2.dp))
-                            Text(combinedForms.size.toString(), color = aiTextColor, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = aiStatMonthBg), shape = RoundedCornerShape(10.dp)) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-                            Text("טפסים החודש", color = statLabelColor, fontSize = 11.sp); Spacer(Modifier.height(2.dp))
-                            Text(totalThisMonth.toString(), color = aiTextColor, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    Text("מסמכים שמורים (${filteredForms.size})", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(Icons.Default.Description, null, tint = primaryColor, modifier = Modifier.size(14.dp))
-                }
-
-                if (filteredForms.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Icon(Icons.Default.Description, null, tint = aiBorderColor, modifier = Modifier.size(48.dp)); Spacer(Modifier.height(12.dp))
-                            Text("אין טפסים להצגה", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = aiTextColor)
-                        }
-                    }
-                    Text(
-                        text = "פותח ע\"י מאור מנחם ©",
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-                        textAlign = TextAlign.Center,
-                        fontSize = 11.sp,
-                        color = aiTextGray
+                    OutlinedTextField(
+                        value = searchQuery, onValueChange = { searchQuery = it },
+                        placeholder = { Text("חפש לפי שם לקוח, ישוב, מס' טופס...", textAlign = TextAlign.Right, fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Default.Search, null, tint = aiTextGray, modifier = Modifier.size(20.dp)) },
+                        trailingIcon = { if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, null, tint = aiTextGray, modifier = Modifier.size(20.dp)) } },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(24.dp), singleLine = true, textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
+                        colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = aiCardBg, unfocusedContainerColor = aiCardBg, focusedBorderColor = primaryColor, unfocusedBorderColor = aiBorderColor, focusedTextColor = aiTextColor, unfocusedTextColor = aiTextColor, cursorColor = primaryColor)
                     )
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(bottom = 80.dp, top = 4.dp)) {
-                        items(filteredForms) { form ->
-                            when (form) {
-                                is GasForm -> {
-                                    FormListItemAiStyle(form = form, onEdit = { onEditForm(form) }, onPreview = { viewModel.previewPdf(context, form) }, onShare = { viewModel.sharePdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, onPricingClick = { showPricingDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = primaryColor, aiBorderColor = aiBorderColor)
-                                }
-                                is PeriodicGasForm -> {
-                                    PeriodicFormListItemAiStyle(form = form, onEdit = { onEditPeriodicForm(form) }, onPreview = { viewModel.previewPeriodicPdf(context, form) }, onShare = { viewModel.sharePeriodicPdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = Color(0xFF4CAF50), aiBorderColor = aiBorderColor)
-                                }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = aiStatTotalBg), shape = RoundedCornerShape(10.dp)) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                                Text("סה\"כ טפסים", color = statLabelColor, fontSize = 11.sp); Spacer(Modifier.height(2.dp))
+                                Text(combinedForms.size.toString(), color = aiTextColor, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                             }
                         }
-                        item {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "פותח ע\"י מאור מנחם ©",
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center,
-                                fontSize = 11.sp,
-                                color = aiTextGray,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.height(24.dp))
+                        Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = aiStatMonthBg), shape = RoundedCornerShape(10.dp)) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                                Text("טפסים החודש", color = statLabelColor, fontSize = 11.sp); Spacer(Modifier.height(2.dp))
+                                Text(totalThisMonth.toString(), color = aiTextColor, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        Text("מסמכים שמורים (${filteredForms.size})", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Default.Description, null, tint = primaryColor, modifier = Modifier.size(14.dp))
+                    }
+
+                    if (filteredForms.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Icon(Icons.Default.Description, null, tint = aiBorderColor, modifier = Modifier.size(48.dp)); Spacer(Modifier.height(12.dp))
+                                Text("אין טפסים להצגה", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = aiTextColor)
+                            }
+                        }
+                        Text(
+                            text = "פותח ע\"י מאור מנחם ©",
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                            textAlign = TextAlign.Center,
+                            fontSize = 11.sp,
+                            color = aiTextGray
+                        )
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(bottom = 80.dp, top = 4.dp)) {
+                            items(filteredForms) { form ->
+                                when (form) {
+                                    is GasForm -> {
+                                        FormListItemAiStyle(form = form, onEdit = { onEditForm(form) }, onPreview = { viewModel.previewPdf(context, form) }, onShare = { viewModel.sharePdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, onPricingClick = { showPricingDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = primaryColor, aiBorderColor = aiBorderColor)
+                                    }
+                                    is PeriodicGasForm -> {
+                                        PeriodicFormListItemAiStyle(form = form, onEdit = { onEditPeriodicForm(form) }, onPreview = { viewModel.previewPeriodicPdf(context, form) }, onShare = { viewModel.sharePeriodicPdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = Color(0xFF4CAF50), aiBorderColor = aiBorderColor)
+                                    }
+                                }
+                            }
+                            item {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "פותח ע\"י מאור מנחם ©",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 11.sp,
+                                    color = aiTextGray,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
                         }
                     }
                 }
+
+                FloatingActionButton(
+                    onClick = { showWorkOrdersListDialog = true },
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 16.dp, bottom = 24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EditCalendar,
+                        contentDescription = "יומן עבודה",
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
 
-            // Work Log FAB on Bottom Right (BottomStart in RTL layout)
-            FloatingActionButton(
-                onClick = { showWorkOrdersListDialog = true },
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = 24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.EditCalendar,
-                    contentDescription = "יומן עבודה",
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-        }
-
-        if (!isSetupComplete && !suppressOnboarding) {
+            if (!isSetupComplete && !suppressOnboarding) {
                 AlertDialog(
-                    onDismissRequest = { /* לא ניתן לסגור בלחיצה בחוץ */ },
+                    onDismissRequest = { },
                     properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
                     containerColor = aiCardBg, titleContentColor = primaryColor, textContentColor = aiTextColor,
                     icon = { Icon(Icons.Default.Warning, null, tint = primaryColor, modifier = Modifier.size(36.dp)) },
@@ -332,7 +331,7 @@ fun FormListScreen(
                         Button(
                             onClick = {
                                 suppressOnboarding = true
-                                settingsInitialTab = 2 // שולח ישירות ללשונית "קבלן" שבה מגדירים את המספר הרץ
+                                settingsInitialTab = 2
                                 showSettingsDialog = true
                             },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -369,7 +368,6 @@ fun FormListScreen(
                 SettingsDialog(onDismissRequest = { showSettingsDialog = false; settingsInitialTab = 0 }, onDismiss = { showSettingsDialog = false; settingsInitialTab = 0 }, onAppThemeChange = { act?.recreate() }, viewModel = viewModel, initialCategoryIndex = settingsInitialTab)
             }
 
-            // Dialog: Work Orders List (יומן עבודות)
             if (showWorkOrdersListDialog) {
                 WorkOrdersListDialog(
                     viewModel = viewModel,
@@ -393,7 +391,6 @@ fun FormListScreen(
                 )
             }
 
-            // Dialog: Work Order Create / Edit Form
             if (showWorkOrderCreateDialog) {
                 WorkOrderDialog(
                     initialWorkOrder = editingWorkOrder,

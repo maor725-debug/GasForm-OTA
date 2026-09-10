@@ -6,7 +6,6 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,16 +15,35 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UserProfile(
     val id: String,
-    val status: String
+    val status: String,
+    val first_name: String? = null,
+    val last_name: String? = null,
+    val device_id: String? = null // הוספנו את המעקב אחר המכשיר!
+)
+
+@Serializable
+data class ProfileUpdate(
+    val first_name: String,
+    val last_name: String,
+    val device_id: String? = null // מאפשר שמירת המכשיר בעת ההרשמה
+)
+
+@Serializable
+data class DeviceUpdate(
+    val device_id: String
+)
+
+@Serializable
+data class TrialTracker(
+    val device_id: String,
+    val forms_created: Int
 )
 
 class SupabaseManager(private val context: Context) {
 
-    // הפונקציה שהייתה חסרה למסך ההגדרות שלך!
     fun testConnection(onResult: (Boolean, String) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // עושה בדיקת פינג קטנה לטבלת הפרופילים כדי לוודא חיבור
                 client.postgrest["profiles"].select { limit(1) }
                 withContext(Dispatchers.Main) {
                     onResult(true, "החיבור לשרת הרישיונות (Supabase) תקין ופעיל!")
@@ -49,7 +67,6 @@ class SupabaseManager(private val context: Context) {
             ) {
                 install(Postgrest)
                 install(Auth)
-                install(Storage)
             }
         }
     }

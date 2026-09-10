@@ -30,9 +30,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +45,12 @@ import com.example.myapplication158.UserInterface.components.SignaturePad
 import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
 import com.example.myapplication158.util.SettingsManager
 import com.example.myapplication158.util.SupabaseManager
+import com.example.myapplication158.util.UserProfile
+import com.example.myapplication158.util.ProfileUpdate
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +65,11 @@ fun SettingsDialog(
     val settingsManager = remember { SettingsManager(context) }
     val prefs = context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
 
+    val appSecurityPrefs = remember { context.getSharedPreferences("app_security_prefs", Context.MODE_PRIVATE) }
+    var isLicensed by remember { mutableStateOf(appSecurityPrefs.getBoolean("is_licensed_user", false)) }
+    val trialFormsCount by remember { mutableIntStateOf(appSecurityPrefs.getInt("trial_forms_count", 0)) }
+    var showRegistrationDialog by remember { mutableStateOf(false) }
+
     val isDark = settingsManager.isDarkMode
     val darkBg = if (isDark) Color(0xFF0D0D0D) else Color(0xFFF4F6F8)
     val cardBg = if (isDark) Color(0xFF1A1A1A) else Color(0xFFFFFFFF)
@@ -68,6 +80,10 @@ fun SettingsDialog(
     val borderColor = if (isDark) Color.DarkGray else Color.LightGray
     val selectedSurfaceBg = if (isDark) Color(0xFF2A2A2A) else Color(0xFFE3F2FD)
     val unselectedSurfaceBg = if (isDark) Color(0xFF1E1E1E) else Color(0xFFF5F5F5)
+
+    val warningBg = if (isDark) Color(0xFF4E342E) else Color(0xFFFFF3E0)
+    val warningIcon = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
+    val warningText = if (isDark) Color(0xFFFFE0B2) else Color(0xFFEF6C00)
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = primaryColor,
@@ -98,7 +114,6 @@ fun SettingsDialog(
 
     var isCheckingUpdate by remember { mutableStateOf(false) }
     var updateCheckResult by remember { mutableStateOf<String?>(null) }
-    var autoUpdateCheck by remember { mutableStateOf(prefs.getBoolean("auto_update", true)) }
 
     val categories = listOf(
         Triple("עיצוב", Icons.Default.Palette, 0),
@@ -339,11 +354,41 @@ fun SettingsDialog(
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Text("המנוי שלי \uD83D\uDC51", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = primaryColor, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                                         Spacer(modifier = Modifier.height(16.dp))
-                                        Surface(color = Color(0xFF1B5E20), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Default.Verified, null, tint = Color.White, modifier = Modifier.size(32.dp))
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Column { Text("מנוי פעיל ללא הגבלה", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White); Text("מאושר לשימוש מלא ללא הגבלת זמן!", style = MaterialTheme.typography.bodySmall, color = Color(0xFFA5D6A7), fontSize = 11.sp) }
+
+                                        if (isLicensed) {
+                                            Surface(color = Color(0xFF1B5E20), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(Icons.Default.Verified, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Column {
+                                                        Text("משתמש רשום במערכת", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                                                        Text("תקופת הניסיון בוטלה לצמיתות. המערכת פתוחה לשימוש מלא.", style = MaterialTheme.typography.bodySmall, color = Color(0xFFA5D6A7), fontSize = 11.sp)
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            val formsLeft = 30 - trialFormsCount
+                                            val displayFormsLeft = if (formsLeft < 0) 0 else formsLeft
+
+                                            Surface(color = warningBg, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(Icons.Default.Info, null, tint = warningIcon, modifier = Modifier.size(32.dp))
+                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Column {
+                                                        Text("סטטוס: חשבון ניסיון", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = warningIcon)
+                                                        Text("נותרו לך $displayFormsLeft טפסים ליצירה (מתוך 30)", style = MaterialTheme.typography.bodySmall, color = warningText, fontSize = 12.sp)
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(24.dp))
+
+                                            Button(
+                                                onClick = { showRegistrationDialog = true },
+                                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)
+                                            ) {
+                                                Text("התחבר / הרשם להסרת הגבלות", fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -400,6 +445,18 @@ fun SettingsDialog(
                 }
             }
         }
+
+        if (showRegistrationDialog) {
+            SettingsAuthDialog(
+                onDismiss = { showRegistrationDialog = false },
+                onSuccess = {
+                    isLicensed = true
+                    appSecurityPrefs.edit().putBoolean("is_licensed_user", true).apply()
+                    showRegistrationDialog = false
+                    Toast.makeText(context, "נרשמת למערכת בהצלחה! ההגבלה הוסרה.", Toast.LENGTH_LONG).show()
+                }
+            )
+        }
     }
 }
 
@@ -452,6 +509,175 @@ private fun SupabaseCloudCard(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text("בדוק חיבור ל-Supabase Cloud ☁️", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsAuthDialog(
+    onDismiss: () -> Unit,
+    onSuccess: () -> Unit
+) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("login_prefs", Context.MODE_PRIVATE) }
+    var isSignUpMode by remember { mutableStateOf(false) }
+
+    // שולף את המזהה הייחודי של המכשיר - מניעת רמאות
+    val androidId = remember { android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE" }
+
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf(prefs.getString("email", "") ?: "") }
+    var password by remember { mutableStateOf(prefs.getString("password", "") ?: "") }
+    var rememberMe by remember { mutableStateOf(prefs.getBoolean("remember_me", false)) }
+
+    var passwordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(0.9f).padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(24.dp).verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (isSignUpMode) "הרשמה למערכת" else "התחברות למערכת",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                if (isSignUpMode) {
+                    OutlinedTextField(
+                        value = firstName, onValueChange = { firstName = it },
+                        label = { Text("שם פרטי") }, modifier = Modifier.fillMaxWidth(), singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = lastName, onValueChange = { lastName = it },
+                        label = { Text("שם משפחה") }, modifier = Modifier.fillMaxWidth(), singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                OutlinedTextField(
+                    value = email, onValueChange = { email = it },
+                    label = { Text("אימייל") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    textStyle = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = password, onValueChange = { password = it },
+                    label = { Text("סיסמה (לפחות 6 תווים)") },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End
+                ) {
+                    Text("שמור פרטי התחברות", fontSize = 14.sp)
+                    Checkbox(checked = rememberMe, onCheckedChange = { rememberMe = it })
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (isLoading) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                } else {
+                    Button(
+                        onClick = {
+                            if (email.isBlank() || password.isBlank() || (isSignUpMode && (firstName.isBlank() || lastName.isBlank()))) {
+                                errorMessage = "נא למלא את כל השדות"
+                                return@Button
+                            }
+                            if (password.length < 6) {
+                                errorMessage = "הסיסמה חייבת להכיל לפחות 6 תווים"
+                                return@Button
+                            }
+                            scope.launch {
+                                isLoading = true; errorMessage = null
+                                try {
+                                    if (isSignUpMode) {
+                                        SupabaseManager.client.auth.signUpWith(Email) { this.email = email.trim(); this.password = password }
+                                        val user = SupabaseManager.client.auth.currentUserOrNull()
+                                        if (user != null) {
+                                            SupabaseManager.client.postgrest["profiles"].update(ProfileUpdate(first_name = firstName.trim(), last_name = lastName.trim(), device_id = androidId)) { filter { eq("id", user.id) } }
+                                            val profile = SupabaseManager.client.postgrest["profiles"].select { filter { eq("id", user.id) } }.decodeSingleOrNull<UserProfile>()
+
+                                            if (profile?.status == "active") {
+                                                if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).putString("password", password).apply()
+                                                else prefs.edit().clear().apply()
+                                                onSuccess()
+                                            } else errorMessage = "הרישיון אינו פעיל."
+                                        } else errorMessage = "שגיאה ביצירת המשתמש."
+                                    } else {
+                                        SupabaseManager.client.auth.signInWith(Email) { this.email = email.trim(); this.password = password }
+                                        val user = SupabaseManager.client.auth.currentUserOrNull()
+                                        if (user != null) {
+                                            val profile = SupabaseManager.client.postgrest["profiles"].select { filter { eq("id", user.id) } }.decodeSingleOrNull<UserProfile>()
+
+                                            if (profile != null && profile.status == "active") {
+                                                if (profile.device_id.isNullOrEmpty()) {
+                                                    SupabaseManager.client.postgrest["profiles"].update(com.example.myapplication158.util.DeviceUpdate(device_id = androidId)) { filter { eq("id", user.id) } }
+                                                    if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).putString("password", password).apply()
+                                                    else prefs.edit().clear().apply()
+                                                    onSuccess()
+                                                } else if (profile.device_id == androidId) {
+                                                    if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).putString("password", password).apply()
+                                                    else prefs.edit().clear().apply()
+                                                    onSuccess()
+                                                } else {
+                                                    SupabaseManager.client.auth.signOut()
+                                                    errorMessage = "חשבון זה משויך למכשיר אחר. אנא פנה להנהלה."
+                                                }
+                                            } else {
+                                                errorMessage = "הרישיון שלך אינו פעיל."
+                                            }
+                                        } else errorMessage = "שגיאה בזיהוי המשתמש."
+                                    }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    errorMessage = "שגיאה: ${e.message ?: "לא ידועה"}"
+                                } finally { isLoading = false }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(if (isSignUpMode) "הרשם" else "התחבר", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { isSignUpMode = !isSignUpMode; errorMessage = null }) {
+                    Text(if (isSignUpMode) "יש לך כבר חשבון? התחבר" else "אין לך חשבון? הירשם כאן")
+                }
+
+                errorMessage?.let {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(text = it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = onDismiss) { Text("ביטול", color = Color.Gray) }
             }
         }
     }

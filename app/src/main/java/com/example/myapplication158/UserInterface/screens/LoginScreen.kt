@@ -2,8 +2,10 @@ package com.example.myapplication158.UserInterface.screens
 
 import android.content.Context
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.myapplication158.util.SupabaseManager
 import com.example.myapplication158.util.UserProfile
+import com.example.myapplication158.util.ProfileUpdate
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
@@ -32,7 +35,10 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("login_prefs", Context.MODE_PRIVATE) }
 
-    // משיכת הפרטים השמורים (אם ישנם)
+    var isSignUpMode by remember { mutableStateOf(false) } // שולט אם אנחנו בהתחברות או הרשמה
+
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf(prefs.getString("email", "") ?: "") }
     var password by remember { mutableStateOf(prefs.getString("password", "") ?: "") }
     var rememberMe by remember { mutableStateOf(prefs.getBoolean("remember_me", false)) }
@@ -42,47 +48,87 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    // פונקציית ההתחברות (הוצאנו אותה החוצה כדי שנוכל להפעיל אותה גם אוטומטית)
-    val performLogin: () -> Unit = {
-        if (email.isBlank() || password.isBlank()) {
-            errorMessage = "נא להזין אימייל וסיסמה"
+    val performAction: () -> Unit = {
+        if (email.isBlank() || password.isBlank() || (isSignUpMode && (firstName.isBlank() || lastName.isBlank()))) {
+            errorMessage = "נא למלא את כל השדות"
         } else {
             scope.launch {
                 isLoading = true
                 errorMessage = null
                 try {
-                    SupabaseManager.client.auth.signInWith(Email) {
-                        this.email = email.trim()
-                        this.password = password
-                    }
+                    if (isSignUpMode) {
+                        // תהליך הרשמה
+                        SupabaseManager.client.auth.signUpWith(Email) {
+                            this.email = email.trim()
+                            this.password = password
+                        }
 
-                    val user = SupabaseManager.client.auth.currentUserOrNull()
-                    if (user != null) {
-                        val profile = SupabaseManager.client.postgrest["profiles"]
-                            .select { filter { eq("id", user.id) } }
-                            .decodeSingleOrNull<UserProfile>()
+                        val user = SupabaseManager.client.auth.currentUserOrNull()
+                        if (user != null) {
+                            // מעדכנים את השמות בטבלה
+                            val profileUpdate = ProfileUpdate(
+                                first_name = firstName.trim(),
+                                last_name = lastName.trim()
+                            )
+                            SupabaseManager.client.postgrest["profiles"]
+                                .update(profileUpdate) { filter { eq("id", user.id) } }
 
-                        if (profile?.status == "active") {
-                            // שומרים או מוחקים את הפרטים בזיכרון המכשיר לפי בחירת המשתמש
-                            if (rememberMe) {
-                                prefs.edit()
-                                    .putBoolean("remember_me", true)
-                                    .putString("email", email.trim())
-                                    .putString("password", password)
-                                    .apply()
+                            val profile = SupabaseManager.client.postgrest["profiles"]
+                                .select { filter { eq("id", user.id) } }
+                                .decodeSingleOrNull<UserProfile>()
+
+                            if (profile?.status == "active") {
+                                if (rememberMe) {
+                                    prefs.edit()
+                                        .putBoolean("remember_me", true)
+                                        .putString("email", email.trim())
+                                        .putString("password", password)
+                                        .apply()
+                                } else {
+                                    prefs.edit().clear().apply()
+                                }
+                                onLoginSuccess()
                             } else {
-                                prefs.edit().clear().apply()
+                                errorMessage = "הרישיון שלך אינו פעיל. פנה להנהלה."
                             }
-                            onLoginSuccess()
                         } else {
-                            errorMessage = "הרישיון שלך אינו פעיל. פנה להנהלה."
+                            errorMessage = "שגיאה ביצירת המשתמש."
                         }
                     } else {
-                        errorMessage = "שגיאה בזיהוי המשתמש. נסה שנית."
+                        // תהליך התחברות רגיל
+                        SupabaseManager.client.auth.signInWith(Email) {
+                            this.email = email.trim()
+                            this.password = password
+                        }
+
+                        val user = SupabaseManager.client.auth.currentUserOrNull()
+                        if (user != null) {
+                            val profile = SupabaseManager.client.postgrest["profiles"]
+                                .select { filter { eq("id", user.id) } }
+                                .decodeSingleOrNull<UserProfile>()
+
+                            if (profile?.status == "active") {
+                                if (rememberMe) {
+                                    prefs.edit()
+                                        .putBoolean("remember_me", true)
+                                        .putString("email", email.trim())
+                                        .putString("password", password)
+                                        .apply()
+                                } else {
+                                    prefs.edit().clear().apply()
+                                }
+                                onLoginSuccess()
+                            } else {
+                                errorMessage = "הרישיון שלך אינו פעיל. פנה להנהלה."
+                            }
+                        } else {
+                            errorMessage = "שגיאה בזיהוי המשתמש. נסה שנית."
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    errorMessage = "שגיאת התחברות: פרטים שגויים או שגיאת רשת."
+                    errorMessage = if (isSignUpMode) "שגיאה בהרשמה: ייתכן שהאימייל תפוס או סיסמה קצרה מדי."
+                    else "שגיאת התחברות: פרטים שגויים או שגיאת רשת."
                 } finally {
                     isLoading = false
                 }
@@ -90,16 +136,16 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         }
     }
 
-    // מנגנון הפעלה אוטומטית בעת טעינת המסך
     LaunchedEffect(Unit) {
-        if (rememberMe && email.isNotBlank() && password.isNotBlank()) {
-            performLogin()
+        if (!isSignUpMode && rememberMe && email.isNotBlank() && password.isNotBlank()) {
+            performAction()
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState()) // מאפשר גלילה אם המסך קטן מדי לשדות החדשים
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -118,10 +164,34 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
         Spacer(modifier = Modifier.height(48.dp))
 
+        if (isSignUpMode) {
+            OutlinedTextField(
+                value = firstName,
+                onValueChange = { firstName = it },
+                label = { Text("שם פרטי") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = lastName,
+                onValueChange = { lastName = it },
+                label = { Text("שם משפחה") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("אימייל מורשה") },
+            label = { Text("אימייל") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
@@ -134,7 +204,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("סיסמה") },
+            label = { Text("סיסמה (לפחות 6 תווים)") },
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             trailingIcon = {
@@ -151,7 +221,6 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             textStyle = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr)
         )
 
-        // תיבת הסימון לשמירת הפרטים
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -172,14 +241,25 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         } else {
             Button(
-                onClick = performLogin,
+                onClick = performAction,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("התחבר למערכת", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(if (isSignUpMode) "הרשם למערכת" else "התחבר למערכת", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(
+            onClick = {
+                isSignUpMode = !isSignUpMode
+                errorMessage = null // מנקה שגיאות כשעוברים מסך
+            }
+        ) {
+            Text(if (isSignUpMode) "יש לך כבר חשבון? התחבר כאן" else "אין לך חשבון? הירשם עכשיו")
         }
 
         errorMessage?.let {

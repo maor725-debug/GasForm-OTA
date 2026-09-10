@@ -1,6 +1,9 @@
 package com.example.myapplication158
 
+import android.content.Context
 import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -25,10 +28,14 @@ import com.example.myapplication158.UserInterface.screens.FormEditScreen
 import com.example.myapplication158.UserInterface.screens.FormListScreen
 import com.example.myapplication158.UserInterface.screens.OnboardingScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreen
-import com.example.myapplication158.UserInterface.screens.LoginScreen // הוספנו את הייבוא של מסך ההתחברות
+import com.example.myapplication158.UserInterface.screens.LoginScreen
 import com.example.myapplication158.util.OtaUpdateManager
 import com.example.myapplication158.util.SettingsManager
+import com.example.myapplication158.util.SupabaseManager
+import com.example.myapplication158.util.TrialTracker
 import com.example.myapplication158.util.UpdateInfo
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,8 +44,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             val settingsManager = remember { SettingsManager(context) }
-
-            // המערכת לוקחת את המצב הכהה מההגדרות שלנו במקום מהמכשיר!
             val isDarkTheme = settingsManager.isDarkMode
 
             val colorScheme = when (settingsManager.appTheme) {
@@ -75,14 +80,8 @@ class MainActivity : ComponentActivity() {
                 labelSmall = baseTypography.labelSmall.copy(fontSize = baseTypography.labelSmall.fontSize * scale)
             )
 
-            MaterialTheme(
-                colorScheme = colorScheme,
-                typography = scaledTypography
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
+            MaterialTheme(colorScheme = colorScheme, typography = scaledTypography) {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     AppRoot()
                 }
             }
@@ -99,13 +98,9 @@ fun AppRoot() {
     LaunchedEffect(Unit) {
         val currentVersionCode = try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionCode
-        } catch (e: Exception) {
-            1
-        }
+        } catch (e: Exception) { 1 }
         val update = otaManager.checkForUpdates(currentVersionCode)
-        if (update != null) {
-            updateAvailable = update
-        }
+        if (update != null) { updateAvailable = update }
     }
 
     MainNavigation()
@@ -117,25 +112,16 @@ fun AppRoot() {
             text = { Text(update.releaseNotes, textAlign = TextAlign.Right) },
             confirmButton = {
                 Button(
-                    onClick = {
-                        otaManager.downloadAndInstallApk(update.apkUrl)
-                        updateAvailable = null
-                    }
-                ) {
-                    Text("הורד ועדכן")
-                }
+                    onClick = { otaManager.downloadAndInstallApk(update.apkUrl); updateAvailable = null }
+                ) { Text("הורד ועדכן") }
             },
-            dismissButton = {
-                TextButton(onClick = { updateAvailable = null }) {
-                    Text("מאוחר יותר")
-                }
-            }
+            dismissButton = { TextButton(onClick = { updateAvailable = null }) { Text("מאוחר יותר") } }
         )
     }
 }
 
 sealed class Screen {
-    object Login : Screen() // הוספנו את מצב מסך ההתחברות למערכת הניווט
+    object Login : Screen()
     object Onboarding : Screen()
     object List : Screen()
     data class Edit(val form: GasForm) : Screen()
@@ -147,6 +133,35 @@ fun MainNavigation() {
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
     val viewModel: GasFormViewModel = viewModel()
+    val scope = rememberCoroutineScope()
+
+    val androidId = remember { Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE" }
+
+    val appPrefs = remember { context.getSharedPreferences("app_security_prefs", Context.MODE_PRIVATE) }
+    var isLicensed by remember { mutableStateOf(appPrefs.getBoolean("is_licensed_user", false)) }
+    var trialFormsCount by remember { mutableIntStateOf(appPrefs.getInt("trial_forms_count", 0)) }
+
+    LaunchedEffect(isLicensed) {
+        if (!isLicensed && androidId != "UNKNOWN_DEVICE") {
+            try {
+                val remoteTracker = SupabaseManager.client.postgrest["trials_tracker"]
+                    .select { filter { eq("device_id", androidId) } }
+                    .decodeSingleOrNull<TrialTracker>()
+
+                if (remoteTracker != null) {
+                    if (remoteTracker.forms_created > trialFormsCount) {
+                        trialFormsCount = remoteTracker.forms_created
+                        appPrefs.edit().putInt("trial_forms_count", trialFormsCount).apply()
+                    }
+                } else {
+                    SupabaseManager.client.postgrest["trials_tracker"]
+                        .insert(TrialTracker(device_id = androidId, forms_created = trialFormsCount))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     val isOnboardingComplete = remember {
         settingsManager.contractorHeader.isNotBlank() &&
@@ -155,71 +170,79 @@ fun MainNavigation() {
                 settingsManager.currentFormNumber > 0
     }
 
-    // הגדרנו שהאפליקציה תמיד תתחיל ממסך ההתחברות!
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Login) }
+    var currentScreen by remember {
+        mutableStateOf<Screen>(
+            if (!isOnboardingComplete) Screen.Onboarding else Screen.List
+        )
+    }
 
-    // מצב ששולט בהצגת חלון הבחירה לטפסים נוספים
     var showFormTypeDialog by remember { mutableStateOf(false) }
+
+    val handleNewFormAttempt: (createAction: () -> Unit) -> Unit = { createAction ->
+        if (isLicensed) {
+            createAction()
+        } else if (trialFormsCount < 30) {
+            trialFormsCount++
+            appPrefs.edit().putInt("trial_forms_count", trialFormsCount).apply()
+
+            scope.launch {
+                try {
+                    SupabaseManager.client.postgrest["trials_tracker"]
+                        .update(mapOf("forms_created" to trialFormsCount)) {
+                            filter { eq("device_id", androidId) }
+                        }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            val formsLeft = 30 - trialFormsCount
+            if (formsLeft in 1..10) {
+                Toast.makeText(context, "שים לב: נותרו לך עוד $formsLeft טפסים בתקופת הניסיון", Toast.LENGTH_LONG).show()
+            }
+            createAction()
+        } else {
+            Toast.makeText(context, "תקופת הניסיון הסתיימה (30 טפסים). אנא היכנס ל'הגדרות' -> 'חשבון' כדי להירשם.", Toast.LENGTH_LONG).show()
+        }
+    }
 
     Crossfade(targetState = currentScreen, label = "screen_transition") { screen ->
         when (screen) {
             is Screen.Login -> {
-                // מסך ההתחברות מפעיל את הפונקציה הזו ברגע שההתחברות/בדיקת הרישיון עברה בהצלחה
                 LoginScreen(
                     onLoginSuccess = {
+                        isLicensed = true
+                        appPrefs.edit().putBoolean("is_licensed_user", true).apply()
                         currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List
                     }
                 )
             }
             is Screen.Onboarding -> {
-                OnboardingScreen(
-                    onCompleteOnboarding = {
-                        currentScreen = Screen.List
-                    }
-                )
+                OnboardingScreen(onCompleteOnboarding = { currentScreen = Screen.List })
             }
             is Screen.List -> {
                 FormListScreen(
                     viewModel = viewModel,
                     onAddNormativeForm = {
-                        // פותח ישירות את הטופס הנורמטיבי (הישן והמוכר)
-                        val nextPartnerNum = viewModel.getNextPartnerNumber()
-                        currentScreen = Screen.Edit(GasForm(partnerNumber = nextPartnerNum))
+                        handleNewFormAttempt {
+                            val nextPartnerNum = viewModel.getNextPartnerNumber()
+                            currentScreen = Screen.Edit(GasForm(partnerNumber = nextPartnerNum))
+                        }
                     },
-                    onAddOtherForms = {
-                        // פותח את תפריט "טפסים נוספים"
-                        showFormTypeDialog = true
-                    },
-                    onEditForm = { form ->
-                        currentScreen = Screen.Edit(form)
-                    },
-                    onEditPeriodicForm = { form ->
-                        currentScreen = Screen.EditPeriodic(form)
-                    }
+                    onAddOtherForms = { showFormTypeDialog = true },
+                    onEditForm = { form -> currentScreen = Screen.Edit(form) },
+                    onEditPeriodicForm = { form -> currentScreen = Screen.EditPeriodic(form) }
                 )
             }
             is Screen.Edit -> {
-                FormEditScreen(
-                    viewModel = viewModel,
-                    form = screen.form,
-                    onNavigateBack = {
-                        currentScreen = Screen.List
-                    }
-                )
+                FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List })
             }
             is Screen.EditPeriodic -> {
-                PeriodicFormEditScreen(
-                    viewModel = viewModel,
-                    form = screen.form,
-                    onNavigateBack = {
-                        currentScreen = Screen.List
-                    }
-                )
+                PeriodicFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List })
             }
         }
     }
 
-    // חלון הבחירה "טפסים נוספים"
     if (showFormTypeDialog) {
         AlertDialog(
             onDismissRequest = { showFormTypeDialog = false },
@@ -229,25 +252,18 @@ fun MainNavigation() {
                 Button(
                     onClick = {
                         showFormTypeDialog = false
-                        currentScreen = Screen.EditPeriodic(PeriodicGasForm())
+                        handleNewFormAttempt {
+                            currentScreen = Screen.EditPeriodic(PeriodicGasForm())
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("דוח בדיקה תקופתית של מאגר גפ\"מ קיים במכלים מיטלטלים באספקת גז מרכזית, לרבות מערכת ללחץ הביניים",
-                        textAlign = TextAlign.Center,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 16.sp,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+                    Text("דוח בדיקה תקופתית...", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showFormTypeDialog = false },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                TextButton(onClick = { showFormTypeDialog = false }, modifier = Modifier.fillMaxWidth()) {
                     Text("ביטול", color = Color.Gray, textAlign = TextAlign.Center)
                 }
             }
