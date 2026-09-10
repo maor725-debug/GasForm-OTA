@@ -1,8 +1,24 @@
 package com.example.myapplication158.UserInterface.components
 
+import android.content.Context
+import android.Manifest
+import android.annotation.SuppressLint
+import android.location.Location
+import android.location.LocationManager
+import android.location.LocationListener
+import android.os.Looper
+import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.myapplication158.util.LocationUtils
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,19 +62,35 @@ fun WorkOrdersListDialog(
 ) {
     val context = LocalContext.current
     val workOrders by viewModel.allWorkOrders.collectAsState()
+    val scope = rememberCoroutineScope()
+    val prefs = remember { context.getSharedPreferences("route_prefs", Context.MODE_PRIVATE) }
 
     var selectedFilterTab by remember { mutableIntStateOf(0) }
     var isMultiSelectMode by remember { mutableStateOf(false) }
     val selectedIds = remember { mutableStateListOf<Int>() }
 
     var formSelectionForWorkOrder by remember { mutableStateOf<WorkOrder?>(null) }
+    
+    // הגדרות סידור מסלול
+    var isSmartRoutingEnabled by remember { mutableStateOf(prefs.getBoolean("smart_routing", false)) }
+    var endAddress by remember { mutableStateOf(prefs.getString("end_address", "") ?: "") }
+    var isRoutingInProgress by remember { mutableStateOf(false) }
 
-    val filteredOrders = remember(workOrders, selectedFilterTab) {
+    // State לרשימת המשימות המסודרת זמנית
+    var temporarySortedOrders by remember { mutableStateOf<List<WorkOrder>?>(null) }
+
+    val todayDateString = remember {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        sdf.format(Date())
+    }
+
+    val filteredOrders = remember(workOrders, selectedFilterTab, temporarySortedOrders) {
+        val listToFilter = temporarySortedOrders ?: workOrders
         when (selectedFilterTab) {
-            1 -> workOrders.filter { it.status == WorkOrder.STATUS_PENDING }
-            2 -> workOrders.filter { it.status == WorkOrder.STATUS_COMPLETED }
-            3 -> workOrders.filter { it.status == WorkOrder.STATUS_CANCELED }
-            else -> workOrders
+            1 -> listToFilter.filter { it.status == WorkOrder.STATUS_PENDING }
+            2 -> listToFilter.filter { it.status == WorkOrder.STATUS_COMPLETED }
+            3 -> listToFilter.filter { it.status == WorkOrder.STATUS_CANCELED }
+            else -> listToFilter
         }
     }
 
@@ -149,6 +181,112 @@ fun WorkOrdersListDialog(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(if (isMultiSelectMode) "סיים בחירה" else "בחירה מרובה", fontSize = 12.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // --- מנגנון סידור מסלול חכם ---
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "הפעל סידור מסלול חכם (GPS)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Switch(
+                                checked = isSmartRoutingEnabled,
+                                onCheckedChange = {
+                                    isSmartRoutingEnabled = it
+                                    prefs.edit().putBoolean("smart_routing", it).apply()
+                                    if (!it) temporarySortedOrders = null // ביטול הסידור אם מכבים
+                                }
+                            )
+                        }
+
+                        if (isSmartRoutingEnabled) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = endAddress,
+                                onValueChange = { 
+                                    endAddress = it
+                                    prefs.edit().putString("end_address", it).apply()
+                                },
+                                label = { Text("נקודת סיום מסלול (בית/משרד)", fontSize = 12.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                trailingIcon = { Icon(Icons.Default.Home, contentDescription = null) }
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                                if (permissions.any { it.value }) {
+                                    isRoutingInProgress = true
+                                    fetchLocationForRouting(context) { location ->
+                                        if (location != null) {
+                                            val todayOrders = workOrders.filter { it.targetDate == todayDateString }
+                                            if (todayOrders.isEmpty()) {
+                                                isRoutingInProgress = false
+                                                Toast.makeText(context, "אין משימות שנקבעו להיום.", Toast.LENGTH_SHORT).show()
+                                                return@fetchLocationForRouting
+                                            }
+
+                                            scope.launch {
+                                                val result = LocationUtils.sortWorkOrdersForToday(context, todayOrders, location, endAddress)
+                                                isRoutingInProgress = false
+                                                
+                                                if (result.success) {
+                                                    // אנחנו שומרים את הרשימה המלאה אבל מציגים את המשימות של היום בראש 
+                                                    // (או שנוכל פשוט להחליף את הרשימה כולה ל-sorted + others)
+                                                    val otherOrders = workOrders.filter { it.targetDate != todayDateString }
+                                                    temporarySortedOrders = result.sortedOrders + otherOrders
+                                                }
+                                                Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                                            }
+                                        } else {
+                                            isRoutingInProgress = false
+                                            Toast.makeText(context, "לא הצלחנו לדגום מיקום נוכחי. בדוק ש-GPS פועל.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                } else {
+                                    Toast.makeText(context, "יש לאשר הרשאות מיקום לסידור המסלול", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+
+                            Button(
+                                onClick = { 
+                                    if (endAddress.isBlank()) {
+                                        Toast.makeText(context, "אנא הזן כתובת לנקודת סיום", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(42.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                enabled = !isRoutingInProgress
+                            ) {
+                                if (isRoutingInProgress) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("מסדר מסלול...")
+                                } else {
+                                    Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("סדר משימות היום לפי מסלול", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -249,9 +387,11 @@ fun WorkOrdersListDialog(
                                 onStatusChange = { newStatus ->
                                     if (newStatus == WorkOrder.STATUS_RESCHEDULED) {
                                         onEditWorkOrder(item)
+                                    } else if (newStatus == WorkOrder.STATUS_COMPLETED) {
+                                        viewModel.deleteWorkOrder(item)
+                                        Toast.makeText(context, "העבודה סומנה כבוצעה ונמחקה מהיומן ✅", Toast.LENGTH_SHORT).show()
                                     } else {
                                         viewModel.updateWorkOrder(item.copy(status = newStatus))
-                                        Toast.makeText(context, "סטטוס העבודה עודכן ל-בוצע ✅", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 onToggleMute = {
@@ -376,6 +516,64 @@ private fun createPrefilledPeriodicForm(workOrder: WorkOrder): PeriodicGasForm {
         clientName = if (workOrder.jobDescription.isNotBlank()) workOrder.jobDescription else "לקוח $city",
         executionRemarks = "הוזמן מיומן עבודה: ${workOrder.jobDescription} | מחיר: ${workOrder.quotedPrice} ₪"
     )
+}
+
+// פונקציית עזר למשיכת המיקום הנוכחי בשביל סידור המסלול ביומן
+@SuppressLint("MissingPermission")
+fun fetchLocationForRouting(context: Context, onResult: (Location?) -> Unit) {
+    try {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+        if (!isGpsEnabled && !isNetworkEnabled) {
+            onResult(null)
+            return
+        }
+
+        var locationFound = false
+        val locationListener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                if (!locationFound) {
+                    locationFound = true
+                    onResult(location)
+                    locationManager.removeUpdates(this)
+                }
+            }
+            @Deprecated("Deprecated in Java")
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+            override fun onProviderEnabled(provider: String) {}
+            override fun onProviderDisabled(provider: String) {}
+        }
+
+        if (isNetworkEnabled) {
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, locationListener, Looper.getMainLooper())
+        }
+        if (isGpsEnabled) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, locationListener, Looper.getMainLooper())
+        }
+
+        // טיימאאוט אם לא מצליח לדגום מהר
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (!locationFound) {
+                locationManager.removeUpdates(locationListener)
+                val lastGps = if (isGpsEnabled) locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) else null
+                val lastNetwork = if (isNetworkEnabled) locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) else null
+
+                val bestLast = when {
+                    lastGps != null && lastNetwork != null -> if (lastGps.accuracy < lastNetwork.accuracy) lastGps else lastNetwork
+                    else -> lastGps ?: lastNetwork
+                }
+                
+                locationFound = true
+                onResult(bestLast)
+            }
+        }, 8000)
+
+    } catch (e: Exception) {
+        e.printStackTrace()
+        onResult(null)
+    }
 }
 
 @Composable
