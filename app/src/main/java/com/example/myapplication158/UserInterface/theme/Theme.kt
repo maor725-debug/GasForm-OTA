@@ -15,24 +15,28 @@ private val DarkColorScheme = darkColorScheme(
     primary = PrimaryOrange,
     secondary = AccentOrange,
     tertiary = BorderOrange,
-    background = BackgroundDark,
-    surface = SurfaceDark,
+    background = IosBackgroundDark,
+    surface = IosSurfaceDark,
+    surfaceVariant = Color(0xFF2C2C2E), // כמו כרטיסיות באייפון במצב כהה
     onPrimary = Color.White,
     onSecondary = Color.Black,
-    onBackground = Color.White,
-    onSurface = Color.White
+    onBackground = IosTextLight,
+    onSurface = IosTextLight,
+    onSurfaceVariant = IosTextSecondaryDark
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryOrangeDark,
     secondary = PrimaryOrange,
     tertiary = AccentOrange,
-    background = Color(0xFFFDFDFD),
-    surface = Color.White,
+    background = IosBackgroundLight,
+    surface = IosSurfaceLight,
+    surfaceVariant = Color(0xFFE5E5EA), // כמו רקעי אפור באייפון הבהיר
     onPrimary = Color.White,
     onSecondary = Color.White,
-    onBackground = Color(0xFF1E1E1E),
-    onSurface = Color(0xFF1E1E1E)
+    onBackground = IosTextDark,
+    onSurface = IosTextDark,
+    onSurfaceVariant = IosTextSecondaryLight
 )
 
 @Composable
@@ -50,5 +54,10 @@ fun MyApplicationTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        shapes = Shapes,
+        content = content
+    )
 }

@@ -120,8 +120,7 @@ fun SettingsDialog(
         Triple("אחסון", Icons.Default.Cloud, 1),
         Triple("קבלן", Icons.Default.Badge, 2),
         Triple("חשבון", Icons.Default.AccountBox, 3),
-        Triple("אבטחה", Icons.Default.Security, 4),
-        Triple("עדכון", Icons.Default.SystemUpdate, 5)
+        Triple("אבטחה", Icons.Default.Security, 4)
     )
 
     var isAutoSaveEnabled by remember { mutableStateOf(settingsManager.isAutoSavePdfEnabled) }
@@ -415,18 +414,21 @@ fun SettingsDialog(
                                         }
                                     }
                                 }
-                            }
-                            5 -> {
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
                                     Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text("בדיקת עדכוני גרסה", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
                                         Spacer(modifier = Modifier.height(20.dp))
-                                        Icon(Icons.Default.CheckCircle, null, tint = greenSuccess, modifier = Modifier.size(48.dp))
+                                        Icon(Icons.Default.SystemUpdate, null, tint = greenSuccess, modifier = Modifier.size(48.dp))
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text("גרסה נוכחית: v$appVersion", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = textWhite)
                                         Spacer(modifier = Modifier.height(20.dp))
                                         Button(onClick = { isCheckingUpdate = true; updateCheckResult = null }, modifier = Modifier.fillMaxWidth().height(44.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)) { Text("בדוק גרסה חדשה כעת", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                                         LaunchedEffect(isCheckingUpdate) { if (isCheckingUpdate) { kotlinx.coroutines.delay(1500); isCheckingUpdate = false; updateCheckResult = "הנך משתמש בגרסה העדכנית ביותר (v$appVersion)." } }
+                                        
+                                        if (updateCheckResult != null) {
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(updateCheckResult!!, fontSize = 12.sp, color = textGray)
+                                        }
                                     }
                                 }
                             }
