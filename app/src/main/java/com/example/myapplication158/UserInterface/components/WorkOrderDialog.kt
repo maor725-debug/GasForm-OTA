@@ -3,6 +3,7 @@ package com.example.myapplication158.UserInterface.components
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -102,7 +104,7 @@ fun WorkOrderDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (initialWorkOrder == null) "הזמנת עבודה חדשה" else "עריכת עבודה ביומן",
+                            text = if (initialWorkOrder == null) "עבודה חדשה" else "עריכת עבודה ביומן",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -121,35 +123,57 @@ fun WorkOrderDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedTextField(
-                        value = targetDate,
-                        onValueChange = { targetDate = it },
-                        label = { Text("תאריך לביצוע") },
-                        trailingIcon = {
-                            IconButton(onClick = { datePickerDialog.show() }) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = "בחר תאריך")
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        readOnly = true,
-                        colors = OutlinedTextFieldDefaults.colors()
-                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { datePickerDialog.show() }
+                    ) {
+                        OutlinedTextField(
+                            value = targetDate,
+                            onValueChange = { },
+                            label = { Text("תאריך לביצוע", fontSize = 12.sp) },
+                            trailingIcon = {
+                                Icon(Icons.Default.CalendarToday, contentDescription = "בחר תאריך", modifier = Modifier.size(18.dp))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            enabled = false,
+                            textStyle = LocalTextStyle.current.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledTrailingIconColor = MaterialTheme.colorScheme.primary,
+                                disabledContainerColor = Color.Transparent
+                            )
+                        )
+                    }
 
-                    OutlinedTextField(
-                        value = targetTime,
-                        onValueChange = { targetTime = it },
-                        label = { Text("שעת הגעה") },
-                        trailingIcon = {
-                            IconButton(onClick = { timePickerDialog.show() }) {
-                                Icon(Icons.Default.Schedule, contentDescription = "בחר שעה")
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        readOnly = true,
-                        colors = OutlinedTextFieldDefaults.colors()
-                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { timePickerDialog.show() }
+                    ) {
+                        OutlinedTextField(
+                            value = targetTime,
+                            onValueChange = { },
+                            label = { Text("שעת הגעה", fontSize = 12.sp) },
+                            trailingIcon = {
+                                Icon(Icons.Default.Schedule, contentDescription = "בחר שעה", modifier = Modifier.size(18.dp))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            enabled = false,
+                            textStyle = LocalTextStyle.current.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledTrailingIconColor = MaterialTheme.colorScheme.primary,
+                                disabledContainerColor = Color.Transparent
+                            )
+                        )
+                    }
                 }
 
                 // Location Field
@@ -167,7 +191,7 @@ fun WorkOrderDialog(
                 OutlinedTextField(
                     value = clientPhone,
                     onValueChange = { clientPhone = it },
-                    label = { Text("מספר נייד של הלקוח") },
+                    label = { Text("מספר נייד של הלקוח (חובה)") },
                     placeholder = { Text("050-0000000") },
                     leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -179,7 +203,7 @@ fun WorkOrderDialog(
                 OutlinedTextField(
                     value = jobDescription,
                     onValueChange = { jobDescription = it },
-                    label = { Text("מהות העבודה (מה צריך לעשות)") },
+                    label = { Text("מהות העבודה (חובה)") },
                     placeholder = { Text("התקנת כיריים, בדיקת דליפה, נקודת גז...") },
                     leadingIcon = { Icon(Icons.Default.Build, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
@@ -216,8 +240,8 @@ fun WorkOrderDialog(
 
                     Button(
                         onClick = {
-                            if (jobDescription.isBlank() && location.isBlank()) {
-                                Toast.makeText(context, "אנא הזן פירוט עבודה או כתובת", Toast.LENGTH_SHORT).show()
+                            if (clientPhone.isBlank() || jobDescription.isBlank()) {
+                                Toast.makeText(context, "חובה להזין מספר נייד של הלקוח ומהות עבודה כדי לשמור ביומן", Toast.LENGTH_LONG).show()
                             } else {
                                 val order = (initialWorkOrder ?: WorkOrder()).copy(
                                     targetDate = targetDate,
