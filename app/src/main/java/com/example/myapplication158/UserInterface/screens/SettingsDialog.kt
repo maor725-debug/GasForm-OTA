@@ -126,6 +126,7 @@ fun SettingsDialog(
     var isAutoSaveEnabled by remember { mutableStateOf(settingsManager.isAutoSavePdfEnabled) }
 
     var savedSignatureUri by remember { mutableStateOf(settingsManager.savedSignatureUri ?: "") }
+    var savedLicenseUri by remember { mutableStateOf(settingsManager.technicianLicenseUri ?: "") }
     var contractorHeader by remember { mutableStateOf(settingsManager.contractorHeader ?: "") }
     var contractorPhone by remember { mutableStateOf(settingsManager.contractorPhone ?: "") }
     var defaultTechnicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName ?: "") }
@@ -302,11 +303,11 @@ fun SettingsDialog(
                                         }
                                         Spacer(modifier = Modifier.height(16.dp))
 
-                                        OutlinedTextField(value = contractorHeader, onValueChange = { contractorHeader = it; settingsManager.contractorHeader = it }, label = { Text("שם הקבלן / חברה") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = textFieldColors)
+                                        OutlinedTextField(value = contractorHeader, onValueChange = { contractorHeader = it; settingsManager.contractorHeader = it }, label = { Text("שם הקבלן / חברה (חובה)") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = textFieldColors)
                                         Spacer(modifier = Modifier.height(12.dp))
-                                        OutlinedTextField(value = contractorPhone, onValueChange = { contractorPhone = it; settingsManager.contractorPhone = it }, label = { Text("טלפון ליצירת קשר") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = textFieldColors)
+                                        OutlinedTextField(value = contractorPhone, onValueChange = { contractorPhone = it; settingsManager.contractorPhone = it }, label = { Text("טלפון נייד ליצירת קשר (חובה)") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = textFieldColors)
                                         Spacer(modifier = Modifier.height(12.dp))
-                                        OutlinedTextField(value = defaultTechnicianName, onValueChange = { defaultTechnicianName = it; settingsManager.defaultTechnicianName = it }, label = { Text("שם טכנאי גז מבצע") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = textFieldColors)
+                                        OutlinedTextField(value = defaultTechnicianName, onValueChange = { defaultTechnicianName = it; settingsManager.defaultTechnicianName = it }, label = { Text("שם טכנאי גז מבצע (חובה)") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = textFieldColors)
 
                                         Spacer(modifier = Modifier.height(16.dp))
                                         HorizontalDivider(color = borderColor)
@@ -337,14 +338,17 @@ fun SettingsDialog(
                                 }
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
                                     Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("חתימת טכנאי קבועה", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+                                        Text("1. חתימת טכנאי ידנית (חובה)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Surface(onClick = { techSigMode = 0 }, shape = RoundedCornerShape(8.dp), color = if (techSigMode == 0) selectedSurfaceBg else darkBg, border = if (techSigMode == 0) BorderStroke(1.dp, primaryColor) else BorderStroke(1.dp, borderColor), modifier = Modifier.weight(1f).height(40.dp)) { Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { Text("ציור ידני", color = if (techSigMode == 0) primaryColor else textGray, fontWeight = FontWeight.Bold, fontSize = 13.sp) } }
-                                            Surface(onClick = { techSigMode = 1 }, shape = RoundedCornerShape(8.dp), color = if (techSigMode == 1) selectedSurfaceBg else darkBg, border = if (techSigMode == 1) BorderStroke(1.dp, primaryColor) else BorderStroke(1.dp, borderColor), modifier = Modifier.weight(1f).height(40.dp)) { Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { Text("מהגלריה", color = if (techSigMode == 1) primaryColor else textGray, fontWeight = FontWeight.Bold, fontSize = 13.sp) } }
-                                        }
+                                        TechnicianSignatureTouchPad(initialSignatureUri = savedSignatureUri, onSignatureSaved = { sigUri -> val newUri = sigUri.ifEmpty { null }; savedSignatureUri = newUri ?: ""; settingsManager.savedSignatureUri = newUri })
+                                        
                                         Spacer(modifier = Modifier.height(16.dp))
-                                        if (techSigMode == 0) TechnicianSignatureTouchPad(initialSignatureUri = savedSignatureUri, onSignatureSaved = { sigUri -> val newUri = sigUri.ifEmpty { null }; savedSignatureUri = newUri ?: ""; settingsManager.savedSignatureUri = newUri }) else SignaturePad(title = "חתימה קבועה (גלריה):", initialSignatureUri = savedSignatureUri, onSignatureSaved = { sigUri -> val newUri = sigUri.ifEmpty { null }; savedSignatureUri = newUri ?: ""; settingsManager.savedSignatureUri = newUri })
+                                        HorizontalDivider(color = borderColor)
+                                        Spacer(modifier = Modifier.height(16.dp))
+
+                                        Text("2. צילום רישיון טכנאי מהגלריה (חובה)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        SignaturePad(title = "בחר צילום רישיון מהגלריה:", initialSignatureUri = savedLicenseUri, onSignatureSaved = { licUri -> val newUri = licUri.ifEmpty { null }; savedLicenseUri = newUri ?: ""; settingsManager.technicianLicenseUri = newUri })
                                     }
                                 }
                             }
@@ -437,7 +441,33 @@ fun SettingsDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
-                        onClick = { if (settingsManager.currentFormNumber == 0) Toast.makeText(context, "חובה להגדיר מס' התחלתי בלשונית קבלן", Toast.LENGTH_SHORT).show() else { Toast.makeText(context, "ההגדרות נשמרו בהצלחה", Toast.LENGTH_SHORT).show(); onDismissRequest(); onDismiss() } },
+                        onClick = {
+                            val hasFolder = !settingsManager.customStorageTreeUri.isNullOrBlank()
+                            val hasContractorName = !settingsManager.contractorHeader.isNullOrBlank()
+                            val hasContractorPhone = !settingsManager.contractorPhone.isNullOrBlank()
+                            val hasTechName = !settingsManager.defaultTechnicianName.isNullOrBlank()
+                            val hasFormNumber = settingsManager.currentFormNumber > 0
+                            val hasManualSig = !settingsManager.savedSignatureUri.isNullOrBlank()
+                            val hasLicensePhoto = !settingsManager.technicianLicenseUri.isNullOrBlank()
+
+                            val isAllValid = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasManualSig && hasLicensePhoto
+
+                            if (!isAllValid) {
+                                val missing = mutableListOf<String>()
+                                if (!hasFolder) missing.add("• תיקיית שמירה לדוחות (בלשונית אחסון)")
+                                if (!hasContractorName) missing.add("• שם קבלן / חברה (בלשונית קבלן)")
+                                if (!hasContractorPhone) missing.add("• מספר טלפון נייד (בלשונית קבלן)")
+                                if (!hasTechName) missing.add("• שם טכנאי (בלשונית קבלן)")
+                                if (!hasFormNumber) missing.add("• מספר טופס התחלתי (בלשונית קבלן)")
+                                if (!hasManualSig) missing.add("• חתימה ידנית (בלשונית קבלן)")
+                                if (!hasLicensePhoto) missing.add("• צילום רישיון מהגלריה (בלשונית קבלן)")
+                                Toast.makeText(context, "חובה להגדיר את השדות הבאים להתחלת עבודה:\n" + missing.joinToString("\n"), Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "ההגדרות נשמרו בהצלחה", Toast.LENGTH_SHORT).show()
+                                onDismissRequest()
+                                onDismiss()
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)
                     ) {
                         Icon(Icons.Default.Save, contentDescription = "שמור", modifier = Modifier.size(20.dp))

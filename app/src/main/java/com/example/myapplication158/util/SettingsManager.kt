@@ -52,6 +52,10 @@ class SettingsManager(context: Context) {
         get() = prefs.getString(KEY_SAVED_SIGNATURE_URI, null)
         set(value) = prefs.edit().putString(KEY_SAVED_SIGNATURE_URI, value).apply()
 
+    var technicianLicenseUri: String?
+        get() = prefs.getString(KEY_TECHNICIAN_LICENSE_URI, null)
+        set(value) = prefs.edit().putString(KEY_TECHNICIAN_LICENSE_URI, value).apply()
+
     var contractorHeader: String
         get() = prefs.getString(KEY_CONTRACTOR_HEADER, "מ.מ מערכות גז") ?: "מ.מ מערכות גז"
         set(value) = prefs.edit().putString(KEY_CONTRACTOR_HEADER, value).apply()
@@ -145,6 +149,7 @@ class SettingsManager(context: Context) {
         private const val KEY_GOOGLE_DRIVE_FOLDER = "google_drive_folder"
         private const val KEY_GOOGLE_DRIVE_ACCOUNT = "google_drive_account"
         private const val KEY_SAVED_SIGNATURE_URI = "saved_signature_uri"
+        private const val KEY_TECHNICIAN_LICENSE_URI = "technician_license_uri"
         private const val KEY_CONTRACTOR_HEADER = "contractor_header"
         private const val KEY_CONTRACTOR_PHONE = "contractor_phone"
         private const val KEY_DEFAULT_TECHNICIAN_NAME = "default_technician_name"

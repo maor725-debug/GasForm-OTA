@@ -94,18 +94,24 @@ fun FormListScreen(
     var suppressOnboarding by remember { mutableStateOf(false) }
 
     fun checkSetup() {
-        val hasName = !settingsManager.contractorHeader.isNullOrBlank()
-        val hasSig = !settingsManager.savedSignatureUri.isNullOrBlank()
         val hasFolder = !settingsManager.customStorageTreeUri.isNullOrBlank()
+        val hasContractorName = !settingsManager.contractorHeader.isNullOrBlank()
+        val hasContractorPhone = !settingsManager.contractorPhone.isNullOrBlank()
+        val hasTechName = !settingsManager.defaultTechnicianName.isNullOrBlank()
         val hasFormNumber = settingsManager.currentFormNumber > 0
+        val hasManualSig = !settingsManager.savedSignatureUri.isNullOrBlank()
+        val hasLicensePhoto = !settingsManager.technicianLicenseUri.isNullOrBlank()
 
-        isSetupComplete = hasName && hasSig && hasFolder && hasFormNumber
+        isSetupComplete = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasManualSig && hasLicensePhoto
 
         val missing = mutableListOf<String>()
-        if (!hasName) missing.add("• שם טכנאי/קבלן")
-        if (!hasSig) missing.add("• חתימה קבועה")
-        if (!hasFolder) missing.add("• תיקיית שמירה / גיבוי")
+        if (!hasFolder) missing.add("• תיקיית שמירה לדוחות")
+        if (!hasContractorName) missing.add("• שם קבלן / חברה")
+        if (!hasContractorPhone) missing.add("• מס' טלפון נייד קבלן")
+        if (!hasTechName) missing.add("• שם טכנאי גז מבצע")
         if (!hasFormNumber) missing.add("• מספר טופס שוטף התחלתי")
+        if (!hasManualSig) missing.add("• חתימת טכנאי ידנית")
+        if (!hasLicensePhoto) missing.add("• צילום רישיון טכנאי מהגלריה")
         missingFieldsText = missing.joinToString("\n")
     }
 
