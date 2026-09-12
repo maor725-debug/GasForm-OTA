@@ -36,13 +36,18 @@ fun FormListItemAiStyle(
 ) {
     val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
 
+    val now = System.currentTimeMillis()
+    val createdAt = if (form.createdAt > 0) form.createdAt else now
+    val elapsedDays = ((now - createdAt) / (1000 * 60 * 60 * 24)).toInt()
+    val remainingDays = (60 - elapsedDays).coerceAtLeast(0)
+
     val (badgeColor, badgeText) = if (isDraft) {
-        Pair(aiTextGray, "טיוטה")
+        Pair(Color(0xFFFF9800), "טיוטה (⏳ נותרו $remainingDays ימים)")
     } else {
         when {
             form.isStatusConforming -> Pair(Color(0xFF4CAF50), "תקין ✓")
             form.isStatusNonConforming -> Pair(Color(0xFFFF5252), "לקוי ✗")
-            else -> Pair(aiTextGray, "טיוטה")
+            else -> Pair(Color(0xFFFF9800), "טיוטה (⏳ נותרו $remainingDays ימים)")
         }
     }
 

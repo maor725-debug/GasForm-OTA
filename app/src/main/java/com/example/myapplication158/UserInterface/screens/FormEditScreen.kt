@@ -98,7 +98,7 @@ fun FormEditScreen(
         when (settingsManager.appTheme) {
             SettingsManager.THEME_BLUE -> Color(0xFF04132B)
             SettingsManager.THEME_GREEN -> Color(0xFF0A2711)
-            SettingsManager.THEME_PURPLE -> Color(0xFF260930)
+            SettingsManager.THEME_YELLOW -> Color(0xFF332B00)
             else -> Color(0xFF381504)
         }
     } else Color.White

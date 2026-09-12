@@ -129,7 +129,7 @@ fun FormListScreen(
         when (settingsManager.appTheme) {
             SettingsManager.THEME_BLUE -> Color(0xFF04132B)
             SettingsManager.THEME_GREEN -> Color(0xFF0A2711)
-            SettingsManager.THEME_PURPLE -> Color(0xFF260930)
+            SettingsManager.THEME_YELLOW -> Color(0xFF332B00)
             else -> Color(0xFF381504)
         }
     } else Color.White
@@ -439,7 +439,13 @@ private fun PeriodicFormListItemAiStyle(
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "טופס תקופתי חדש"
                 Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text("ד-1 | תקופתי | מס' ${form.sequentialNumber} | ${form.date}", color = aiTextGray, fontSize = 12.sp)
+                val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
+                val now = System.currentTimeMillis()
+                val createdAt = if (form.createdAt > 0) form.createdAt else now
+                val elapsedDays = ((now - createdAt) / (1000 * 60 * 60 * 24)).toInt()
+                val remainingDays = (60 - elapsedDays).coerceAtLeast(0)
+                val draftText = if (isDraft) " • ⏳ נותרו $remainingDays ימים" else ""
+                Text("ד-1 | מרכזיה$draftText | מס' ${form.sequentialNumber} | ${form.date}", color = aiTextGray, fontSize = 12.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 IconButton(onClick = onShare, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Share, null, tint = primaryColor, modifier = Modifier.size(18.dp)) }

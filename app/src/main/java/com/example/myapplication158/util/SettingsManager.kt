@@ -118,7 +118,7 @@ class SettingsManager(context: Context) {
         const val THEME_ORANGE = "ORANGE"
         const val THEME_BLUE = "BLUE"
         const val THEME_GREEN = "GREEN"
-        const val THEME_PURPLE = "PURPLE"
+        const val THEME_YELLOW = "YELLOW"
 
         const val TEXT_SIZE_TINY = "TINY"
         const val TEXT_SIZE_SMALL = "SMALL"

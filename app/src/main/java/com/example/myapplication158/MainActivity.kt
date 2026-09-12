@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
             val colorScheme = when (settingsManager.appTheme) {
                 SettingsManager.THEME_BLUE -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFF90CAF9), primaryContainer = Color(0xFF0D47A1), secondary = Color(0xFF64B5F6), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFF1565C0), primaryContainer = Color(0xFFBBDEFB), secondary = Color(0xFF1E88E5), surfaceVariant = Color(0xFFE3F2FD)) }
                 SettingsManager.THEME_GREEN -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFFA5D6A7), primaryContainer = Color(0xFF1B5E20), secondary = Color(0xFF81C784), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFF2E7D32), primaryContainer = Color(0xFFC8E6C9), secondary = Color(0xFF43A047), surfaceVariant = Color(0xFFE8F5E9)) }
-                SettingsManager.THEME_PURPLE -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFFCE93D8), primaryContainer = Color(0xFF4A148C), secondary = Color(0xFFBA68C8), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFF6A1B9A), primaryContainer = Color(0xFFE1BEE7), secondary = Color(0xFF8E24AA), surfaceVariant = Color(0xFFF3E5F5)) }
+                SettingsManager.THEME_YELLOW -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFFFFD600), primaryContainer = Color(0xFFFBC02D), secondary = Color(0xFFFFEA00), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFFF57F17), primaryContainer = Color(0xFFFFF9C4), secondary = Color(0xFFFFD600), surfaceVariant = Color(0xFFFFFDE7)) }
                 else -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFFFFB74D), primaryContainer = Color(0xFFE65100), secondary = Color(0xFFFF9800), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFFFF6D00), primaryContainer = Color(0xFFFFE0B2), secondary = Color(0xFFFF9100), surfaceVariant = Color(0xFFFFF3E0)) }
             }
 
@@ -259,7 +259,7 @@ fun MainNavigation() {
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("דוח בדיקה תקופתית...", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
+                    Text("דוח בדיקה מרכזיה מכלים", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
                 }
             },
             dismissButton = {

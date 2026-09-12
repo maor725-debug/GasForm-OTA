@@ -207,7 +207,7 @@ fun SettingsDialog(
                                         Text("בחר ערכת נושא לאפליקציה:", style = MaterialTheme.typography.bodySmall, color = textGray)
                                         Spacer(modifier = Modifier.height(16.dp))
 
-                                        val themesList = listOf(Triple(SettingsManager.THEME_ORANGE, "כתום גז", Color(0xFFFF8C00)), Triple(SettingsManager.THEME_BLUE, "כחול יוקרתי", Color(0xFF1565C0)), Triple(SettingsManager.THEME_GREEN, "ירוק רענן", Color(0xFF2E7D32)), Triple(SettingsManager.THEME_PURPLE, "סגול מודרני", Color(0xFF6A1B9A)))
+                                        val themesList = listOf(Triple(SettingsManager.THEME_ORANGE, "כתום גז", Color(0xFFFF8C00)), Triple(SettingsManager.THEME_BLUE, "כחול יוקרתי", Color(0xFF1565C0)), Triple(SettingsManager.THEME_GREEN, "ירוק רענן", Color(0xFF2E7D32)), Triple(SettingsManager.THEME_YELLOW, "צהוב זורח", Color(0xFFFFD600)))
                                         Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             themesList.forEach { (themeKey, themeLabel, colorDot) ->
                                                 val isSelected = currentAppTheme == themeKey
