@@ -2,7 +2,6 @@ package com.example.myapplication158.UserInterface.screens
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -52,6 +51,7 @@ import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
 
+@Suppress("UNUSED_PARAMETER")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsDialog(
@@ -63,7 +63,6 @@ fun SettingsDialog(
 ) {
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
-    val prefs = context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
 
     val appSecurityPrefs = remember { context.getSharedPreferences("app_security_prefs", Context.MODE_PRIVATE) }
     var isLicensed by remember { mutableStateOf(appSecurityPrefs.getBoolean("is_licensed_user", false)) }
@@ -76,7 +75,6 @@ fun SettingsDialog(
     val primaryColor = MaterialTheme.colorScheme.primary
     val textWhite = if (isDark) Color(0xFFF5F5F5) else Color(0xFF212121)
     val textGray = if (isDark) Color(0xFFAAAAAA) else Color(0xFF757575)
-    val greenSuccess = Color(0xFF4CAF50)
     val borderColor = if (isDark) Color.DarkGray else Color.LightGray
     val selectedSurfaceBg = if (isDark) Color(0xFF2A2A2A) else Color(0xFFE3F2FD)
     val unselectedSurfaceBg = if (isDark) Color(0xFF1E1E1E) else Color(0xFFF5F5F5)
@@ -97,23 +95,14 @@ fun SettingsDialog(
         unfocusedContainerColor = cardBg
     )
 
-    val appVersion = remember {
-        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0" } catch (e: Exception) { "1.0" }
-    }
-
     var currentAppTheme by remember { mutableStateOf(settingsManager.appTheme) }
-    var currentTextSizeLevel by remember { mutableStateOf(settingsManager.textSizeLevel) }
     var currentTemplateStyle by remember { mutableStateOf(settingsManager.pdfTemplateStyle) }
 
     var isPinEnabled by remember { mutableStateOf(settingsManager.isPinEnabled) }
     var showSetPinDialog by remember { mutableStateOf(false) }
     var showPinWarningAlert by remember { mutableStateOf(false) }
 
-    var selectedCategoryIndex by remember { mutableStateOf(initialCategoryIndex) }
-    var techSigMode by remember { mutableStateOf(if (settingsManager.savedSignatureUri?.contains("touch") == true) 0 else 1) }
-
-    var isCheckingUpdate by remember { mutableStateOf(false) }
-    var updateCheckResult by remember { mutableStateOf<String?>(null) }
+    var selectedCategoryIndex by remember { mutableIntStateOf(initialCategoryIndex) }
 
     val categories = listOf(
         Triple("עיצוב", Icons.Default.Palette, 0),
@@ -127,9 +116,9 @@ fun SettingsDialog(
 
     var savedSignatureUri by remember { mutableStateOf(settingsManager.savedSignatureUri ?: "") }
     var savedLicenseUri by remember { mutableStateOf(settingsManager.technicianLicenseUri ?: "") }
-    var contractorHeader by remember { mutableStateOf(settingsManager.contractorHeader ?: "") }
-    var contractorPhone by remember { mutableStateOf(settingsManager.contractorPhone ?: "") }
-    var defaultTechnicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName ?: "") }
+    var contractorHeader by remember { mutableStateOf(settingsManager.contractorHeader) }
+    var contractorPhone by remember { mutableStateOf(settingsManager.contractorPhone) }
+    var defaultTechnicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName) }
     var currentFormNumberInput by remember { mutableStateOf(if (settingsManager.currentFormNumber > 0) settingsManager.currentFormNumber.toString() else "") }
 
     var customStorageTreeUri by remember { mutableStateOf(settingsManager.customStorageTreeUri) }
@@ -275,7 +264,7 @@ fun SettingsDialog(
                                             Spacer(modifier = Modifier.height(16.dp))
                                             OutlinedButton(onClick = { folderPickerLauncher.launch(null) }, modifier = Modifier.fillMaxWidth().height(54.dp), border = BorderStroke(1.dp, primaryColor)) {
                                                 Icon(Icons.Default.FolderOpen, null, tint = primaryColor); Spacer(modifier = Modifier.width(8.dp))
-                                                Text(text = if (customStorageFolderName.isNullOrEmpty()) "לחץ לבחירת תיקיית שמירה" else "תיקייה: $customStorageFolderName", color = primaryColor, fontWeight = FontWeight.Bold, maxLines = 1)
+                                                Text(text = if (customStorageFolderName.isEmpty()) "לחץ לבחירת תיקיית שמירה" else "תיקייה: $customStorageFolderName", color = primaryColor, fontWeight = FontWeight.Bold, maxLines = 1)
                                             }
                                         }
                                     }
@@ -410,9 +399,9 @@ fun SettingsDialog(
                     Button(
                         onClick = {
                             val hasFolder = !settingsManager.customStorageTreeUri.isNullOrBlank()
-                            val hasContractorName = !settingsManager.contractorHeader.isNullOrBlank()
-                            val hasContractorPhone = !settingsManager.contractorPhone.isNullOrBlank()
-                            val hasTechName = !settingsManager.defaultTechnicianName.isNullOrBlank()
+                            val hasContractorName = settingsManager.contractorHeader.isNotBlank()
+                            val hasContractorPhone = settingsManager.contractorPhone.isNotBlank()
+                            val hasTechName = settingsManager.defaultTechnicianName.isNotBlank()
                             val hasFormNumber = settingsManager.currentFormNumber > 0
                             val hasManualSig = !settingsManager.savedSignatureUri.isNullOrBlank()
                             val hasLicensePhoto = !settingsManager.technicianLicenseUri.isNullOrBlank()
@@ -459,6 +448,7 @@ fun SettingsDialog(
     }
 }
 
+@Suppress("UnusedPrivateMember", "UNUSED_PARAMETER")
 @Composable
 private fun SupabaseCloudCard(
     context: Context,
@@ -494,7 +484,7 @@ private fun SupabaseCloudCard(
                 onClick = {
                     isChecking = true
                     statusText = "בודק חיבור ל-Supabase Cloud..."
-                    supabaseManager.testConnection { success, message ->
+                    supabaseManager.testConnection { _, message ->
                         isChecking = false
                         statusText = message
                     }
