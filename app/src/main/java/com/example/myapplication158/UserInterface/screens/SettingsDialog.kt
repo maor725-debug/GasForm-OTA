@@ -283,7 +283,8 @@ fun SettingsDialog(
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                SupabaseCloudCard(context = context, cardBg = cardBg, primaryColor = primaryColor, textWhite = textWhite, textGray = textGray)
+                                // הסתרת הכרטיסייה מהתצוגה לטכנאים (הקוד נשמר)
+                                // SupabaseCloudCard(context = context, cardBg = cardBg, primaryColor = primaryColor, textWhite = textWhite, textGray = textGray)
                             }
                             2 -> {
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
