@@ -79,10 +79,8 @@ fun WorkOrdersListDialog(
     // State לרשימת המשימות המסודרת זמנית
     var temporarySortedOrders by remember { mutableStateOf<List<WorkOrder>?>(null) }
 
-    val todayDateString = remember {
-        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        sdf.format(Date())
-    }
+    val todayDateString2 = remember { SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date()) }
+    val todayDateString4 = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()) }
 
     val filteredOrders = remember(workOrders, selectedFilterTab, temporarySortedOrders) {
         val listToFilter = temporarySortedOrders ?: workOrders
@@ -235,7 +233,7 @@ fun WorkOrdersListDialog(
                                     isRoutingInProgress = true
                                     fetchLocationForRouting(context) { location ->
                                         if (location != null) {
-                                            val todayOrders = workOrders.filter { it.targetDate == todayDateString }
+                                            val todayOrders = workOrders.filter { it.targetDate == todayDateString2 || it.targetDate == todayDateString4 }
                                             if (todayOrders.isEmpty()) {
                                                 isRoutingInProgress = false
                                                 Toast.makeText(context, "אין משימות שנקבעו להיום.", Toast.LENGTH_SHORT).show()
@@ -249,7 +247,7 @@ fun WorkOrdersListDialog(
                                                 if (result.success) {
                                                     // אנחנו שומרים את הרשימה המלאה אבל מציגים את המשימות של היום בראש 
                                                     // (או שנוכל פשוט להחליף את הרשימה כולה ל-sorted + others)
-                                                    val otherOrders = workOrders.filter { it.targetDate != todayDateString }
+                                                    val otherOrders = workOrders.filter { it.targetDate != todayDateString2 && it.targetDate != todayDateString4 }
                                                     temporarySortedOrders = result.sortedOrders + otherOrders
                                                 }
                                                 Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()

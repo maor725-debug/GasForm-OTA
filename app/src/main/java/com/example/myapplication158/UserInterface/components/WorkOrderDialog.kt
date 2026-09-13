@@ -39,7 +39,7 @@ fun WorkOrderDialog(
     val calendar = remember { Calendar.getInstance() }
 
     val defaultDate = remember {
-        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val sdf = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
         sdf.format(calendar.time)
     }
 
@@ -53,7 +53,7 @@ fun WorkOrderDialog(
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
-            targetDate = String.format(Locale.getDefault(), "%02d/%02d/%04d", dayOfMonth, month + 1, year)
+            targetDate = String.format(Locale.getDefault(), "%02d/%02d/%02d", dayOfMonth, month + 1, year % 100)
         },
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
