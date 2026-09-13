@@ -11,7 +11,6 @@ plugins {
 }
 
 android {
-    // התיקון הקריטי: החזרת השם המקורי כדי שקובץ ה-R יזוהה
     namespace = "com.example"
     compileSdk { version = release(36) { minorApiLevel = 1 } }
 
@@ -28,7 +27,8 @@ android {
     buildTypes {
         release {
             isCrunchPngs = false
-            isMinifyEnabled = false
+            isMinifyEnabled = true // הופעל ProGuard/R8!
+            isShrinkResources = true // הופעל כיווץ משאבים
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
@@ -62,12 +62,8 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     implementation(platform(libs.androidx.compose.bom))
-    implementation(platform(libs.firebase.bom))
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.camera.camera2)
-    implementation(libs.androidx.camera.core)
-    implementation(libs.androidx.camera.lifecycle)
-    implementation(libs.androidx.camera.view)
+    // הוסרו תלויות מצלמה עודפות שלא בשימוש (CameraX)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.material3)
@@ -86,11 +82,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.converter.moshi)
 
-    implementation(libs.firebase.ai) {
-        exclude(group = "io.ktor")
-    }
+    // הוסרו firebase-ai (Gemini) ו-firebase-appcheck-recaptcha - לא בשימוש
 
-    implementation(libs.firebase.appcheck.recaptcha)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.logging.interceptor)

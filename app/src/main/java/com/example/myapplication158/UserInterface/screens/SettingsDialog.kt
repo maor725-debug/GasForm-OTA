@@ -135,14 +135,6 @@ fun SettingsDialog(
     var customStorageTreeUri by remember { mutableStateOf(settingsManager.customStorageTreeUri) }
     var customStorageFolderName by remember { mutableStateOf(settingsManager.customStorageFolderName) }
 
-    val exportBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
-        if (uri != null) { viewModel?.exportBackup(context, uri) { _, msg -> Toast.makeText(context, msg, Toast.LENGTH_LONG).show() } }
-    }
-
-    val importBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        if (uri != null) { viewModel?.importBackup(context, uri) { _, msg -> Toast.makeText(context, msg, Toast.LENGTH_LONG).show() } }
-    }
-
     val folderPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             try {
@@ -341,7 +333,7 @@ fun SettingsDialog(
                                         Text("1. חתימת טכנאי ידנית (חובה)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
                                         Spacer(modifier = Modifier.height(8.dp))
                                         TechnicianSignatureTouchPad(initialSignatureUri = savedSignatureUri, onSignatureSaved = { sigUri -> val newUri = sigUri.ifEmpty { null }; savedSignatureUri = newUri ?: ""; settingsManager.savedSignatureUri = newUri })
-                                        
+
                                         Spacer(modifier = Modifier.height(16.dp))
                                         HorizontalDivider(color = borderColor)
                                         Spacer(modifier = Modifier.height(16.dp))
@@ -408,33 +400,7 @@ fun SettingsDialog(
                                         }
                                     }
                                 }
-                                Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("גיבוי ושחזור נתונים מלא", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Button(onClick = { exportBackupLauncher.launch("backup_158_gas_${System.currentTimeMillis()}.json") }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)) { Text("ייצא גיבוי", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
-                                            OutlinedButton(onClick = { importBackupLauncher.launch(arrayOf("application/json", "*/*")) }, modifier = Modifier.weight(1f), border = BorderStroke(1.dp, primaryColor), colors = ButtonDefaults.outlinedButtonColors(contentColor = primaryColor)) { Text("שחזר גיבוי", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
-                                        }
-                                    }
-                                }
-                                Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
-                                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("בדיקת עדכוני גרסה", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
-                                        Spacer(modifier = Modifier.height(20.dp))
-                                        Icon(Icons.Default.SystemUpdate, null, tint = greenSuccess, modifier = Modifier.size(48.dp))
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text("גרסה נוכחית: v$appVersion", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = textWhite)
-                                        Spacer(modifier = Modifier.height(20.dp))
-                                        Button(onClick = { isCheckingUpdate = true; updateCheckResult = null }, modifier = Modifier.fillMaxWidth().height(44.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)) { Text("בדוק גרסה חדשה כעת", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
-                                        LaunchedEffect(isCheckingUpdate) { if (isCheckingUpdate) { kotlinx.coroutines.delay(1500); isCheckingUpdate = false; updateCheckResult = "הנך משתמש בגרסה העדכנית ביותר (v$appVersion)." } }
-                                        
-                                        if (updateCheckResult != null) {
-                                            Spacer(modifier = Modifier.height(12.dp))
-                                            Text(updateCheckResult!!, fontSize = 12.sp, color = textGray)
-                                        }
-                                    }
-                                }
+                                // כפתורי הגיבוי המזויפים הוסרו כאן לבקשת הבדיקה הביטחונית
                             }
                         }
                     }
@@ -561,8 +527,11 @@ fun SettingsAuthDialog(
 
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
+
+    // אבטחה: טעינת אימייל בלבד אם נשמר, הסיסמה לעולם לא נטענת או נשמרת בטקסט גלוי
     var email by remember { mutableStateOf(prefs.getString("email", "") ?: "") }
-    var password by remember { mutableStateOf(prefs.getString("password", "") ?: "") }
+    var password by remember { mutableStateOf("") }
+
     var rememberMe by remember { mutableStateOf(prefs.getBoolean("remember_me", false)) }
 
     var passwordVisible by remember { mutableStateOf(false) }
@@ -627,7 +596,7 @@ fun SettingsAuthDialog(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End
                 ) {
-                    Text("שמור פרטי התחברות", fontSize = 14.sp)
+                    Text("שמור אימייל להתחברות", fontSize = 14.sp)
                     Checkbox(checked = rememberMe, onCheckedChange = { rememberMe = it })
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -656,7 +625,8 @@ fun SettingsAuthDialog(
                                             val profile = SupabaseManager.client.postgrest["profiles"].select { filter { eq("id", user.id) } }.decodeSingleOrNull<UserProfile>()
 
                                             if (profile?.status == "active") {
-                                                if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).putString("password", password).apply()
+                                                // שומר רק אימייל באופן מאובטח, ללא סיסמה כלל!
+                                                if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).apply()
                                                 else prefs.edit().clear().apply()
                                                 onSuccess()
                                             } else errorMessage = "הרישיון אינו פעיל."
@@ -670,11 +640,11 @@ fun SettingsAuthDialog(
                                             if (profile != null && profile.status == "active") {
                                                 if (profile.device_id.isNullOrEmpty()) {
                                                     SupabaseManager.client.postgrest["profiles"].update(com.example.myapplication158.util.DeviceUpdate(device_id = androidId)) { filter { eq("id", user.id) } }
-                                                    if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).putString("password", password).apply()
+                                                    if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).apply()
                                                     else prefs.edit().clear().apply()
                                                     onSuccess()
                                                 } else if (profile.device_id == androidId) {
-                                                    if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).putString("password", password).apply()
+                                                    if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).apply()
                                                     else prefs.edit().clear().apply()
                                                     onSuccess()
                                                 } else {

@@ -57,15 +57,11 @@ fun OnboardingScreen(
     var locationGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
-    var cameraGranted by remember {
-        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
-    }
 
     val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: locationGranted
-        cameraGranted = permissions[Manifest.permission.CAMERA] ?: cameraGranted
     }
 
     Scaffold(
@@ -141,7 +137,7 @@ fun OnboardingScreen(
                             )
 
                             Text(
-                                text = "לפני שנתחיל, האפליקציה זקוקה לאישור הרשאות עבודה קריטיות:",
+                                text = "לפני שנתחיל, האפליקציה זקוקה לאישור הרשאה קריטית:",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -157,13 +153,6 @@ fun OnboardingScreen(
                                     description = "לדגימת קואורדינטות מדויקות לאתרי בנייה וללא כתובת",
                                     isGranted = locationGranted
                                 )
-
-                                PermissionItem(
-                                    icon = Icons.Default.PhotoCamera,
-                                    title = "גישה למצלמה",
-                                    description = "לצילום תוואי, ליקויים וצילום פני לקוח בעת חתימה",
-                                    isGranted = cameraGranted
-                                )
                             }
 
                             Button(
@@ -171,8 +160,7 @@ fun OnboardingScreen(
                                     permissionsLauncher.launch(
                                         arrayOf(
                                             Manifest.permission.ACCESS_FINE_LOCATION,
-                                            Manifest.permission.ACCESS_COARSE_LOCATION,
-                                            Manifest.permission.CAMERA
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
                                         )
                                     )
                                 },
@@ -181,7 +169,7 @@ fun OnboardingScreen(
                             ) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("אשר הרשאות גישה כעת", fontWeight = FontWeight.Bold)
+                                Text("אשר הרשאת גישה כעת", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
