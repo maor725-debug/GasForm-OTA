@@ -527,6 +527,12 @@ object PdfGenerator {
 
             val watermarkText = "נורמטיבי 158/4 | תאריך: ${form.date}"
             val extraImages = mutableListOf<Pair<String, String>>()
+            
+            val techLicenseUri = settingsManager.technicianLicenseUri
+            if (!techLicenseUri.isNullOrBlank()) {
+                extraImages.add(Pair(techLicenseUri, "צילום רישיון טכנאי גז - ${form.technicianStamp}"))
+            }
+            
             if (form.isUnaddressedSite && form.sitePhotoUri.isNotEmpty()) { extraImages.add(Pair(form.sitePhotoUri, "צילום מפה / שטח (נ.צ: ${form.gpsCoordinates})")) }
             form.extraRouteImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "צילום תוואי ${index + 1}")) }
             form.remarksImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "הערת ביצוע ${index + 1}")) }
@@ -916,6 +922,12 @@ object PdfGenerator {
 
             val watermarkText = "נורמטיבי 158/4 | תאריך: ${form.date}"
             val extraImages = mutableListOf<Pair<String, String>>()
+            
+            val techLicenseUri = settingsManager.technicianLicenseUri
+            if (!techLicenseUri.isNullOrBlank()) {
+                extraImages.add(Pair(techLicenseUri, "צילום רישיון טכנאי גז - ${form.technicianStamp}"))
+            }
+
             if (form.isUnaddressedSite && form.sitePhotoUri.isNotEmpty()) { extraImages.add(Pair(form.sitePhotoUri, "צילום מפה / שטח (נ.צ: ${form.gpsCoordinates})")) }
             form.extraRouteImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "צילום תוואי ${index + 1}")) }
             form.remarksImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "הערת ביצוע ${index + 1}")) }
@@ -1291,18 +1303,24 @@ object PdfGenerator {
         pdfDocument.finishPage(page)
 
         // הוספת עמודי נספחים
+        val extraUris = mutableListOf<String>()
+        val techLicenseUri = SettingsManager(context).technicianLicenseUri
+        if (!techLicenseUri.isNullOrBlank()) { extraUris.add(techLicenseUri) }
+        
         if (form.extraImagesUris.isNotBlank()) {
-            val extraUris = form.extraImagesUris.split(",").filter { it.isNotBlank() }
-            if (extraUris.isNotEmpty()) {
-                currentPageNum++
-                var appendixPage = pdfDocument.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-                var appendixCanvas = appendixPage.canvas
-                drawPageHeader()
-                var imgYPosition = 140f
-                appendixCanvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
-                imgYPosition += 40f
+            extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotBlank() })
+        }
+        
+        if (extraUris.isNotEmpty()) {
+            currentPageNum++
+            var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+            var appendixCanvas = appendixPage.canvas
+            drawPageHeader()
+            var imgYPosition = 140f
+            appendixCanvas.drawText("נספחים (כולל רישיון טכנאי) - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
+            imgYPosition += 40f
 
-                for (uriStr in extraUris) {
+            for (uriStr in extraUris) {
                     if (imgYPosition > 600f) {
                         pdfDocument.finishPage(appendixPage)
                         currentPageNum++
@@ -1325,7 +1343,6 @@ object PdfGenerator {
                 }
                 pdfDocument.finishPage(appendixPage)
             }
-        }
 
         return try {
             val dir = File(context.filesDir, "pdfs").apply { if (!exists()) mkdirs() }
