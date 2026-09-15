@@ -10,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -45,10 +47,15 @@ import com.example.myapplication158.util.SettingsManager
 import com.example.myapplication158.util.SupabaseManager
 import com.example.myapplication158.util.UserProfile
 import com.example.myapplication158.util.ProfileUpdate
+import com.example.myapplication158.TechnicianProfile
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import android.provider.Settings
 
 @Suppress("UNUSED_PARAMETER")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,6 +69,8 @@ fun SettingsDialog(
 ) {
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
+    val scope = rememberCoroutineScope()
+    val androidId = remember { Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE" }
 
     val appSecurityPrefs = remember { context.getSharedPreferences("app_security_prefs", Context.MODE_PRIVATE) }
     var isLicensed by remember { mutableStateOf(appSecurityPrefs.getBoolean("is_licensed_user", false)) }
@@ -103,12 +112,14 @@ fun SettingsDialog(
 
     var selectedCategoryIndex by remember { mutableIntStateOf(initialCategoryIndex) }
 
+    // הוספת קטגוריית "רישיון" ייעודית
     val categories = listOf(
         Triple("עיצוב", Icons.Default.Palette, 0),
         Triple("אחסון", Icons.Default.Cloud, 1),
         Triple("קבלן", Icons.Default.Badge, 2),
-        Triple("חשבון", Icons.Default.AccountBox, 3),
-        Triple("אבטחה", Icons.Default.Security, 4)
+        Triple("רישיון", Icons.Default.VerifiedUser, 3), // לשונית חדשה לעדכון הרישיון
+        Triple("חשבון", Icons.Default.AccountBox, 4),
+        Triple("אבטחה", Icons.Default.Security, 5)
     )
 
     var isAutoSaveEnabled by remember { mutableStateOf(settingsManager.isAutoSavePdfEnabled) }
@@ -118,6 +129,19 @@ fun SettingsDialog(
     var contractorPhone by remember { mutableStateOf(settingsManager.contractorPhone) }
     var defaultTechnicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName) }
     var currentFormNumberInput by remember { mutableStateOf(if (settingsManager.currentFormNumber > 0) settingsManager.currentFormNumber.toString() else "") }
+
+    // שדות רישיון טכנאי לעדכון במסך ההגדרות
+    var technicianLicenseNumber by remember { mutableStateOf(settingsManager.technicianLicenseNumber) }
+    var technicianLicenseExpiry by remember { mutableStateOf(settingsManager.technicianLicenseExpiry) }
+    var technicianLevel by remember { mutableStateOf(settingsManager.technicianLevel) }
+
+    // תאריכון לבחירת תוקף הרישיון מחדש
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
+    val dateInteractionSource = remember { MutableInteractionSource() }
+    if (dateInteractionSource.collectIsPressedAsState().value) {
+        showDatePicker = true
+    }
 
     var customStorageTreeUri by remember { mutableStateOf(settingsManager.customStorageTreeUri) }
     var customStorageFolderName by remember { mutableStateOf(settingsManager.customStorageFolderName) }
@@ -267,11 +291,6 @@ fun SettingsDialog(
                                         }
                                     }
                                 }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                // הסתרת הכרטיסייה מהתצוגה לטכנאים (הקוד נשמר)
-                                // SupabaseCloudCard(context = context, cardBg = cardBg, primaryColor = primaryColor, textWhite = textWhite, textGray = textGray)
                             }
                             2 -> {
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
@@ -325,6 +344,88 @@ fun SettingsDialog(
                                 }
                             }
                             3 -> {
+                                // כרטיסיית רישיון גפ"מ - עדכון מס' רישיון, תוקף ורמה וסנכרון לשרת!
+                                Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
+                                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.VerifiedUser, null, tint = primaryColor, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("ניהול רישיון טכנאי גפ\"מ", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+                                        }
+                                        Text("כאן תוכל לעדכן את מספר הרישיון ותוקפו. העדכון יסונכרן אוטומטית למערכת הניהול.", fontSize = 12.sp, color = textGray)
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        OutlinedTextField(
+                                            value = technicianLicenseNumber,
+                                            onValueChange = { technicianLicenseNumber = it; settingsManager.technicianLicenseNumber = it },
+                                            label = { Text("מספר רישיון טכנאי גז") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true,
+                                            colors = textFieldColors
+                                        )
+
+                                        OutlinedTextField(
+                                            value = technicianLicenseExpiry,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("תוקף הרישיון (לחץ לעדכון)") },
+                                            leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = primaryColor) },
+                                            interactionSource = dateInteractionSource,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = textFieldColors
+                                        )
+
+                                        Text("רמת טכנאי:", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textWhite, modifier = Modifier.padding(top = 8.dp))
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                RadioButton(selected = technicianLevel == "רמה 1", onClick = { technicianLevel = "רמה 1"; settingsManager.technicianLevel = "רמה 1" })
+                                                Text("רמה 1", fontSize = 14.sp, color = textWhite)
+                                            }
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                RadioButton(selected = technicianLevel == "רמה 2", onClick = { technicianLevel = "רמה 2"; settingsManager.technicianLevel = "רמה 2" })
+                                                Text("רמה 2", fontSize = 14.sp, color = textWhite)
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Button(
+                                            onClick = {
+                                                if (technicianLicenseNumber.isBlank() || technicianLicenseExpiry.isBlank()) {
+                                                    Toast.makeText(context, "נא למלא מספר רישיון ותוקף", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    scope.launch {
+                                                        try {
+                                                            val profile = TechnicianProfile(
+                                                                device_id = androidId,
+                                                                full_name = defaultTechnicianName,
+                                                                license_number = technicianLicenseNumber,
+                                                                license_expiry = technicianLicenseExpiry,
+                                                                technician_level = technicianLevel,
+                                                                is_blocked = false
+                                                            )
+                                                            SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile)
+                                                            Toast.makeText(context, "✓ פרטי הרישיון עודכנו וסונכרנו לשרת בהצלחה!", Toast.LENGTH_LONG).show()
+                                                        } catch (e: Exception) {
+                                                            e.printStackTrace()
+                                                            Toast.makeText(context, "נשמר מקומית, אך אירעה שגיאה בסנכרון לשרת.", Toast.LENGTH_LONG).show()
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth().height(44.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                                        ) {
+                                            Icon(Icons.Default.CloudSync, null, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("סנכרן רישיון מול השרת", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                            4 -> {
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Text("המנוי שלי \uD83D\uDC51", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = primaryColor, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -369,7 +470,7 @@ fun SettingsDialog(
                                     }
                                 }
                             }
-                            4 -> {
+                            5 -> {
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Text("נעילת אפליקציה (PIN)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
@@ -380,7 +481,6 @@ fun SettingsDialog(
                                         }
                                     }
                                 }
-                                // כפתורי הגיבוי המזויפים הוסרו כאן לבקשת הבדיקה הביטחונית
                             }
                         }
                     }
@@ -432,6 +532,28 @@ fun SettingsDialog(
                     Toast.makeText(context, "נרשמת למערכת בהצלחה! ההגבלה הוסרה.", Toast.LENGTH_LONG).show()
                 }
             )
+        }
+
+        // תאריכון לעדכון תוקף הרישיון מתוך חלון ההגדרות
+        if (showDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDatePicker = false
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                            technicianLicenseExpiry = sdf.format(Date(millis))
+                            settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
+                        }
+                    }) { Text("אישור") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) { Text("ביטול") }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
         }
     }
 }
@@ -501,16 +623,12 @@ fun SettingsAuthDialog(
     val prefs = remember { context.getSharedPreferences("login_prefs", Context.MODE_PRIVATE) }
     var isSignUpMode by remember { mutableStateOf(false) }
 
-    // שולף את המזהה הייחודי של המכשיר - מניעת רמאות
     val androidId = remember { android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE" }
 
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
-
-    // אבטחה: טעינת אימייל בלבד אם נשמר, הסיסמה לעולם לא נטענת או נשמרת בטקסט גלוי
     var email by remember { mutableStateOf(prefs.getString("email", "") ?: "") }
     var password by remember { mutableStateOf("") }
-
     var rememberMe by remember { mutableStateOf(prefs.getBoolean("remember_me", false)) }
 
     var passwordVisible by remember { mutableStateOf(false) }
@@ -604,7 +722,6 @@ fun SettingsAuthDialog(
                                             val profile = SupabaseManager.client.postgrest["profiles"].select { filter { eq("id", user.id) } }.decodeSingleOrNull<UserProfile>()
 
                                             if (profile?.status == "active") {
-                                                // שומר רק אימייל באופן מאובטח, ללא סיסמה כלל!
                                                 if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).apply()
                                                 else prefs.edit().clear().apply()
                                                 onSuccess()

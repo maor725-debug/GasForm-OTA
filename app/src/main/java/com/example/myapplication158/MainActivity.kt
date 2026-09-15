@@ -29,6 +29,7 @@ import com.example.myapplication158.UserInterface.screens.FormListScreen
 import com.example.myapplication158.UserInterface.screens.OnboardingScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreen
 import com.example.myapplication158.UserInterface.screens.LoginScreen
+import com.example.myapplication158.UserInterface.screens.WelcomeScreen
 import com.example.myapplication158.util.OtaUpdateManager
 import com.example.myapplication158.util.SettingsManager
 import com.example.myapplication158.util.SupabaseManager
@@ -36,6 +37,7 @@ import com.example.myapplication158.util.TrialTracker
 import com.example.myapplication158.util.UpdateInfo
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -121,6 +123,7 @@ fun AppRoot() {
 }
 
 sealed class Screen {
+    object Welcome : Screen()
     object Login : Screen()
     object Onboarding : Screen()
     object List : Screen()
@@ -140,6 +143,27 @@ fun MainNavigation() {
     val appPrefs = remember { context.getSharedPreferences("app_security_prefs", Context.MODE_PRIVATE) }
     var isLicensed by remember { mutableStateOf(appPrefs.getBoolean("is_licensed_user", false)) }
     var trialFormsCount by remember { mutableIntStateOf(appPrefs.getInt("trial_forms_count", 0)) }
+    var hasSeenWelcome by remember { mutableStateOf(appPrefs.getBoolean("has_seen_welcome", false)) }
+
+    // סטטוס חסימה ניהולית
+    var isUserBlocked by remember { mutableStateOf(false) }
+
+    // בדיקת חסימה מול השרת (Gatekeeper) בכל פעם שהאפליקציה נדלקת
+    LaunchedEffect(Unit) {
+        if (androidId != "UNKNOWN_DEVICE") {
+            try {
+                val profile = SupabaseManager.client.postgrest["technicians_profiles"]
+                    .select { filter { eq("device_id", androidId) } }
+                    .decodeSingleOrNull<TechnicianProfile>()
+
+                if (profile?.is_blocked == true) {
+                    isUserBlocked = true
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     LaunchedEffect(isLicensed) {
         if (!isLicensed && androidId != "UNKNOWN_DEVICE") {
@@ -165,14 +189,19 @@ fun MainNavigation() {
 
     val isOnboardingComplete = remember {
         settingsManager.contractorHeader.isNotBlank() &&
-                !settingsManager.savedSignatureUri.isNullOrBlank() &&
+                !settingsManager.technicianLicenseUri.isNullOrBlank() &&
                 settingsManager.defaultTechnicianName.isNotBlank() &&
+                settingsManager.technicianLicenseNumber.isNotBlank() &&
                 settingsManager.currentFormNumber > 0
     }
 
     var currentScreen by remember {
         mutableStateOf<Screen>(
-            if (!isOnboardingComplete) Screen.Onboarding else Screen.List
+            when {
+                !hasSeenWelcome -> Screen.Welcome
+                !isOnboardingComplete -> Screen.Onboarding
+                else -> Screen.List
+            }
         )
     }
 
@@ -206,39 +235,89 @@ fun MainNavigation() {
         }
     }
 
-    Crossfade(targetState = currentScreen, label = "screen_transition") { screen ->
-        when (screen) {
-            is Screen.Login -> {
-                LoginScreen(
-                    onLoginSuccess = {
-                        isLicensed = true
-                        appPrefs.edit().putBoolean("is_licensed_user", true).apply()
-                        currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List
-                    }
-                )
+    // מסך נעילה קריטי - לא ניתן לסגירה!
+    if (isUserBlocked) {
+        AlertDialog(
+            onDismissRequest = { /* חסום לסגירה */ },
+            title = {
+                Text("חשבון נחסם", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), color = Color.Red, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text("הגישה שלך למערכת נחסמה עקב אי-תאימות בפרטי הרישיון או הפרת תנאי השימוש.\n\nאנא צור קשר עם הנהלת המערכת לבירור.", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
+            },
+            confirmButton = {
+                Button(
+                    onClick = { (context as? ComponentActivity)?.finish() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("סגור אפליקציה")
+                }
             }
-            is Screen.Onboarding -> {
-                OnboardingScreen(onCompleteOnboarding = { currentScreen = Screen.List })
-            }
-            is Screen.List -> {
-                FormListScreen(
-                    viewModel = viewModel,
-                    onAddNormativeForm = {
-                        handleNewFormAttempt {
-                            val nextPartnerNum = viewModel.getNextPartnerNumber()
-                            currentScreen = Screen.Edit(GasForm(partnerNumber = nextPartnerNum))
+        )
+    } else {
+        Crossfade(targetState = currentScreen, label = "screen_transition") { screen ->
+            when (screen) {
+                is Screen.Welcome -> {
+                    WelcomeScreen(
+                        onNavigateNext = {
+                            hasSeenWelcome = true
+                            appPrefs.edit().putBoolean("has_seen_welcome", true).apply()
+                            currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List
                         }
-                    },
-                    onAddOtherForms = { showFormTypeDialog = true },
-                    onEditForm = { form -> currentScreen = Screen.Edit(form) },
-                    onEditPeriodicForm = { form -> currentScreen = Screen.EditPeriodic(form) }
-                )
-            }
-            is Screen.Edit -> {
-                FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List })
-            }
-            is Screen.EditPeriodic -> {
-                PeriodicFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List })
+                    )
+                }
+                is Screen.Login -> {
+                    LoginScreen(
+                        onLoginSuccess = {
+                            isLicensed = true
+                            appPrefs.edit().putBoolean("is_licensed_user", true).apply()
+                            currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List
+                        }
+                    )
+                }
+                is Screen.Onboarding -> {
+                    OnboardingScreen(
+                        onCompleteOnboarding = {
+                            // שלב 3: שיגור פרטי הטכנאי לשרת בסיום ההרשמה!
+                            scope.launch {
+                                try {
+                                    val profile = TechnicianProfile(
+                                        device_id = androidId,
+                                        full_name = settingsManager.defaultTechnicianName,
+                                        license_number = settingsManager.technicianLicenseNumber,
+                                        license_expiry = settingsManager.technicianLicenseExpiry,
+                                        technician_level = settingsManager.technicianLevel,
+                                        is_blocked = false
+                                    )
+                                    SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                            currentScreen = Screen.List
+                        }
+                    )
+                }
+                is Screen.List -> {
+                    FormListScreen(
+                        viewModel = viewModel,
+                        onAddNormativeForm = {
+                            handleNewFormAttempt {
+                                val nextPartnerNum = viewModel.getNextPartnerNumber()
+                                currentScreen = Screen.Edit(GasForm(partnerNumber = nextPartnerNum))
+                            }
+                        },
+                        onAddOtherForms = { showFormTypeDialog = true },
+                        onEditForm = { form -> currentScreen = Screen.Edit(form) },
+                        onEditPeriodicForm = { form -> currentScreen = Screen.EditPeriodic(form) }
+                    )
+                }
+                is Screen.Edit -> {
+                    FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List })
+                }
+                is Screen.EditPeriodic -> {
+                    PeriodicFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List })
+                }
             }
         }
     }
@@ -270,3 +349,14 @@ fun MainNavigation() {
         )
     }
 }
+
+// מבנה הנתונים לשיגור פרופיל הטכנאי לשרת
+@Serializable
+data class TechnicianProfile(
+    val device_id: String,
+    val full_name: String,
+    val license_number: String,
+    val license_expiry: String,
+    val technician_level: String,
+    val is_blocked: Boolean = false
+)
