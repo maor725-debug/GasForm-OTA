@@ -41,7 +41,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.documentfile.provider.DocumentFile
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.SignaturePad
-import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
 import com.example.myapplication158.util.SettingsManager
 import com.example.myapplication158.util.SupabaseManager
 import com.example.myapplication158.util.UserProfile
@@ -114,7 +113,6 @@ fun SettingsDialog(
 
     var isAutoSaveEnabled by remember { mutableStateOf(settingsManager.isAutoSavePdfEnabled) }
 
-    var savedSignatureUri by remember { mutableStateOf(settingsManager.savedSignatureUri ?: "") }
     var savedLicenseUri by remember { mutableStateOf(settingsManager.technicianLicenseUri ?: "") }
     var contractorHeader by remember { mutableStateOf(settingsManager.contractorHeader) }
     var contractorPhone by remember { mutableStateOf(settingsManager.contractorPhone) }
@@ -320,17 +318,9 @@ fun SettingsDialog(
                                 }
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
                                     Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("1. חתימת טכנאי ידנית (חובה)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+                                        Text("צילום רישיון טכנאי מהגלריה (חובה)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        TechnicianSignatureTouchPad(initialSignatureUri = savedSignatureUri, onSignatureSaved = { sigUri -> val newUri = sigUri.ifEmpty { null }; savedSignatureUri = newUri ?: ""; settingsManager.savedSignatureUri = newUri })
-
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        HorizontalDivider(color = borderColor)
-                                        Spacer(modifier = Modifier.height(16.dp))
-
-                                        Text("2. צילום רישיון טכנאי מהגלריה (חובה)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        SignaturePad(title = "בחר צילום רישיון מהגלריה:", initialSignatureUri = savedLicenseUri, onSignatureSaved = { licUri -> val newUri = licUri.ifEmpty { null }; savedLicenseUri = newUri ?: ""; settingsManager.technicianLicenseUri = newUri })
+                                        SignaturePad(title = "בחר צילום רישיון (יופיע כחתימה בדוחות):", initialSignatureUri = savedLicenseUri, onSignatureSaved = { licUri -> val newUri = licUri.ifEmpty { null }; savedLicenseUri = newUri ?: ""; settingsManager.technicianLicenseUri = newUri })
                                     }
                                 }
                             }
@@ -403,10 +393,9 @@ fun SettingsDialog(
                             val hasContractorPhone = settingsManager.contractorPhone.isNotBlank()
                             val hasTechName = settingsManager.defaultTechnicianName.isNotBlank()
                             val hasFormNumber = settingsManager.currentFormNumber > 0
-                            val hasManualSig = !settingsManager.savedSignatureUri.isNullOrBlank()
                             val hasLicensePhoto = !settingsManager.technicianLicenseUri.isNullOrBlank()
 
-                            val isAllValid = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasManualSig && hasLicensePhoto
+                            val isAllValid = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasLicensePhoto
 
                             if (!isAllValid) {
                                 val missing = mutableListOf<String>()
@@ -415,7 +404,6 @@ fun SettingsDialog(
                                 if (!hasContractorPhone) missing.add("• מספר טלפון נייד (בלשונית קבלן)")
                                 if (!hasTechName) missing.add("• שם טכנאי (בלשונית קבלן)")
                                 if (!hasFormNumber) missing.add("• מספר טופס התחלתי (בלשונית קבלן)")
-                                if (!hasManualSig) missing.add("• חתימה ידנית (בלשונית קבלן)")
                                 if (!hasLicensePhoto) missing.add("• צילום רישיון מהגלריה (בלשונית קבלן)")
                                 Toast.makeText(context, "חובה להגדיר את השדות הבאים להתחלת עבודה:\n" + missing.joinToString("\n"), Toast.LENGTH_LONG).show()
                             } else {

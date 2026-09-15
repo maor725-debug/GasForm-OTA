@@ -32,6 +32,9 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
+            // הגדרות "ארגז החול" - מאפשר התקנת אפליקציה שנייה במקביל
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-DEV"
         }
     }
 
@@ -63,7 +66,6 @@ dependencies {
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
-    // הוסרו תלויות מצלמה עודפות שלא בשימוש (CameraX)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.material3)
@@ -81,8 +83,6 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.coil.compose)
     implementation(libs.converter.moshi)
-
-    // הוסרו firebase-ai (Gemini) ו-firebase-appcheck-recaptcha - לא בשימוש
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)

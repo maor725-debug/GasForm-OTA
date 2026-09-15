@@ -484,7 +484,7 @@ object PdfGenerator {
             canvas.drawLine(390f, y + 2, 490f, y + 2, dashedLinePaint)
 
             canvas.drawText("חתימה:", 360f, y, textPaint)
-            val sigUriStr = settingsManager.savedSignatureUri
+            val sigUriStr = settingsManager.technicianLicenseUri
             if (!sigUriStr.isNullOrEmpty()) {
                 try {
                     decodeBitmapWithExifRotation(context, Uri.parse(sigUriStr))?.let { bitmap ->
@@ -890,7 +890,7 @@ object PdfGenerator {
             canvas.drawText("שם הטכנאי:", 530f, sigY + 15f, labelPaint)
             canvas.drawText(form.technicianStamp, 470f, sigY + 15f, Paint(valuePaint).apply { typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) })
             canvas.drawText("חתימה:", 530f, sigY + 35f, labelPaint)
-            val sigUriStr = settingsManager.savedSignatureUri
+            val sigUriStr = settingsManager.technicianLicenseUri
             if (!sigUriStr.isNullOrEmpty()) {
                 try {
                     decodeBitmapWithExifRotation(context, Uri.parse(sigUriStr))?.let { bitmap ->
@@ -1282,6 +1282,26 @@ object PdfGenerator {
 
         yPosition += rowHeight
         canvas.drawText("שם: ${form.technicianName} | רישיון: ${form.technicianLicense}", rightMargin, yPosition, paint)
+        
+        val settingsSigUri = SettingsManager(context).technicianLicenseUri
+        if (!settingsSigUri.isNullOrBlank()) {
+            try {
+                decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
+                    val boxWidth = 170f; val boxHeight = 70f
+                    val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                    val boxRatio = boxWidth / boxHeight
+                    var drawWidth = boxWidth; var drawHeight = boxHeight
+                    if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
+                    
+                    val left = rightMargin - drawWidth
+                    val top = yPosition + 10f
+                    val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
+                    canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
+                    bitmap.recycle()
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+
         canvas.drawText("שם החותם: ${form.clientNameConfirm}", 200f, yPosition, paint)
 
         if (form.clientSignatureUri.isNotBlank()) {
@@ -1297,8 +1317,6 @@ object PdfGenerator {
 
         // הוספת עמודי נספחים
         val extraUris = mutableListOf<String>()
-        val techLicenseUri = SettingsManager(context).technicianLicenseUri
-        if (!techLicenseUri.isNullOrBlank()) { extraUris.add(techLicenseUri) }
         
         if (form.extraImagesUris.isNotBlank()) {
             extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotBlank() })
@@ -1310,7 +1328,7 @@ object PdfGenerator {
             var appendixCanvas = appendixPage.canvas
             drawPageHeader()
             var imgYPosition = 140f
-            appendixCanvas.drawText("נספחים (כולל רישיון טכנאי) - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
+            appendixCanvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
             imgYPosition += 40f
 
             for (uriStr in extraUris) {

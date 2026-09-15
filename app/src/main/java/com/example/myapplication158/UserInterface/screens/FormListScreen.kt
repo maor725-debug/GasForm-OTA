@@ -99,10 +99,9 @@ fun FormListScreen(
         val hasContractorPhone = !settingsManager.contractorPhone.isNullOrBlank()
         val hasTechName = !settingsManager.defaultTechnicianName.isNullOrBlank()
         val hasFormNumber = settingsManager.currentFormNumber > 0
-        val hasManualSig = !settingsManager.savedSignatureUri.isNullOrBlank()
         val hasLicensePhoto = !settingsManager.technicianLicenseUri.isNullOrBlank()
 
-        isSetupComplete = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasManualSig && hasLicensePhoto
+        isSetupComplete = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasLicensePhoto
 
         val missing = mutableListOf<String>()
         if (!hasFolder) missing.add("• תיקיית שמירה לדוחות")
@@ -110,7 +109,6 @@ fun FormListScreen(
         if (!hasContractorPhone) missing.add("• מס' טלפון נייד קבלן")
         if (!hasTechName) missing.add("• שם טכנאי גז מבצע")
         if (!hasFormNumber) missing.add("• מספר טופס שוטף התחלתי")
-        if (!hasManualSig) missing.add("• חתימת טכנאי ידנית")
         if (!hasLicensePhoto) missing.add("• צילום רישיון טכנאי מהגלריה")
         missingFieldsText = missing.joinToString("\n")
     }
