@@ -483,16 +483,16 @@ object PdfGenerator {
             canvas.drawText(form.technicianStamp, 490f, y, techNamePaint)
             canvas.drawLine(390f, y + 2, 490f, y + 2, dashedLinePaint)
 
-            canvas.drawText("חתימה:", 360f, y, textPaint)
+            canvas.drawText("חתימת טכנאי/חותמת:", 360f, y, textPaint)
             val sigUriStr = settingsManager.technicianLicenseUri
             if (!sigUriStr.isNullOrEmpty()) {
                 try {
                     decodeBitmapWithExifRotation(context, Uri.parse(sigUriStr))?.let { bitmap ->
-                        val boxWidth = 170f; val boxHeight = 70f
+                        val boxWidth = 190f; val boxHeight = 100f
                         val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat(); val boxRatio = boxWidth / boxHeight
                         var drawWidth = boxWidth; var drawHeight = boxHeight
                         if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
-                        val left = 290f - drawWidth; val top = (y - 30f) + (boxHeight - drawHeight) / 2f
+                        val left = 290f - drawWidth; val top = (y - 50f) + (boxHeight - drawHeight) / 2f
                         
                         val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
                         canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
@@ -501,7 +501,7 @@ object PdfGenerator {
                 } catch (e: Exception) { e.printStackTrace() }
             }
             canvas.drawLine(100f, y + 2, 300f, y + 2, dashedLinePaint)
-            y += 45f
+            y += 70f
 
             canvas.drawRect(40f, y - 5f, 550f, y + 95f, Paint().apply { color = Color.rgb(245, 247, 250); style = Paint.Style.FILL })
             canvas.drawRect(40f, y - 5f, 550f, y + 95f, Paint().apply { color = Color.LTGRAY; strokeWidth = 0.5f; style = Paint.Style.STROKE })
@@ -885,24 +885,32 @@ object PdfGenerator {
             val borderPnt = Paint().apply { color = fieldBorderColor; style = Paint.Style.STROKE; strokeWidth = 1f; isAntiAlias = true }
             val bitmapPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
 
-            canvas.drawRoundRect(RectF(310f, sigY, 540f, sigY + 70f), 6f, 6f, boxPnt)
-            canvas.drawRoundRect(RectF(310f, sigY, 540f, sigY + 70f), 6f, 6f, borderPnt)
+            canvas.drawRoundRect(RectF(310f, sigY, 540f, sigY + 110f), 6f, 6f, boxPnt)
+            canvas.drawRoundRect(RectF(310f, sigY, 540f, sigY + 110f), 6f, 6f, borderPnt)
             canvas.drawText("שם הטכנאי:", 530f, sigY + 15f, labelPaint)
             canvas.drawText(form.technicianStamp, 470f, sigY + 15f, Paint(valuePaint).apply { typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) })
-            canvas.drawText("חתימה:", 530f, sigY + 35f, labelPaint)
+            canvas.drawText("חותמת טכנאי:", 530f, sigY + 35f, labelPaint)
             val sigUriStr = settingsManager.technicianLicenseUri
             if (!sigUriStr.isNullOrEmpty()) {
                 try {
                     decodeBitmapWithExifRotation(context, Uri.parse(sigUriStr))?.let { bitmap ->
+                        val boxWidth = 200f; val boxHeight = 80f
+                        val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                        val boxRatio = boxWidth / boxHeight
+                        var drawWidth = boxWidth; var drawHeight = boxHeight
+                        if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
+                        
+                        val left = 520f - drawWidth
+                        val top = sigY + 25f
                         val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
-                        canvas.drawBitmap(bitmap, null, RectF(330f, sigY + 25f, 450f, sigY + 65f), sigPaint)
+                        canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
                         bitmap.recycle()
                     }
                 } catch (e: Exception) { e.printStackTrace() }
             }
 
-            canvas.drawRoundRect(RectF(50f, sigY, 290f, sigY + 70f), 6f, 6f, boxPnt)
-            canvas.drawRoundRect(RectF(50f, sigY, 290f, sigY + 70f), 6f, 6f, borderPnt)
+            canvas.drawRoundRect(RectF(50f, sigY, 290f, sigY + 110f), 6f, 6f, boxPnt)
+            canvas.drawRoundRect(RectF(50f, sigY, 290f, sigY + 110f), 6f, 6f, borderPnt)
             canvas.drawText("ת.ז לקוח:", 280f, sigY + 15f, labelPaint)
             canvas.drawText(form.clientIdConfirm, 230f, sigY + 15f, valuePaint)
             canvas.drawText("חתימה:", 280f, sigY + 35f, labelPaint)
@@ -1273,7 +1281,7 @@ object PdfGenerator {
 
         // חתימות
         yPosition += 40f
-        if (yPosition > 700f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
@@ -1287,7 +1295,7 @@ object PdfGenerator {
         if (!settingsSigUri.isNullOrBlank()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
-                    val boxWidth = 170f; val boxHeight = 70f
+                    val boxWidth = 200f; val boxHeight = 110f
                     val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val boxRatio = boxWidth / boxHeight
                     var drawWidth = boxWidth; var drawHeight = boxHeight
