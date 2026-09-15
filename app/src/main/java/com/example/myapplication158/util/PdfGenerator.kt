@@ -493,7 +493,9 @@ object PdfGenerator {
                         var drawWidth = boxWidth; var drawHeight = boxHeight
                         if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
                         val left = 290f - drawWidth; val top = (y - 30f) + (boxHeight - drawHeight) / 2f
-                        canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), bitmapPaint)
+                        
+                        val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
+                        canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
                         bitmap.recycle()
                     }
                 } catch (e: Exception) { e.printStackTrace() }
@@ -527,11 +529,6 @@ object PdfGenerator {
 
             val watermarkText = "נורמטיבי 158/4 | תאריך: ${form.date}"
             val extraImages = mutableListOf<Pair<String, String>>()
-            
-            val techLicenseUri = settingsManager.technicianLicenseUri
-            if (!techLicenseUri.isNullOrBlank()) {
-                extraImages.add(Pair(techLicenseUri, "צילום רישיון טכנאי גז - ${form.technicianStamp}"))
-            }
             
             if (form.isUnaddressedSite && form.sitePhotoUri.isNotEmpty()) { extraImages.add(Pair(form.sitePhotoUri, "צילום מפה / שטח (נ.צ: ${form.gpsCoordinates})")) }
             form.extraRouteImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "צילום תוואי ${index + 1}")) }
@@ -897,7 +894,8 @@ object PdfGenerator {
             if (!sigUriStr.isNullOrEmpty()) {
                 try {
                     decodeBitmapWithExifRotation(context, Uri.parse(sigUriStr))?.let { bitmap ->
-                        canvas.drawBitmap(bitmap, null, RectF(330f, sigY + 25f, 450f, sigY + 65f), bitmapPaint)
+                        val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
+                        canvas.drawBitmap(bitmap, null, RectF(330f, sigY + 25f, 450f, sigY + 65f), sigPaint)
                         bitmap.recycle()
                     }
                 } catch (e: Exception) { e.printStackTrace() }
@@ -923,11 +921,6 @@ object PdfGenerator {
             val watermarkText = "נורמטיבי 158/4 | תאריך: ${form.date}"
             val extraImages = mutableListOf<Pair<String, String>>()
             
-            val techLicenseUri = settingsManager.technicianLicenseUri
-            if (!techLicenseUri.isNullOrBlank()) {
-                extraImages.add(Pair(techLicenseUri, "צילום רישיון טכנאי גז - ${form.technicianStamp}"))
-            }
-
             if (form.isUnaddressedSite && form.sitePhotoUri.isNotEmpty()) { extraImages.add(Pair(form.sitePhotoUri, "צילום מפה / שטח (נ.צ: ${form.gpsCoordinates})")) }
             form.extraRouteImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "צילום תוואי ${index + 1}")) }
             form.remarksImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "הערת ביצוע ${index + 1}")) }
