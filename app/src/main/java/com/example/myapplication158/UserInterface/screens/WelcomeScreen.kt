@@ -1,4 +1,4 @@
-package com.aistudio.gasform158.mnxbqy // במידה והשם שונה אצלך בראש הקבצים האחרים, שנה אותו בהתאם
+package com.example.myapplication158.UserInterface.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,7 +34,6 @@ fun WelcomeScreen(onNavigateNext: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // כותרת ראשית ומזמינה
         Text(
             text = "ברוך הבא למערכת ניהול והפקת דוחות מערך הגז",
             fontSize = 26.sp,
@@ -45,7 +44,6 @@ fun WelcomeScreen(onNavigateNext: () -> Unit) {
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        // קוביית הצהרת הפרטיות (Zero-Storage)
         Card(
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -89,7 +87,6 @@ fun WelcomeScreen(onNavigateNext: () -> Unit) {
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // כפתור התקדמות לשלב הבא (שלב הצילום שיגיע בהמשך)
         Button(
             onClick = onNavigateNext,
             modifier = Modifier

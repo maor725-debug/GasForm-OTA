@@ -7,6 +7,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,8 +33,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
 import com.example.myapplication158.util.SettingsManager
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,13 +48,26 @@ fun OnboardingScreen(
     var currentStep by remember { mutableIntStateOf(1) }
 
     // Profile State Variables
-    var contractorHeader by remember { mutableStateOf(settingsManager.contractorHeader.ifEmpty { "מאור מנחם - קבלן עבודות גז" }) }
+    var contractorHeader by remember { mutableStateOf(settingsManager.contractorHeader.ifEmpty { "מ.מ מערכות גז" }) }
     var contractorPhone by remember { mutableStateOf(settingsManager.contractorPhone.ifEmpty { "054-6096487" }) }
-    var technicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName.ifEmpty { "מאור מנחם" }) }
-    var startingFormNumber by remember { mutableIntStateOf(if (settingsManager.currentFormNumber > 0) settingsManager.currentFormNumber else 100) }
 
-    // Signature State
-    var savedSignatureUri by remember { mutableStateOf(settingsManager.savedSignatureUri) }
+    // Form Number State - Starts empty to force user input
+    var startingFormNumberStr by remember { mutableStateOf(if (settingsManager.currentFormNumber > 0) settingsManager.currentFormNumber.toString() else "") }
+
+    // License State Variables
+    var technicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName.ifEmpty { "מאור מנחם" }) }
+    var technicianLicenseNumber by remember { mutableStateOf(settingsManager.technicianLicenseNumber) }
+    var technicianLicenseExpiry by remember { mutableStateOf(settingsManager.technicianLicenseExpiry) }
+    var technicianLevel by remember { mutableStateOf(settingsManager.technicianLevel.ifEmpty { "רמה 1" }) }
+
+    // Date Picker State
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
+
+    val dateInteractionSource = remember { MutableInteractionSource() }
+    if (dateInteractionSource.collectIsPressedAsState().value) {
+        showDatePicker = true
+    }
 
     // Permission check
     var locationGranted by remember {
@@ -69,7 +85,7 @@ fun OnboardingScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "הגדרות ראשוניות - קבלת פנים",
+                        "הגדרות ראשוניות למערכת",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         textAlign = TextAlign.Center,
@@ -92,7 +108,7 @@ fun OnboardingScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Step Progress Indicator Bar
+            // Step Progress Indicator Bar (Updated to 3 steps)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -102,15 +118,15 @@ fun OnboardingScreen(
             ) {
                 StepBadge(stepNumber = 1, title = "הרשאות", isActive = currentStep == 1, isDone = currentStep > 1)
                 HorizontalDivider(modifier = Modifier.weight(1f).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                StepBadge(stepNumber = 2, title = "פרופיל", isActive = currentStep == 2, isDone = currentStep > 2)
+                StepBadge(stepNumber = 2, title = "פרופיל ורישיון", isActive = currentStep == 2, isDone = currentStep > 2)
                 HorizontalDivider(modifier = Modifier.weight(1f).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                StepBadge(stepNumber = 3, title = "חתימה", isActive = currentStep == 3, isDone = currentStep > 3)
+                StepBadge(stepNumber = 3, title = "סיום", isActive = currentStep == 3, isDone = currentStep > 3)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             when (currentStep) {
-                // STEP 1: PERMISSIONS
+                // STEP 1: PERMISSIONS & WELCOME
                 1 -> {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -130,7 +146,7 @@ fun OnboardingScreen(
                             )
 
                             Text(
-                                text = "ברוך הבא למערכת טפסי גז 158!",
+                                text = "ברוך הבא למערכת הוצאת דוחות בדיקה לפי תקן 158 חלק 4!",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
                                 textAlign = TextAlign.Center
@@ -143,17 +159,12 @@ fun OnboardingScreen(
                                 textAlign = TextAlign.Center
                             )
 
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                PermissionItem(
-                                    icon = Icons.Default.LocationOn,
-                                    title = "גישה למיקום (GPS)",
-                                    description = "לדגימת קואורדינטות מדויקות לאתרי בנייה וללא כתובת",
-                                    isGranted = locationGranted
-                                )
-                            }
+                            PermissionItem(
+                                icon = Icons.Default.LocationOn,
+                                title = "גישה למיקום (GPS)",
+                                description = "לדגימת קואורדינטות מדויקות לאתרי בנייה וללא כתובת",
+                                isGranted = locationGranted
+                            )
 
                             Button(
                                 onClick = {
@@ -175,7 +186,7 @@ fun OnboardingScreen(
                     }
                 }
 
-                // STEP 2: PROFILE & CONTRACTOR DETAILS
+                // STEP 2: PROFILE & LICENSE DETAILS
                 2 -> {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -187,18 +198,11 @@ fun OnboardingScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "הגדרת פרופיל קבלן וטכנאי",
+                                text = "פרטי הקבלן / העסק",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
+                                fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.primary,
-                                textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Text(
-                                text = "פרטים אלו יופיעו אוטומטית בראש כל הדוחות והטפסים שתפיק:",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             OutlinedTextField(
@@ -221,20 +225,13 @@ fun OnboardingScreen(
                             )
 
                             OutlinedTextField(
-                                value = technicianName,
-                                onValueChange = { technicianName = it },
-                                label = { Text("שם הטכנאי המבצע / מס' רישיון") },
-                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = startingFormNumber.toString(),
-                                onValueChange = {
-                                    startingFormNumber = it.toIntOrNull() ?: 1
+                                value = startingFormNumberStr,
+                                onValueChange = { newValue ->
+                                    if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                                        startingFormNumberStr = newValue
+                                    }
                                 },
-                                label = { Text("מספר טופס שוטף התחלתי") },
+                                label = { Text("מספר טופס התחלתי (לדוגמה: 1)") },
                                 leadingIcon = { Icon(Icons.Default.Numbers, contentDescription = null) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.fillMaxWidth(),
@@ -242,10 +239,9 @@ fun OnboardingScreen(
                             )
                         }
                     }
-                }
 
-                // STEP 3: PERMANENT SIGNATURE
-                3 -> {
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
@@ -256,35 +252,68 @@ fun OnboardingScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "יצירת חתימה קבועה לטכנאי",
+                                text = "פרטי טכנאי ורישיון גפ\"מ",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
+                                fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.primary,
-                                textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
 
-                            Text(
-                                text = "חתום כעת בלוח. חתימה זו תישמר במכשיר ותוטבע אוטומטית על כל דוח עתידי:",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            OutlinedTextField(
+                                value = technicianName,
+                                onValueChange = { technicianName = it },
+                                label = { Text("שם מלא של הטכנאי") },
+                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
                             )
 
-                            TechnicianSignatureTouchPad(
-                                initialSignatureUri = savedSignatureUri,
-                                onSignatureSaved = { uri ->
-                                    val newUri = uri.ifEmpty { null }
-                                    savedSignatureUri = newUri
-                                    settingsManager.savedSignatureUri = newUri
-                                    Toast.makeText(context, "החתימה נשמרה בהצלחה!", Toast.LENGTH_SHORT).show()
-                                }
+                            OutlinedTextField(
+                                value = technicianLicenseNumber,
+                                onValueChange = { technicianLicenseNumber = it },
+                                label = { Text("מספר רישיון טכנאי גז") },
+                                leadingIcon = { Icon(Icons.Default.CreditCard, contentDescription = null) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
                             )
+
+                            OutlinedTextField(
+                                value = technicianLicenseExpiry,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("תוקף הרישיון (לחץ לבחירה)") },
+                                leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+                                interactionSource = dateInteractionSource,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Text("רמת טכנאי:", fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(
+                                        selected = technicianLevel == "רמה 1",
+                                        onClick = { technicianLevel = "רמה 1" }
+                                    )
+                                    Text("רמה 1", fontSize = 14.sp)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(
+                                        selected = technicianLevel == "רמה 2",
+                                        onClick = { technicianLevel = "רמה 2" }
+                                    )
+                                    Text("רמה 2", fontSize = 14.sp)
+                                }
+                            }
                         }
                     }
                 }
 
-                // STEP 4: SUMMARY & START WORK
-                4 -> {
+                // STEP 3: SUMMARY & START WORK
+                3 -> {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
@@ -310,7 +339,7 @@ fun OnboardingScreen(
                             )
 
                             Text(
-                                text = "האפליקציה מוכנה לפעולה. כל הפרטים והחתימה נשמרו וישולבו אוטומטית בטפסים שתפיק.",
+                                text = "האפליקציה מוכנה לפעולה. כל הפרטים נשמרו וישולבו אוטומטית בדוחות שתפיק.",
                                 fontSize = 13.sp,
                                 textAlign = TextAlign.Center,
                                 color = Color(0xFF2E7D32)
@@ -318,14 +347,6 @@ fun OnboardingScreen(
 
                             Button(
                                 onClick = {
-                                    settingsManager.contractorHeader = contractorHeader
-                                    settingsManager.contractorPhone = contractorPhone
-                                    settingsManager.defaultTechnicianName = technicianName
-                                    settingsManager.currentFormNumber = startingFormNumber
-                                    if (settingsManager.savedSignatureUri.isNullOrEmpty()) {
-                                        settingsManager.savedSignatureUri = savedSignatureUri
-                                    }
-
                                     onCompleteOnboarding()
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
@@ -342,7 +363,7 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Navigation Buttons (Next / Back)
-            if (currentStep < 4) {
+            if (currentStep < 3) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -363,15 +384,23 @@ fun OnboardingScreen(
 
                     Button(
                         onClick = {
-                            if (currentStep == 2 && (contractorHeader.isBlank() || technicianName.isBlank())) {
-                                Toast.makeText(context, "אנא הזן שם קבלן ושם טכנאי", Toast.LENGTH_SHORT).show()
-                            } else if (currentStep == 3 && savedSignatureUri.isNullOrEmpty()) {
-                                Toast.makeText(context, "אנא חתום בלוח לפני ההמשך", Toast.LENGTH_SHORT).show()
+                            if (currentStep == 2) {
+                                val formNum = startingFormNumberStr.toIntOrNull() ?: 0
+                                if (contractorHeader.isBlank() || technicianName.isBlank() || technicianLicenseNumber.isBlank() || technicianLicenseExpiry.isBlank()) {
+                                    Toast.makeText(context, "אנא הזן את כל שדות החובה של העסק והרישיון", Toast.LENGTH_SHORT).show()
+                                } else if (formNum <= 0) {
+                                    Toast.makeText(context, "אנא הזן מספר טופס התחלתי תקין (1 ומעלה)", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    settingsManager.contractorHeader = contractorHeader
+                                    settingsManager.contractorPhone = contractorPhone
+                                    settingsManager.defaultTechnicianName = technicianName
+                                    settingsManager.technicianLicenseNumber = technicianLicenseNumber
+                                    settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
+                                    settingsManager.technicianLevel = technicianLevel
+                                    settingsManager.currentFormNumber = formNum
+                                    currentStep++
+                                }
                             } else {
-                                settingsManager.contractorHeader = contractorHeader
-                                settingsManager.contractorPhone = contractorPhone
-                                settingsManager.defaultTechnicianName = technicianName
-                                settingsManager.currentFormNumber = startingFormNumber
                                 currentStep++
                             }
                         },
@@ -383,6 +412,30 @@ fun OnboardingScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDatePicker = false
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        technicianLicenseExpiry = sdf.format(Date(millis))
+                    }
+                }) {
+                    Text("אישור")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("ביטול")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

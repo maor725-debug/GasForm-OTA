@@ -8,11 +8,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -29,6 +37,7 @@ import com.example.myapplication158.UserInterface.screens.FormListScreen
 import com.example.myapplication158.UserInterface.screens.OnboardingScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreen
 import com.example.myapplication158.UserInterface.screens.LoginScreen
+import com.example.myapplication158.UserInterface.screens.SettingsDialog
 import com.example.myapplication158.UserInterface.screens.WelcomeScreen
 import com.example.myapplication158.util.OtaUpdateManager
 import com.example.myapplication158.util.SettingsManager
@@ -36,6 +45,7 @@ import com.example.myapplication158.util.SupabaseManager
 import com.example.myapplication158.util.TrialTracker
 import com.example.myapplication158.util.UpdateInfo
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -145,11 +155,19 @@ fun MainNavigation() {
     var trialFormsCount by remember { mutableIntStateOf(appPrefs.getInt("trial_forms_count", 0)) }
     var hasSeenWelcome by remember { mutableStateOf(appPrefs.getBoolean("has_seen_welcome", false)) }
 
-    // סטטוס חסימה ניהולית
+    // מצבי חסימה
     var isUserBlocked by remember { mutableStateOf(false) }
+    var blockReason by remember { mutableStateOf("") }
+    var profileRefreshTrigger by remember { mutableIntStateOf(0) }
+    var showSettingsFromBlock by remember { mutableStateOf(false) }
 
-    // בדיקת חסימה מול השרת (Gatekeeper) בכל פעם שהאפליקציה נדלקת
-    LaunchedEffect(Unit) {
+    // מערכת ההודעות החכמה (System Messages)
+    var unreadMessages by remember { mutableStateOf<List<SystemMessage>>(emptyList()) }
+    var currentDisplayMessage by remember { mutableStateOf<SystemMessage?>(null) }
+    var isConfirmingMessage by remember { mutableStateOf(false) }
+
+    // 1. ה-Gatekeeper הקבוע
+    LaunchedEffect(profileRefreshTrigger) {
         if (androidId != "UNKNOWN_DEVICE") {
             try {
                 val profile = SupabaseManager.client.postgrest["technicians_profiles"]
@@ -158,10 +176,58 @@ fun MainNavigation() {
 
                 if (profile?.is_blocked == true) {
                     isUserBlocked = true
+                    blockReason = profile.block_reason ?: "לא צוינה סיבת חסימה. אנא צור קשר עם ההנהלה."
+                } else {
+                    isUserBlocked = false
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    // 2. תהליך הרקע של רענון ההודעות (מנגנון הדופק כל 60 דקות)
+    LaunchedEffect(androidId) {
+        if (androidId == "UNKNOWN_DEVICE") return@LaunchedEffect
+
+        while (true) {
+            try {
+                // א. מושך את כל ההודעות מהשרת
+                val allMessages = SupabaseManager.client.postgrest["system_messages"]
+                    .select()
+                    .decodeList<SystemMessage>()
+
+                // ב. מסנן מקומית רק הודעות שמיועדות לכולם (null) או ספציפית למכשיר הזה
+                val relevantMessages = allMessages.filter {
+                    it.target_device_id.isNullOrEmpty() || it.target_device_id == androidId
+                }
+
+                if (relevantMessages.isNotEmpty()) {
+                    // ג. מושך את היסטוריית הקריאה של הטכנאי הספציפי הזה
+                    val myReads = SupabaseManager.client.postgrest["message_reads"]
+                        .select { filter { eq("device_id", androidId) } }
+                        .decodeList<MessageRead>()
+
+                    val readMessageIds = myReads.map { it.message_id }.toSet()
+
+                    // ד. שומר רק את ההודעות שהוא טרם אישר את קריאתן
+                    val newUnread = relevantMessages
+                        .filter { it.id !in readMessageIds }
+                        .sortedBy { it.created_at } // מציג מהישן לחדש (כדי שלא יפספס כרונולוגיה)
+
+                    unreadMessages = newUnread
+
+                    // מציג למסך את ההודעה הראשונה במידה ויש ואין אחת אחרת פתוחה כרגע
+                    if (currentDisplayMessage == null && newUnread.isNotEmpty()) {
+                        currentDisplayMessage = newUnread.first()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace() // במקרה של שגיאת רשת, ידלג וינסה שוב בעוד שעה
+            }
+
+            // המתנה של 60 דקות (3,600,000 מילישניות) בדיוק עד הבדיקה הבאה
+            delay(60 * 60 * 1000L)
         }
     }
 
@@ -187,9 +253,8 @@ fun MainNavigation() {
         }
     }
 
-    val isOnboardingComplete = remember {
+    val isOnboardingComplete = remember(settingsManager.technicianLicenseNumber) {
         settingsManager.contractorHeader.isNotBlank() &&
-                !settingsManager.technicianLicenseUri.isNullOrBlank() &&
                 settingsManager.defaultTechnicianName.isNotBlank() &&
                 settingsManager.technicianLicenseNumber.isNotBlank() &&
                 settingsManager.currentFormNumber > 0
@@ -235,26 +300,99 @@ fun MainNavigation() {
         }
     }
 
-    // מסך נעילה קריטי - לא ניתן לסגירה!
+    // ניהול מצב חסימה
     if (isUserBlocked) {
-        AlertDialog(
-            onDismissRequest = { /* חסום לסגירה */ },
-            title = {
-                Text("חשבון נחסם", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), color = Color.Red, fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Text("הגישה שלך למערכת נחסמה עקב אי-תאימות בפרטי הרישיון או הפרת תנאי השימוש.\n\nאנא צור קשר עם הנהלת המערכת לבירור.", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
-            },
-            confirmButton = {
-                Button(
-                    onClick = { (context as? ComponentActivity)?.finish() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text("סגור אפליקציה")
+        if (showSettingsFromBlock) {
+            SettingsDialog(
+                onDismissRequest = {
+                    showSettingsFromBlock = false
+                    profileRefreshTrigger++
+                },
+                onDismiss = {
+                    showSettingsFromBlock = false
+                    profileRefreshTrigger++
+                },
+                viewModel = viewModel,
+                initialCategoryIndex = 3
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { /* חסום לסגירה */ },
+                title = {
+                    Text("החשבון נחסם לשימוש", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), color = Color.Red, fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Column(horizontalAlignment = Alignment.End, modifier = Modifier.fillMaxWidth()) {
+                        Text("הגישה שלך למערכת נחסמה עקב אי-תאימות בפרטים. הודעת המנהל:", textAlign = TextAlign.Right)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Surface(color = Color(0xFFFFEBEE), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Text(blockReason, color = Color(0xFFC62828), fontWeight = FontWeight.Bold, modifier = Modifier.padding(12.dp), textAlign = TextAlign.Right)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("באפשרותך לתקן את הפרטים שלך כעת. המערכת תשחרר את החסימה אוטומטית לאחר שמירה וסנכרון מוצלח.", textAlign = TextAlign.Right)
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { showSettingsFromBlock = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("ערוך ותקן פרטים")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { (context as? ComponentActivity)?.finish() }) {
+                        Text("סגור אפליקציה", color = Color.Gray)
+                    }
                 }
-            }
-        )
+            )
+        }
     } else {
+        // דיאלוג קפיצת ההודעה (אם יש הודעה פתוחה להצגה)
+        currentDisplayMessage?.let { msg ->
+            AlertDialog(
+                onDismissRequest = { /* מחייב קריאה ואישור, אי אפשר פשוט ללחוץ מחוץ לחלון */ },
+                title = {
+                    Text(msg.title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right)
+                },
+                text = {
+                    Text(msg.content, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), fontSize = 15.sp, lineHeight = 22.sp)
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            isConfirmingMessage = true
+                            scope.launch {
+                                try {
+                                    // שיגור חותמת אישור הקריאה לשרת
+                                    val receipt = MessageRead(message_id = msg.id, device_id = androidId)
+                                    SupabaseManager.client.postgrest["message_reads"].insert(receipt)
+
+                                    // הסרת ההודעה שנקראה ומעבר לבאה (אם יש כמה שממתינות)
+                                    val updatedUnread = unreadMessages.filter { it.id != msg.id }
+                                    unreadMessages = updatedUnread
+                                    currentDisplayMessage = updatedUnread.firstOrNull()
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    Toast.makeText(context, "שגיאה באישור ההודעה מול השרת. אנא נסה שוב.", Toast.LENGTH_SHORT).show()
+                                } finally {
+                                    isConfirmingMessage = false
+                                }
+                            }
+                        },
+                        enabled = !isConfirmingMessage,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        if (isConfirmingMessage) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp))
+                        } else {
+                            Text("קראתי והבנתי")
+                        }
+                    }
+                }
+            )
+        }
+
         Crossfade(targetState = currentScreen, label = "screen_transition") { screen ->
             when (screen) {
                 is Screen.Welcome -> {
@@ -278,7 +416,6 @@ fun MainNavigation() {
                 is Screen.Onboarding -> {
                     OnboardingScreen(
                         onCompleteOnboarding = {
-                            // שלב 3: שיגור פרטי הטכנאי לשרת בסיום ההרשמה!
                             scope.launch {
                                 try {
                                     val profile = TechnicianProfile(
@@ -350,7 +487,6 @@ fun MainNavigation() {
     }
 }
 
-// מבנה הנתונים לשיגור פרופיל הטכנאי לשרת
 @Serializable
 data class TechnicianProfile(
     val device_id: String,
@@ -358,5 +494,24 @@ data class TechnicianProfile(
     val license_number: String,
     val license_expiry: String,
     val technician_level: String,
-    val is_blocked: Boolean = false
+    val is_blocked: Boolean = false,
+    val block_reason: String? = null,
+    val correction_log: String? = null
+)
+
+// מודל הנתונים להודעת המערכת הנמשכת מהשרת
+@Serializable
+data class SystemMessage(
+    val id: String,
+    val title: String,
+    val content: String,
+    val target_device_id: String? = null,
+    val created_at: String? = null
+)
+
+// מודל הנתונים לשליחת אישור הקריאה חזרה לשרת
+@Serializable
+data class MessageRead(
+    val message_id: String,
+    val device_id: String
 )

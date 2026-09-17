@@ -112,12 +112,11 @@ fun SettingsDialog(
 
     var selectedCategoryIndex by remember { mutableIntStateOf(initialCategoryIndex) }
 
-    // הוספת קטגוריית "רישיון" ייעודית
     val categories = listOf(
         Triple("עיצוב", Icons.Default.Palette, 0),
         Triple("אחסון", Icons.Default.Cloud, 1),
         Triple("קבלן", Icons.Default.Badge, 2),
-        Triple("רישיון", Icons.Default.VerifiedUser, 3), // לשונית חדשה לעדכון הרישיון
+        Triple("רישיון", Icons.Default.VerifiedUser, 3),
         Triple("חשבון", Icons.Default.AccountBox, 4),
         Triple("אבטחה", Icons.Default.Security, 5)
     )
@@ -130,18 +129,16 @@ fun SettingsDialog(
     var defaultTechnicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName) }
     var currentFormNumberInput by remember { mutableStateOf(if (settingsManager.currentFormNumber > 0) settingsManager.currentFormNumber.toString() else "") }
 
-    // שדות רישיון טכנאי לעדכון במסך ההגדרות
     var technicianLicenseNumber by remember { mutableStateOf(settingsManager.technicianLicenseNumber) }
     var technicianLicenseExpiry by remember { mutableStateOf(settingsManager.technicianLicenseExpiry) }
     var technicianLevel by remember { mutableStateOf(settingsManager.technicianLevel) }
 
-    // תאריכון לבחירת תוקף הרישיון מחדש
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
     val dateInteractionSource = remember { MutableInteractionSource() }
-    if (dateInteractionSource.collectIsPressedAsState().value) {
-        showDatePicker = true
-    }
+    if (dateInteractionSource.collectIsPressedAsState().value) { showDatePicker = true }
+
+    var isSyncing by remember { mutableStateOf(false) }
 
     var customStorageTreeUri by remember { mutableStateOf(settingsManager.customStorageTreeUri) }
     var customStorageFolderName by remember { mutableStateOf(settingsManager.customStorageFolderName) }
@@ -344,7 +341,7 @@ fun SettingsDialog(
                                 }
                             }
                             3 -> {
-                                // כרטיסיית רישיון גפ"מ - עדכון מס' רישיון, תוקף ורמה וסנכרון לשרת!
+                                // מנוע התיקון, סנכרון ותיעוד ההיסטוריה לשרת!
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
                                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -352,13 +349,13 @@ fun SettingsDialog(
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text("ניהול רישיון טכנאי גפ\"מ", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
                                         }
-                                        Text("כאן תוכל לעדכן את מספר הרישיון ותוקפו. העדכון יסונכרן אוטומטית למערכת הניהול.", fontSize = 12.sp, color = textGray)
+                                        Text("כאן תוכל לעדכן את מספר הרישיון ותוקפו. העדכון יסונכרן אוטומטית לשרת. אם נחסמת, שמירה מוצלחת תשחרר אותך מיידית.", fontSize = 12.sp, color = textGray)
 
                                         Spacer(modifier = Modifier.height(4.dp))
 
                                         OutlinedTextField(
                                             value = technicianLicenseNumber,
-                                            onValueChange = { technicianLicenseNumber = it; settingsManager.technicianLicenseNumber = it },
+                                            onValueChange = { technicianLicenseNumber = it },
                                             label = { Text("מספר רישיון טכנאי גז") },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                             modifier = Modifier.fillMaxWidth(),
@@ -380,11 +377,11 @@ fun SettingsDialog(
                                         Text("רמת טכנאי:", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textWhite, modifier = Modifier.padding(top = 8.dp))
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                RadioButton(selected = technicianLevel == "רמה 1", onClick = { technicianLevel = "רמה 1"; settingsManager.technicianLevel = "רמה 1" })
+                                                RadioButton(selected = technicianLevel == "רמה 1", onClick = { technicianLevel = "רמה 1" })
                                                 Text("רמה 1", fontSize = 14.sp, color = textWhite)
                                             }
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                RadioButton(selected = technicianLevel == "רמה 2", onClick = { technicianLevel = "רמה 2"; settingsManager.technicianLevel = "רמה 2" })
+                                                RadioButton(selected = technicianLevel == "רמה 2", onClick = { technicianLevel = "רמה 2" })
                                                 Text("רמה 2", fontSize = 14.sp, color = textWhite)
                                             }
                                         }
@@ -396,31 +393,79 @@ fun SettingsDialog(
                                                 if (technicianLicenseNumber.isBlank() || technicianLicenseExpiry.isBlank()) {
                                                     Toast.makeText(context, "נא למלא מספר רישיון ותוקף", Toast.LENGTH_SHORT).show()
                                                 } else {
+                                                    isSyncing = true
                                                     scope.launch {
                                                         try {
+                                                            // 1. שולף את הפרופיל הנוכחי כדי לבדוק חסימה ותיעוד ישן
+                                                            val currentProfile = SupabaseManager.client.postgrest["technicians_profiles"]
+                                                                .select { filter { eq("device_id", androidId) } }
+                                                                .decodeSingleOrNull<TechnicianProfile>()
+
+                                                            val wasBlocked = currentProfile?.is_blocked == true
+                                                            val adminReason = currentProfile?.block_reason ?: "ללא סיבה"
+                                                            val oldLog = currentProfile?.correction_log ?: ""
+
+                                                            val oldLic = settingsManager.technicianLicenseNumber
+                                                            val oldExp = settingsManager.technicianLicenseExpiry
+                                                            val oldLvl = settingsManager.technicianLevel
+
+                                                            // 2. בניית קובץ התיעוד (Audit Log)
+                                                            var newLog = oldLog
+                                                            if (wasBlocked) {
+                                                                val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+                                                                var changes = ""
+                                                                if (oldLic != technicianLicenseNumber) changes += "[רישיון שונה מ-$oldLic ל-$technicianLicenseNumber] "
+                                                                if (oldExp != technicianLicenseExpiry) changes += "[תוקף שונה מ-$oldExp ל-$technicianLicenseExpiry] "
+                                                                if (oldLvl != technicianLevel) changes += "[רמה שונתה מ-$oldLvl ל-$technicianLevel] "
+                                                                if (changes.isBlank()) changes = "[שמירה ללא שינוי נתונים]"
+
+                                                                val logEntry = "\n--- $timestamp ---\nנחסם בגין: $adminReason\nתיקון שבוצע: $changes\n"
+                                                                newLog += logEntry
+                                                            }
+
+                                                            // 3. שיגור העדכון לשרת ואיפוס החסימה!
                                                             val profile = TechnicianProfile(
                                                                 device_id = androidId,
                                                                 full_name = defaultTechnicianName,
                                                                 license_number = technicianLicenseNumber,
                                                                 license_expiry = technicianLicenseExpiry,
                                                                 technician_level = technicianLevel,
-                                                                is_blocked = false
+                                                                is_blocked = false, // איפוס אוטומטי של החסימה!
+                                                                block_reason = if (wasBlocked) "" else currentProfile?.block_reason,
+                                                                correction_log = newLog.trim()
                                                             )
                                                             SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile)
-                                                            Toast.makeText(context, "✓ פרטי הרישיון עודכנו וסונכרנו לשרת בהצלחה!", Toast.LENGTH_LONG).show()
+
+                                                            // 4. שמירה מקומית במכשיר
+                                                            settingsManager.technicianLicenseNumber = technicianLicenseNumber
+                                                            settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
+                                                            settingsManager.technicianLevel = technicianLevel
+
+                                                            Toast.makeText(context, "✓ סונכרן לשרת! אם היית חסום - המערכת שוחררה כעת.", Toast.LENGTH_LONG).show()
+
+                                                            // סוגר את החלון ומרפרש את ה-Gatekeeper במיין כדי לפתוח את המערכת
+                                                            onDismissRequest()
+                                                            onDismiss()
                                                         } catch (e: Exception) {
                                                             e.printStackTrace()
-                                                            Toast.makeText(context, "נשמר מקומית, אך אירעה שגיאה בסנכרון לשרת.", Toast.LENGTH_LONG).show()
+                                                            Toast.makeText(context, "שגיאת רשת: לא ניתן לסנכרן מול השרת כעת.", Toast.LENGTH_LONG).show()
+                                                        } finally {
+                                                            isSyncing = false
                                                         }
                                                     }
                                                 }
                                             },
-                                            modifier = Modifier.fillMaxWidth().height(44.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                                            enabled = !isSyncing
                                         ) {
-                                            Icon(Icons.Default.CloudSync, null, modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("סנכרן רישיון מול השרת", fontWeight = FontWeight.Bold)
+                                            if (isSyncing) {
+                                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
+                                            } else {
+                                                Icon(Icons.Default.CloudSync, null, modifier = Modifier.size(18.dp))
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("סנכרן רישיון מול השרת", fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                     }
                                 }
@@ -534,7 +579,7 @@ fun SettingsDialog(
             )
         }
 
-        // תאריכון לעדכון תוקף הרישיון מתוך חלון ההגדרות
+        // תאריכון
         if (showDatePicker) {
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },
@@ -544,7 +589,6 @@ fun SettingsDialog(
                         datePickerState.selectedDateMillis?.let { millis ->
                             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                             technicianLicenseExpiry = sdf.format(Date(millis))
-                            settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
                         }
                     }) { Text("אישור") }
                 },
