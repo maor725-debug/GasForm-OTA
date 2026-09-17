@@ -334,14 +334,18 @@ fun SettingsDialog(
                                 }
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
                                     Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("צילום רישיון טכנאי מהגלריה (חובה)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        SignaturePad(title = "בחר צילום רישיון (יופיע כחתימה בדוחות):", initialSignatureUri = savedLicenseUri, onSignatureSaved = { licUri -> val newUri = licUri.ifEmpty { null }; savedLicenseUri = newUri ?: ""; settingsManager.technicianLicenseUri = newUri })
+                                        Text("תמונת חתימה וחותמת טכנאי (חובה)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        SignaturePad(
+                                            title = "בחר תמונה מהגלריה:",
+                                            initialSignatureUri = savedLicenseUri,
+                                            onSignatureSaved = { licUri -> val newUri = licUri.ifEmpty { null }; savedLicenseUri = newUri ?: ""; settingsManager.technicianLicenseUri = newUri }
+                                        )
                                     }
                                 }
                             }
                             3 -> {
-                                // מנוע התיקון, סנכרון ותיעוד ההיסטוריה לשרת!
                                 Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
                                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -396,7 +400,6 @@ fun SettingsDialog(
                                                     isSyncing = true
                                                     scope.launch {
                                                         try {
-                                                            // 1. שולף את הפרופיל הנוכחי כדי לבדוק חסימה ותיעוד ישן
                                                             val currentProfile = SupabaseManager.client.postgrest["technicians_profiles"]
                                                                 .select { filter { eq("device_id", androidId) } }
                                                                 .decodeSingleOrNull<TechnicianProfile>()
@@ -409,7 +412,6 @@ fun SettingsDialog(
                                                             val oldExp = settingsManager.technicianLicenseExpiry
                                                             val oldLvl = settingsManager.technicianLevel
 
-                                                            // 2. בניית קובץ התיעוד (Audit Log)
                                                             var newLog = oldLog
                                                             if (wasBlocked) {
                                                                 val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
@@ -423,27 +425,24 @@ fun SettingsDialog(
                                                                 newLog += logEntry
                                                             }
 
-                                                            // 3. שיגור העדכון לשרת ואיפוס החסימה!
                                                             val profile = TechnicianProfile(
                                                                 device_id = androidId,
                                                                 full_name = defaultTechnicianName,
                                                                 license_number = technicianLicenseNumber,
                                                                 license_expiry = technicianLicenseExpiry,
                                                                 technician_level = technicianLevel,
-                                                                is_blocked = false, // איפוס אוטומטי של החסימה!
+                                                                is_blocked = false,
                                                                 block_reason = if (wasBlocked) "" else currentProfile?.block_reason,
                                                                 correction_log = newLog.trim()
                                                             )
                                                             SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile)
 
-                                                            // 4. שמירה מקומית במכשיר
                                                             settingsManager.technicianLicenseNumber = technicianLicenseNumber
                                                             settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
                                                             settingsManager.technicianLevel = technicianLevel
 
                                                             Toast.makeText(context, "✓ סונכרן לשרת! אם היית חסום - המערכת שוחררה כעת.", Toast.LENGTH_LONG).show()
 
-                                                            // סוגר את החלון ומרפרש את ה-Gatekeeper במיין כדי לפתוח את המערכת
                                                             onDismissRequest()
                                                             onDismiss()
                                                         } catch (e: Exception) {
@@ -549,7 +548,7 @@ fun SettingsDialog(
                                 if (!hasContractorPhone) missing.add("• מספר טלפון נייד (בלשונית קבלן)")
                                 if (!hasTechName) missing.add("• שם טכנאי (בלשונית קבלן)")
                                 if (!hasFormNumber) missing.add("• מספר טופס התחלתי (בלשונית קבלן)")
-                                if (!hasLicensePhoto) missing.add("• צילום רישיון מהגלריה (בלשונית קבלן)")
+                                if (!hasLicensePhoto) missing.add("• תמונת חתימה וחותמת (בלשונית קבלן)")
                                 Toast.makeText(context, "חובה להגדיר את השדות הבאים להתחלת עבודה:\n" + missing.joinToString("\n"), Toast.LENGTH_LONG).show()
                             } else {
                                 Toast.makeText(context, "ההגדרות נשמרו בהצלחה", Toast.LENGTH_SHORT).show()
@@ -579,7 +578,6 @@ fun SettingsDialog(
             )
         }
 
-        // תאריכון
         if (showDatePicker) {
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },
@@ -589,6 +587,7 @@ fun SettingsDialog(
                         datePickerState.selectedDateMillis?.let { millis ->
                             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                             technicianLicenseExpiry = sdf.format(Date(millis))
+                            settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
                         }
                     }) { Text("אישור") }
                 },
