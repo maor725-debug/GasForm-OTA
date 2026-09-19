@@ -484,7 +484,6 @@ object PdfGenerator {
 
             canvas.drawText("חתימת טכנאי/חותמת:", 360f, y, textPaint)
 
-            // תיקון באג קריטי - משיכת החתימה מהמשתנה הנכון
             val sigUriStr = settingsManager.savedSignatureUri.takeIf { !it.isNullOrBlank() } ?: settingsManager.technicianLicenseUri
             if (!sigUriStr.isNullOrEmpty()) {
                 try {
@@ -503,7 +502,6 @@ object PdfGenerator {
             }
             canvas.drawLine(100f, y + 2, 300f, y + 2, dashedLinePaint)
 
-            // הדפסת פרטי הרישיון שחולצו מתחת לחתימה
             val techLicenseNum = settingsManager.technicianLicenseNumber
             val techLevel = settingsManager.technicianLevel
             if (techLicenseNum.isNotBlank()) {
@@ -900,7 +898,6 @@ object PdfGenerator {
             canvas.drawText(form.technicianStamp, 470f, sigY + 15f, Paint(valuePaint).apply { typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) })
             canvas.drawText("חותמת טכנאי:", 530f, sigY + 35f, labelPaint)
 
-            // תיקון קריטי לחתימה גם כאן
             val sigUriStr = settingsManager.savedSignatureUri.takeIf { !it.isNullOrBlank() } ?: settingsManager.technicianLicenseUri
             if (!sigUriStr.isNullOrEmpty()) {
                 try {
@@ -920,7 +917,6 @@ object PdfGenerator {
                 } catch (e: Exception) { e.printStackTrace() }
             }
 
-            // הדפסת פרטי הרישיון שחולצו בתוך כרטיסיית החתימה
             val techLicenseNum = settingsManager.technicianLicenseNumber
             val techLevel = settingsManager.technicianLevel
             if (techLicenseNum.isNotBlank()) {
@@ -1018,9 +1014,6 @@ object PdfGenerator {
         } catch (e: Exception) { e.printStackTrace(); return null } finally { pdfDocument.close() }
     }
 
-    // ==========================================
-    // 3. מחולל טופס ד-1: בדיקה תקופתית (מאגר גפ"מ)
-    // ==========================================
     fun generatePeriodicFormPdf(context: Context, form: PeriodicGasForm): File? {
         val pdfDocument = android.graphics.pdf.PdfDocument()
         var currentPageNum = 1

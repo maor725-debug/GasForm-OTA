@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,6 +48,33 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
+@Serializable
+data class TechnicianProfile(
+    val device_id: String,
+    val full_name: String,
+    val license_number: String,
+    val license_expiry: String,
+    val technician_level: String,
+    val is_blocked: Boolean = false,
+    val block_reason: String? = null,
+    val correction_log: String? = null
+)
+
+@Serializable
+data class SystemMessage(
+    val id: String,
+    val title: String,
+    val content: String,
+    val target_device_id: String? = null,
+    val created_at: String? = null
+)
+
+@Serializable
+data class MessageRead(
+    val message_id: String,
+    val device_id: String
+)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +87,7 @@ class MainActivity : ComponentActivity() {
             val colorScheme = when (settingsManager.appTheme) {
                 SettingsManager.THEME_BLUE -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFF90CAF9), primaryContainer = Color(0xFF0D47A1), secondary = Color(0xFF64B5F6), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFF1565C0), primaryContainer = Color(0xFFBBDEFB), secondary = Color(0xFF1E88E5), surfaceVariant = Color(0xFFE3F2FD)) }
                 SettingsManager.THEME_GREEN -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFFA5D6A7), primaryContainer = Color(0xFF1B5E20), secondary = Color(0xFF81C784), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFF2E7D32), primaryContainer = Color(0xFFC8E6C9), secondary = Color(0xFF43A047), surfaceVariant = Color(0xFFE8F5E9)) }
-                SettingsManager.THEME_YELLOW -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFFFFD600), primaryContainer = Color(0xFFFBC02D), secondary = Color(0xFFFFEA00), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFFF57F17), primaryContainer = Color(0xFFFFF9C4), secondary = Color(0xFFFFD600), surfaceVariant = Color(0xFFFFFDE7)) }
+                SettingsManager.THEME_YELLOW -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFFFFD600), primaryContainer = Color(0xFFFBC02D), secondary = Color(0xFFFFEA00), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFFF57F17), primaryContainer = Color(0xFFFFF9C4), secondary = Color(0xFFFFD600), surfaceVariant = Color(0xFFFFFFFDE7)) }
                 else -> if (isDarkTheme) { darkColorScheme(primary = Color(0xFFFFB74D), primaryContainer = Color(0xFFE65100), secondary = Color(0xFFFF9800), background = Color(0xFF121212), surface = Color(0xFF1E1E1E)) } else { lightColorScheme(primary = Color(0xFFFF6D00), primaryContainer = Color(0xFFFFE0B2), secondary = Color(0xFFFF9100), surfaceVariant = Color(0xFFFFF3E0)) }
             }
 
@@ -155,18 +181,15 @@ fun MainNavigation() {
     var trialFormsCount by remember { mutableIntStateOf(appPrefs.getInt("trial_forms_count", 0)) }
     var hasSeenWelcome by remember { mutableStateOf(appPrefs.getBoolean("has_seen_welcome", false)) }
 
-    // מצבי חסימה
     var isUserBlocked by remember { mutableStateOf(false) }
     var blockReason by remember { mutableStateOf("") }
     var profileRefreshTrigger by remember { mutableIntStateOf(0) }
     var showSettingsFromBlock by remember { mutableStateOf(false) }
 
-    // מערכת ההודעות החכמה (System Messages)
     var unreadMessages by remember { mutableStateOf<List<SystemMessage>>(emptyList()) }
     var currentDisplayMessage by remember { mutableStateOf<SystemMessage?>(null) }
     var isConfirmingMessage by remember { mutableStateOf(false) }
 
-    // 1. ה-Gatekeeper הקבוע
     LaunchedEffect(profileRefreshTrigger) {
         if (androidId != "UNKNOWN_DEVICE") {
             try {
@@ -186,47 +209,39 @@ fun MainNavigation() {
         }
     }
 
-    // 2. תהליך הרקע של רענון ההודעות (מנגנון הדופק כל 60 דקות)
     LaunchedEffect(androidId) {
         if (androidId == "UNKNOWN_DEVICE") return@LaunchedEffect
 
         while (true) {
             try {
-                // א. מושך את כל ההודעות מהשרת
                 val allMessages = SupabaseManager.client.postgrest["system_messages"]
                     .select()
                     .decodeList<SystemMessage>()
 
-                // ב. מסנן מקומית רק הודעות שמיועדות לכולם (null) או ספציפית למכשיר הזה
                 val relevantMessages = allMessages.filter {
                     it.target_device_id.isNullOrEmpty() || it.target_device_id == androidId
                 }
 
                 if (relevantMessages.isNotEmpty()) {
-                    // ג. מושך את היסטוריית הקריאה של הטכנאי הספציפי הזה
                     val myReads = SupabaseManager.client.postgrest["message_reads"]
                         .select { filter { eq("device_id", androidId) } }
                         .decodeList<MessageRead>()
 
                     val readMessageIds = myReads.map { it.message_id }.toSet()
 
-                    // ד. שומר רק את ההודעות שהוא טרם אישר את קריאתן
                     val newUnread = relevantMessages
                         .filter { it.id !in readMessageIds }
-                        .sortedBy { it.created_at } // מציג מהישן לחדש (כדי שלא יפספס כרונולוגיה)
+                        .sortedBy { it.created_at }
 
                     unreadMessages = newUnread
 
-                    // מציג למסך את ההודעה הראשונה במידה ויש ואין אחת אחרת פתוחה כרגע
                     if (currentDisplayMessage == null && newUnread.isNotEmpty()) {
                         currentDisplayMessage = newUnread.first()
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace() // במקרה של שגיאת רשת, ידלג וינסה שוב בעוד שעה
+                e.printStackTrace()
             }
-
-            // המתנה של 60 דקות (3,600,000 מילישניות) בדיוק עד הבדיקה הבאה
             delay(60 * 60 * 1000L)
         }
     }
@@ -271,6 +286,7 @@ fun MainNavigation() {
     }
 
     var showFormTypeDialog by remember { mutableStateOf(false) }
+    var formTypeActionMenu by remember { mutableStateOf<String?>(null) }
 
     val handleNewFormAttempt: (createAction: () -> Unit) -> Unit = { createAction ->
         if (isLicensed) {
@@ -300,7 +316,6 @@ fun MainNavigation() {
         }
     }
 
-    // ניהול מצב חסימה
     if (isUserBlocked) {
         if (showSettingsFromBlock) {
             SettingsDialog(
@@ -317,7 +332,7 @@ fun MainNavigation() {
             )
         } else {
             AlertDialog(
-                onDismissRequest = { /* חסום לסגירה */ },
+                onDismissRequest = { },
                 title = {
                     Text("החשבון נחסם לשימוש", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), color = Color.Red, fontWeight = FontWeight.Bold)
                 },
@@ -333,10 +348,7 @@ fun MainNavigation() {
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = { showSettingsFromBlock = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
+                    Button(onClick = { showSettingsFromBlock = true }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
                         Text("ערוך ותקן פרטים")
                     }
                 },
@@ -348,27 +360,19 @@ fun MainNavigation() {
             )
         }
     } else {
-        // דיאלוג קפיצת ההודעה (אם יש הודעה פתוחה להצגה)
         currentDisplayMessage?.let { msg ->
             AlertDialog(
-                onDismissRequest = { /* מחייב קריאה ואישור, אי אפשר פשוט ללחוץ מחוץ לחלון */ },
-                title = {
-                    Text(msg.title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right)
-                },
-                text = {
-                    Text(msg.content, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), fontSize = 15.sp, lineHeight = 22.sp)
-                },
+                onDismissRequest = { },
+                title = { Text(msg.title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
+                text = { Text(msg.content, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), fontSize = 15.sp, lineHeight = 22.sp) },
                 confirmButton = {
                     Button(
                         onClick = {
                             isConfirmingMessage = true
                             scope.launch {
                                 try {
-                                    // שיגור חותמת אישור הקריאה לשרת
                                     val receipt = MessageRead(message_id = msg.id, device_id = androidId)
                                     SupabaseManager.client.postgrest["message_reads"].insert(receipt)
-
-                                    // הסרת ההודעה שנקראה ומעבר לבאה (אם יש כמה שממתינות)
                                     val updatedUnread = unreadMessages.filter { it.id != msg.id }
                                     unreadMessages = updatedUnread
                                     currentDisplayMessage = updatedUnread.firstOrNull()
@@ -395,41 +399,18 @@ fun MainNavigation() {
 
         Crossfade(targetState = currentScreen, label = "screen_transition") { screen ->
             when (screen) {
-                is Screen.Welcome -> {
-                    WelcomeScreen(
-                        onNavigateNext = {
-                            hasSeenWelcome = true
-                            appPrefs.edit().putBoolean("has_seen_welcome", true).apply()
-                            currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List
-                        }
-                    )
-                }
-                is Screen.Login -> {
-                    LoginScreen(
-                        onLoginSuccess = {
-                            isLicensed = true
-                            appPrefs.edit().putBoolean("is_licensed_user", true).apply()
-                            currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List
-                        }
-                    )
-                }
+                is Screen.Welcome -> { WelcomeScreen(onNavigateNext = { hasSeenWelcome = true; appPrefs.edit().putBoolean("has_seen_welcome", true).apply(); currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List }) }
+                is Screen.Login -> { LoginScreen(onLoginSuccess = { isLicensed = true; appPrefs.edit().putBoolean("is_licensed_user", true).apply(); currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List }) }
                 is Screen.Onboarding -> {
                     OnboardingScreen(
                         onCompleteOnboarding = {
                             scope.launch {
                                 try {
                                     val profile = TechnicianProfile(
-                                        device_id = androidId,
-                                        full_name = settingsManager.defaultTechnicianName,
-                                        license_number = settingsManager.technicianLicenseNumber,
-                                        license_expiry = settingsManager.technicianLicenseExpiry,
-                                        technician_level = settingsManager.technicianLevel,
-                                        is_blocked = false
+                                        device_id = androidId, full_name = settingsManager.defaultTechnicianName, license_number = settingsManager.technicianLicenseNumber, license_expiry = settingsManager.technicianLicenseExpiry, technician_level = settingsManager.technicianLevel, is_blocked = false
                                     )
                                     SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
+                                } catch (e: Exception) { e.printStackTrace() }
                             }
                             currentScreen = Screen.List
                         }
@@ -449,33 +430,34 @@ fun MainNavigation() {
                         onEditPeriodicForm = { form -> currentScreen = Screen.EditPeriodic(form) }
                     )
                 }
-                is Screen.Edit -> {
-                    FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List })
-                }
-                is Screen.EditPeriodic -> {
-                    PeriodicFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List })
-                }
+                is Screen.Edit -> { FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
+                is Screen.EditPeriodic -> { PeriodicFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
             }
         }
     }
 
+    // שלב 1: תפריט "טפסים נוספים" - שמות מעודכנים לפי בקשתך
     if (showFormTypeDialog) {
         AlertDialog(
             onDismissRequest = { showFormTypeDialog = false },
             title = { Text("טפסים נוספים", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
-            text = { Text("בחר איזה טופס למלא:", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
+            text = { Text("בחר איזה טופס תרצה למלא:", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
             confirmButton = {
                 Button(
                     onClick = {
                         showFormTypeDialog = false
-                        handleNewFormAttempt {
-                            currentScreen = Screen.EditPeriodic(PeriodicGasForm())
-                        }
+                        formTypeActionMenu = "D-1"
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("דוח בדיקה מרכזיה מכלים", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
+                    Text(
+                        "דוח בדיקה תקופתית למערכת גז מרכזית (מכלים מיטלטלים)",
+                        textAlign = TextAlign.Center,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             },
             dismissButton = {
@@ -485,33 +467,81 @@ fun MainNavigation() {
             }
         )
     }
+
+    // שלב 2: תפריט פעולות
+    if (formTypeActionMenu != null) {
+        val formName = when(formTypeActionMenu) {
+            "D-1" -> "דוח בדיקה תקופתית למערכת גז מרכזית (מכלים מיטלטלים)"
+            else -> "טופס לא ידוע"
+        }
+
+        AlertDialog(
+            onDismissRequest = { formTypeActionMenu = null },
+            title = { Text(formName, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
+            text = { Text("בחר את הפעולה הרצויה:", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val currentChoice = formTypeActionMenu
+                        formTypeActionMenu = null
+                        handleNewFormAttempt {
+                            if (currentChoice == "D-1") {
+                                currentScreen = Screen.EditPeriodic(PeriodicGasForm())
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("יצירת דוח חדש", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        val currentChoice = formTypeActionMenu
+                        formTypeActionMenu = null
+
+                        if (currentChoice == "D-1") {
+                            val mockupForm = PeriodicGasForm(
+                                sequentialNumber = 9999,
+                                date = "01/01/2026",
+                                businessName = "בניין מגורים לדוגמה",
+                                businessType = "מגורים",
+                                businessId = "123456789",
+                                fireDeptFileNumber = "555-444",
+                                city = "ירושלים",
+                                street = "יפו",
+                                building = "100",
+                                clientName = "ישראל ישראלי",
+                                clientPhone = "050-1234567",
+                                gasProvider = "חברת הגז הלאומית",
+                                consumersCount = "15",
+                                cylindersCount = "4",
+                                manifoldNumber = "M-200",
+                                checkLocationOpen = "PASS",
+                                checkSafetyDistances07Heat = "PASS",
+                                checkRegulatorSecured = "PASS",
+                                checkPipingSecured = "PASS",
+                                checkPressureUpTo1_4 = "PASS",
+                                intermediatePressureValue = "30 mbar",
+                                isIntermediatePressureKept = true,
+                                finalStatus = "OK",
+                                executionRemarks = "דוח זה הינו דוח דוגמה להמחשת עיצוב ה-PDF באפליקציה.",
+                                technicianName = settingsManager.defaultTechnicianName.takeIf { it.isNotBlank() } ?: "טכנאי הדגמה",
+                                technicianLicense = settingsManager.technicianLicenseNumber.takeIf { it.isNotBlank() } ?: "000000",
+                                clientNameConfirm = "ישראל ישראלי",
+                                isSavedToTarget = false
+                            )
+                            Toast.makeText(context, "מייצר מסמך PDF לדוגמא...", Toast.LENGTH_SHORT).show()
+                            viewModel.previewPeriodicPdf(context, mockupForm)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("הצג מבנה דוח לדוגמא (PDF)", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        )
+    }
 }
-
-@Serializable
-data class TechnicianProfile(
-    val device_id: String,
-    val full_name: String,
-    val license_number: String,
-    val license_expiry: String,
-    val technician_level: String,
-    val is_blocked: Boolean = false,
-    val block_reason: String? = null,
-    val correction_log: String? = null
-)
-
-// מודל הנתונים להודעת המערכת הנמשכת מהשרת
-@Serializable
-data class SystemMessage(
-    val id: String,
-    val title: String,
-    val content: String,
-    val target_device_id: String? = null,
-    val created_at: String? = null
-)
-
-// מודל הנתונים לשליחת אישור הקריאה חזרה לשרת
-@Serializable
-data class MessageRead(
-    val message_id: String,
-    val device_id: String
-)
