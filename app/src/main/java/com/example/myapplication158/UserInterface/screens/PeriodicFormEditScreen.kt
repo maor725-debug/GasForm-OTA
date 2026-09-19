@@ -292,7 +292,7 @@ fun PeriodicFormEditScreen(
             AlertDialog(
                 onDismissRequest = { showCriticalWarningDialog = false },
                 title = { Text("סכנה - ליקוי חמור", color = errorRed, fontWeight = FontWeight.Bold, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
-                text = { Text("יש להפסיק הספקת גז למתקן!\n\nסימנת 'לא מתאים' בסעיף קריטי (⊕). הסטטוס בסוף הדוח עודכן אוטומטית למצב של ניתוק.", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
+                text = { Text("יש להפסיק הספקת גז למתקן!\n\nסימנת 'לא מתאים' בסעיף קריטי (מוצא לא סגור או דליפה). הסטטוס בסוף הדוח עודכן אוטומטית למצב של ניתוק.", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
                 confirmButton = {
                     Button(onClick = { showCriticalWarningDialog = false; saveToDatabase() }, colors = ButtonDefaults.buttonColors(containerColor = errorRed)) {
                         Text("הבנתי, המערכת נותקה")
@@ -427,7 +427,15 @@ fun PeriodicFormEditScreen(
                 FormCard("3. בדיקת אטימות ולחצים", cardBg, borderColor, primaryColor) {
                     Text("3.1 אטימות לחץ ראשוני (בדיקת נוזל בלחץ מכל):", fontWeight = FontWeight.Bold, color = textWhite, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    CheckboxWithLabel("נמצאה דליפה (קריטי!)", isLeakFoundPrimary, { isLeakFoundPrimary = it; saveToDatabase() }, CheckboxDefaults.colors(checkedColor = errorRed), textWhite, Modifier.fillMaxWidth())
+                    CheckboxWithLabel("נמצאה דליפה (קריטי!)", isLeakFoundPrimary, {
+                        isLeakFoundPrimary = it
+                        if (it) {
+                            finalStatus = "DISCONNECTED"
+                            showCriticalWarningDialog = true
+                        }
+                        saveToDatabase()
+                    }, CheckboxDefaults.colors(checkedColor = errorRed), textWhite, Modifier.fillMaxWidth())
+
                     AnimatedVisibility(visible = isLeakFoundPrimary) {
                         OutlinedTextField(value = leakLocationDetails, onValueChange = { leakLocationDetails = it; saveToDatabase() }, label = { Text("ציין את מקום הדליפה") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = errorFieldColors)
                     }
@@ -443,7 +451,12 @@ fun PeriodicFormEditScreen(
                         RadioButton(selected = isIntermediatePressureKept, onClick = { isIntermediatePressureKept = true; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = successGreen))
                         Text("כן", color = textWhite)
                         Spacer(modifier = Modifier.width(16.dp))
-                        RadioButton(selected = !isIntermediatePressureKept, onClick = { isIntermediatePressureKept = false; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = errorRed))
+                        RadioButton(selected = !isIntermediatePressureKept, onClick = {
+                            isIntermediatePressureKept = false
+                            finalStatus = "DISCONNECTED"
+                            showCriticalWarningDialog = true
+                            saveToDatabase()
+                        }, colors = RadioButtonDefaults.colors(selectedColor = errorRed))
                         Text("לא", color = textWhite)
                     }
                 }
