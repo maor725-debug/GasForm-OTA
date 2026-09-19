@@ -174,11 +174,7 @@ object PdfGenerator {
 
     fun generateFormPdf(context: Context, form: GasForm): File? {
         val settingsManager = SettingsManager(context)
-        return if (settingsManager.pdfTemplateStyle == SettingsManager.TEMPLATE_MODERN) {
-            generateModernFormPdf(context, form, settingsManager)
-        } else {
-            generateClassicFormPdf(context, form, settingsManager)
-        }
+        return generateClassicFormPdf(context, form, settingsManager)
     }
 
     private fun generateClassicFormPdf(context: Context, form: GasForm, settingsManager: SettingsManager): File? {
@@ -605,415 +601,6 @@ object PdfGenerator {
         } catch (e: Exception) { e.printStackTrace(); return null } finally { pdfDocument.close() }
     }
 
-    private fun generateModernFormPdf(context: Context, form: GasForm, settingsManager: SettingsManager): File? {
-        val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "מ.מ מערכות גז" else settingsManager.contractorHeader
-        val headerPhone = if (settingsManager.contractorPhone.isNullOrBlank()) "054-6096487" else settingsManager.contractorPhone
-
-        val pdfDocument = PdfDocument()
-        try {
-            var currentPageNum = 1
-            var page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
-            var canvas = page.canvas
-
-            val bgPageColor = Color.parseColor("#f9fafb")
-            val textDark = Color.parseColor("#111827")
-            val textGray = Color.parseColor("#6b7280")
-            val bluePrimary = Color.parseColor("#2563eb")
-            val borderGray = Color.parseColor("#e5e7eb")
-            val cardBgColor = Color.parseColor("#ffffff")
-            val fieldBgColor = Color.parseColor("#f9fafb")
-            val fieldBorderColor = Color.parseColor("#d1d5db")
-            val chipBgSelected = Color.parseColor("#dbeafe")
-            val chipTextSelected = Color.parseColor("#1e40af")
-            val chipBorderSelected = Color.parseColor("#bfdbfe")
-
-            val pageBgPaint = Paint().apply { color = bgPageColor; style = Paint.Style.FILL }
-            val h1Paint = Paint().apply { color = Color.parseColor("#1f2937"); textSize = 24f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.CENTER }
-            val h2Paint = Paint().apply { color = bluePrimary; textSize = 16f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.CENTER }
-            val metaPaint = Paint().apply { color = textGray; textSize = 12f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textAlign = Paint.Align.CENTER }
-            val cardBgPaint = Paint().apply { color = cardBgColor; style = Paint.Style.FILL }
-            val cardBorderPaint = Paint().apply { color = borderGray; style = Paint.Style.STROKE; strokeWidth = 1f }
-            val sectionTitlePaint = Paint().apply { color = Color.parseColor("#374151"); textSize = 14f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.RIGHT }
-            val circlePaint = Paint().apply { color = bluePrimary; style = Paint.Style.FILL; isAntiAlias = true }
-            val circleTextPaint = Paint().apply { color = Color.WHITE; textSize = 12f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.CENTER; isAntiAlias = true }
-            val labelPaint = Paint().apply { color = textGray; textSize = 10f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textAlign = Paint.Align.RIGHT; isAntiAlias = true }
-            val valuePaint = Paint().apply { color = textDark; textSize = 12f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textAlign = Paint.Align.RIGHT; isAntiAlias = true }
-            val fieldBoxPaint = Paint().apply { color = fieldBgColor; style = Paint.Style.FILL; isAntiAlias = true }
-            val fieldBorderLinePaint = Paint().apply { color = fieldBorderColor; style = Paint.Style.STROKE; strokeWidth = 1f; isAntiAlias = true }
-
-            val creditPaint = Paint().apply { color = textGray; textSize = 9f; textAlign = Paint.Align.LEFT }
-            val creationDateStr = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(form.createdAt))
-            val locationStr = if (form.isUnaddressedSite) "אתר בבנייה (GPS מוגדר)" else form.clientCity.takeIf { it.isNotBlank() } ?: "לא צוין"
-            val footerText = "טופס הופק ב: $creationDateStr | מיקום: $locationStr"
-
-            fun drawFooter(c: Canvas) {
-                c.drawText(footerText, 30f, 830f, creditPaint)
-                c.drawText("מערכת נורמטיבי - פותח ע\"י מאור מנחם ©", 30f, 818f, creditPaint)
-            }
-
-            fun drawPageHeader() {
-                canvas.drawRect(0f, 0f, 595f, 842f, pageBgPaint)
-                canvas.drawText(headerTitle, 297f, 45f, h1Paint)
-                canvas.drawText(headerPhone, 297f, 65f, h2Paint)
-                canvas.drawText("(מס' טופס: ${form.sequentialNumber})", 50f, 45f, Paint().apply { color = Color.RED; textSize = 14f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.LEFT })
-                canvas.drawText("טופס הצהרה על התאמה של מתקן גפ\"מ", 297f, 100f, Paint(h1Paint).apply { textSize = 18f })
-                canvas.drawText("דרישות התקן 158 חלק 4 | תאריך: ${form.date}", 297f, 120f, metaPaint)
-                canvas.drawLine(40f, 130f, 555f, 130f, cardBorderPaint)
-            }
-
-            var currentY = 140f
-
-            fun checkNewPage(neededHeight: Float) {
-                if (currentY + neededHeight > 790f) {
-                    drawFooter(canvas)
-                    pdfDocument.finishPage(page)
-                    currentPageNum++
-                    page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-                    canvas = page.canvas
-                    drawPageHeader()
-                    currentY = 140f
-                }
-            }
-
-            fun drawSectionHeader(number: String, title: String, startY: Float) {
-                canvas.drawCircle(538f, startY + 5f, 12f, circlePaint)
-                canvas.drawText(number, 538f, startY + 9f, circleTextPaint)
-                canvas.drawText(title, 515f, startY + 10f, sectionTitlePaint)
-                canvas.drawLine(40f, startY + 20f, 555f, startY + 20f, Paint().apply { color = Color.parseColor("#f3f4f6"); strokeWidth=1f })
-            }
-
-            fun drawField(label: String, value: String, rightX: Float, yPos: Float, width: Float) {
-                canvas.drawText(label, rightX, yPos, labelPaint)
-                val boxTop = yPos + 5f
-                val boxBottom = boxTop + 24f
-                val leftX = rightX - width
-                canvas.drawRoundRect(RectF(leftX, boxTop, rightX, boxBottom), 4f, 4f, fieldBoxPaint)
-                canvas.drawRoundRect(RectF(leftX, boxTop, rightX, boxBottom), 4f, 4f, fieldBorderLinePaint)
-                canvas.drawText(value, rightX - 5f, boxBottom - 6f, valuePaint)
-            }
-
-            fun drawWrappedText(text: String, startX: Float, startY: Float, maxWidth: Float, paint: Paint, lineSpacing: Float = 16f): Float {
-                var cY = startY
-                val lines = text.split("\n")
-                for (paragraph in lines) {
-                    val words = paragraph.split(" ")
-                    var currentLine = ""
-                    for (word in words) {
-                        val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                        if (paint.measureText(testLine) > maxWidth) {
-                            canvas.drawText(currentLine, startX, cY, paint)
-                            cY += lineSpacing
-                            currentLine = word
-                        } else { currentLine = testLine }
-                    }
-                    if (currentLine.isNotEmpty()) {
-                        canvas.drawText(currentLine, startX, cY, paint)
-                        cY += lineSpacing
-                    }
-                }
-                return cY - startY
-            }
-
-            fun drawChip(text: String, isSelected: Boolean, rightX: Float, centerY: Float): Float {
-                val chipPaintText = Paint(labelPaint).apply {
-                    textSize = 11f; textAlign = Paint.Align.CENTER
-                    color = if (isSelected) chipTextSelected else Color.parseColor("#4b5563")
-                    if (isSelected) typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-                }
-                val textWidth = chipPaintText.measureText(text)
-                val chipWidth = textWidth + 30f
-                val leftX = rightX - chipWidth
-                val bgPaint = Paint().apply { color = if (isSelected) chipBgSelected else cardBgColor; style = Paint.Style.FILL; isAntiAlias = true }
-                val borderPnt = Paint().apply { color = if (isSelected) chipBorderSelected else fieldBorderColor; style = Paint.Style.STROKE; strokeWidth = 1f; isAntiAlias = true }
-
-                canvas.drawRoundRect(RectF(leftX, centerY - 12f, rightX, centerY + 12f), 12f, 12f, bgPaint)
-                canvas.drawRoundRect(RectF(leftX, centerY - 12f, rightX, centerY + 12f), 12f, 12f, borderPnt)
-                canvas.drawText(text, leftX + (chipWidth / 2f), centerY + 4f, chipPaintText)
-                return chipWidth
-            }
-
-            drawPageHeader()
-
-            var sectionHeight = 70f
-            checkNewPage(sectionHeight)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBgPaint)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBorderPaint)
-            drawSectionHeader("1", "פרטי המתקן ומיקומו", currentY + 15f)
-
-            var chipX = 540f
-            val chipY = currentY + 50f
-            chipX -= drawChip(if(form.isSharedBuilding) "✔ בית משותף" else "בית משותף", form.isSharedBuilding, chipX, chipY) + 10f
-            chipX -= drawChip(if(form.isCommercial) "✔ מסחרי" else "מסחרי", form.isCommercial, chipX, chipY) + 10f
-            chipX -= drawChip(if(form.isCylinders12x2) "✔ מכלים 12*2" else "מכלים 12*2", form.isCylinders12x2, chipX, chipY) + 10f
-            chipX -= drawChip(if(form.isCylinders48x2) "✔ מכלים 48*2" else "מכלים 48*2", form.isCylinders48x2, chipX, chipY) + 10f
-            if (form.isOtherType) drawChip("✔ אחר: ${form.otherTypeText}", true, chipX, chipY) else drawChip("אחר", false, chipX, chipY)
-            currentY += sectionHeight + 15f
-
-            sectionHeight = 110f
-            checkNewPage(sectionHeight)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBgPaint)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBorderPaint)
-            drawSectionHeader("2", "פרטי לקוח", currentY + 15f)
-
-            drawField("שם לקוח", form.clientName, 540f, currentY + 45f, 240f)
-            drawField("טלפון", form.clientPhone, 280f, currentY + 45f, 240f)
-
-            if (form.isUnaddressedSite) {
-                drawField("מיקום חלופי (נ.צ GPS)", form.gpsCoordinates.ifEmpty { "לא נדגמו קואורדינטות" }, 540f, currentY + 85f, 500f)
-            } else {
-                drawField("ישוב", form.clientCity, 540f, currentY + 85f, 160f)
-                drawField("רחוב", form.clientStreet, 360f, currentY + 85f, 180f)
-                drawField("בניין/דירה", form.clientBuilding, 160f, currentY + 85f, 120f)
-            }
-            currentY += sectionHeight + 15f
-
-            sectionHeight = if (form.isWorkConnection) 180f else 70f
-            if (form.hasAdditionalDevice) sectionHeight += 50f
-            checkNewPage(sectionHeight)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBgPaint)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBorderPaint)
-            drawSectionHeader("3", "תיאור העבודה", currentY + 15f)
-
-            chipX = 540f
-            var cY = currentY + 50f
-            chipX -= drawChip(if(form.isWorkNew) "✔ מתקן חדש" else "מתקן חדש", form.isWorkNew, chipX, cY) + 10f
-            chipX -= drawChip(if(form.isWorkAddition) "✔ תוספת למתקן" else "תוספת למתקן", form.isWorkAddition, chipX, cY) + 10f
-            chipX -= drawChip(if(form.isWorkRepair) "✔ תיקון נזק/שינוי" else "תיקון נזק/שינוי", form.isWorkRepair, chipX, cY) + 10f
-            drawChip(if(form.isWorkConnection) "✔ חיבור מכשיר" else "חיבור מכשיר", form.isWorkConnection, chipX, cY)
-
-            if (form.isWorkConnection) {
-                cY += 35f
-                drawField("סוג המכשיר", form.connectionDeviceType, 540f, cY, 120f)
-                drawField("מותג", form.connectionDeviceBrand, 410f, cY, 120f)
-                drawField("דגם", form.connectionDeviceModel, 280f, cY, 120f)
-                drawField("סריאלי", form.connectionDeviceSerial, 150f, cY, 110f)
-
-                if (form.hasAdditionalDevice) {
-                    cY += 45f
-                    drawField("סוג מכשיר 2", form.additionalDeviceType, 540f, cY, 120f)
-                    drawField("מותג מכשיר 2", form.additionalDeviceBrand, 410f, cY, 120f)
-                    drawField("דגם", form.additionalDeviceModel, 280f, cY, 120f)
-                    drawField("סריאלי", form.additionalDeviceSerial, 150f, cY, 110f)
-                }
-
-                cY += 45f
-                canvas.drawText("צינור גומי תקני עד 3 מ'. חבקים:", 540f, cY + 15f, labelPaint)
-                drawField("", form.clampsCount, 390f, cY, 50f)
-                canvas.drawText("שנ' ייצור:", 330f, cY + 15f, labelPaint)
-                drawField("", form.hoseProductionYear, 280f, cY, 60f)
-                canvas.drawText("סוג צינור:", 210f, cY + 15f, labelPaint)
-                drawField("", form.hoseType, 160f, cY, 120f)
-            }
-            currentY += sectionHeight + 15f
-
-            val text4 = "אני הח\"מ מצהיר בזאת כי בדקתי את מע' הגפ\"מ המתואר לעיל חזותית ומצאתי כי הוא עומד בכל דרישות התקן הישראלי 158 חלקים 2 ו-3, לפי העניין."
-            val visualHeight = drawWrappedText(text4, 525f, currentY + 50f, 480f, Paint(labelPaint).apply{ color = Color.parseColor("#374151") }) + 60f
-            checkNewPage(visualHeight)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + visualHeight), 8f, 8f, cardBgPaint)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + visualHeight), 8f, 8f, cardBorderPaint)
-            drawSectionHeader("4", "בדיקה חזותית", currentY + 15f)
-
-            val legalBg = Paint().apply { color = Color.parseColor("#f3f4f6"); style = Paint.Style.FILL; isAntiAlias = true }
-            canvas.drawRoundRect(RectF(40f, currentY + 35f, 540f, currentY + visualHeight - 10f), 4f, 4f, legalBg)
-            canvas.drawRect(536f, currentY + 35f, 540f, currentY + visualHeight - 10f, Paint().apply { color = bluePrimary })
-            drawWrappedText(text4, 525f, currentY + 52f, 470f, Paint(labelPaint).apply{ color = Color.parseColor("#374151") })
-            currentY += visualHeight + 15f
-
-            sectionHeight = 140f
-            checkNewPage(sectionHeight)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBgPaint)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBorderPaint)
-            drawSectionHeader("5", "בדיקת לחץ / אטימות לפני הפעלה", currentY + 15f)
-
-            drawField("אטימות ללחץ שימוש בתאריך:", if (form.isLeakTestChecked) form.leakTestDate else "-", 540f, currentY + 45f, 180f)
-            drawField("לחץ הבדיקה (mbar ל-15 דק'):", if (form.isLeakTestChecked) form.leakTestPressure else "-", 340f, currentY + 45f, 180f)
-
-            drawField("בדיקת לחץ נערכה בתאריך:", if (form.isPressureTestChecked) form.pressureTestDate else "-", 540f, currentY + 95f, 180f)
-            drawField("לחץ הבדיקה (0.250 BAR או אחר):", if (form.isPressureTestChecked) form.pressureTestValue else "-", 340f, currentY + 95f, 180f)
-            drawField("לחץ ווסת (mbar):", if (form.isRegulatorTestChecked) form.regulatorPressure else "-", 140f, currentY + 95f, 100f)
-            currentY += sectionHeight + 15f
-
-            sectionHeight = 90f
-            checkNewPage(sectionHeight)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBgPaint)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBorderPaint)
-            drawSectionHeader("6", "בדיקת תוואי וחומרים", currentY + 15f)
-
-            canvas.drawText("✔ התוואי נעשה בהתאם לתוכניות ולתקן 158 חלק 2", 540f, currentY + 50f, valuePaint)
-            canvas.drawText("✔ חומרי המבנה מתאימים לדרישות התקן", 540f, currentY + 70f, valuePaint)
-
-            val routeText = if (form.isRouteDoneByChecked) "נעשה ע\"י: ${form.routeDoneBy}" else if (form.isRouteNotDoneByChecked) "לא נעשה ע\"י הח\"מ" else "לא סומן"
-            drawField("מי ביצע את התוואי:", routeText, 250f, currentY + 45f, 210f)
-            currentY += sectionHeight + 15f
-
-            val remarksText = if(form.executionRemarks.isBlank()) "אין הערות מיוחדות." else form.executionRemarks
-            var testY = currentY + 45f
-            val remarksLines = remarksText.split("\n")
-            for (paragraph in remarksLines) {
-                val words = paragraph.split(" ")
-                var currentLine = ""
-                for (word in words) {
-                    val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                    if (valuePaint.measureText(testLine) > 500f) { testY += 16f; currentLine = word } else { currentLine = testLine }
-                }
-                if (currentLine.isNotEmpty()) testY += 16f
-            }
-            sectionHeight = Math.max(70f, (testY - currentY) + 20f)
-
-            checkNewPage(sectionHeight)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBgPaint)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBorderPaint)
-            drawSectionHeader("7", "הערות ביצוע", currentY + 15f)
-            drawWrappedText(remarksText, 540f, currentY + 50f, 500f, valuePaint)
-            currentY += sectionHeight + 15f
-
-            val reasonHeight = if (!form.isStatusConforming && form.nonCompliantReason.isNotBlank()) 60f else 0f
-            sectionHeight = 150f + reasonHeight
-            checkNewPage(sectionHeight)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBgPaint)
-            canvas.drawRoundRect(RectF(30f, currentY, 565f, currentY + sectionHeight), 8f, 8f, cardBorderPaint)
-            drawSectionHeader("8", "הצהרת התאמה וחתימות", currentY + 15f)
-
-            var sigY = currentY + 45f
-            if (form.isStatusConforming) {
-                canvas.drawText("✔ המערכת מתאימה לדרישות התקן", 540f, sigY, Paint(valuePaint).apply { color = Color.parseColor("#065f46"); typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) })
-            } else {
-                canvas.drawText("✗ המערכת אינה מתאימה לדרישות התקן", 540f, sigY, Paint(valuePaint).apply { color = Color.parseColor("#dc2626"); typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) })
-                sigY += 25f
-                canvas.drawText("סיבת למה המערכת לא תקינה:", 540f, sigY, labelPaint)
-                canvas.drawRoundRect(RectF(40f, sigY + 5f, 540f, sigY + 45f), 4f, 4f, Paint().apply { color = Color.parseColor("#fef2f2"); style = Paint.Style.FILL })
-                canvas.drawRoundRect(RectF(40f, sigY + 5f, 540f, sigY + 45f), 4f, 4f, Paint().apply { color = Color.parseColor("#fca5a5"); style = Paint.Style.STROKE; strokeWidth=1f })
-                drawWrappedText(form.nonCompliantReason, 530f, sigY + 20f, 480f, valuePaint)
-                sigY += 35f
-            }
-
-            sigY += 25f
-            val boxPnt = Paint().apply { color = fieldBgColor; style = Paint.Style.FILL; isAntiAlias = true }
-            val borderPnt = Paint().apply { color = fieldBorderColor; style = Paint.Style.STROKE; strokeWidth = 1f; isAntiAlias = true }
-            val bitmapPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
-
-            canvas.drawRoundRect(RectF(310f, sigY, 540f, sigY + 110f), 6f, 6f, boxPnt)
-            canvas.drawRoundRect(RectF(310f, sigY, 540f, sigY + 110f), 6f, 6f, borderPnt)
-            canvas.drawText("שם הטכנאי:", 530f, sigY + 15f, labelPaint)
-            canvas.drawText(form.technicianStamp, 470f, sigY + 15f, Paint(valuePaint).apply { typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) })
-            canvas.drawText("חותמת טכנאי:", 530f, sigY + 35f, labelPaint)
-
-            val sigUriStr = settingsManager.savedSignatureUri.takeIf { !it.isNullOrBlank() } ?: settingsManager.technicianLicenseUri
-            if (!sigUriStr.isNullOrEmpty()) {
-                try {
-                    decodeBitmapWithExifRotation(context, Uri.parse(sigUriStr))?.let { bitmap ->
-                        val boxWidth = 200f; val boxHeight = 80f
-                        val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
-                        val boxRatio = boxWidth / boxHeight
-                        var drawWidth = boxWidth; var drawHeight = boxHeight
-                        if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
-
-                        val left = 520f - drawWidth
-                        val top = sigY + 25f
-                        val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
-                        canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
-                        bitmap.recycle()
-                    }
-                } catch (e: Exception) { e.printStackTrace() }
-            }
-
-            val techLicenseNum = settingsManager.technicianLicenseNumber
-            val techLevel = settingsManager.technicianLevel
-            if (techLicenseNum.isNotBlank()) {
-                canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", 425f, sigY + 100f, Paint(metaPaint).apply { color = textDark; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) })
-            }
-
-            canvas.drawRoundRect(RectF(50f, sigY, 290f, sigY + 110f), 6f, 6f, boxPnt)
-            canvas.drawRoundRect(RectF(50f, sigY, 290f, sigY + 110f), 6f, 6f, borderPnt)
-            canvas.drawText("ת.ז לקוח:", 280f, sigY + 15f, labelPaint)
-            canvas.drawText(form.clientIdConfirm, 230f, sigY + 15f, valuePaint)
-            canvas.drawText("חתימה:", 280f, sigY + 35f, labelPaint)
-            if (form.clientSignatureUri.isNotEmpty()) {
-                try {
-                    decodeBitmapWithExifRotation(context, Uri.parse(form.clientSignatureUri))?.let { bitmap ->
-                        canvas.drawBitmap(bitmap, null, RectF(70f, sigY + 25f, 190f, sigY + 65f), bitmapPaint)
-                        bitmap.recycle()
-                    }
-                } catch (e: Exception) { e.printStackTrace() }
-            }
-
-            drawFooter(canvas)
-            pdfDocument.finishPage(page)
-
-            val watermarkText = "נורמטיבי 158/4 | תאריך: ${form.date}"
-            val extraImages = mutableListOf<Pair<String, String>>()
-
-            if (form.isUnaddressedSite && form.sitePhotoUri.isNotEmpty()) { extraImages.add(Pair(form.sitePhotoUri, "צילום מפה / שטח (נ.צ: ${form.gpsCoordinates})")) }
-            form.extraRouteImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "צילום תוואי ${index + 1}")) }
-            form.remarksImageUris.split(",").filter { it.isNotEmpty() }.forEachIndexed { index, uri -> extraImages.add(Pair(uri, "הערת ביצוע ${index + 1}")) }
-
-            if (extraImages.isNotEmpty()) {
-                val chunkedImages = extraImages.chunked(2)
-                for (chunkIndex in chunkedImages.indices) {
-                    currentPageNum++
-                    val pageImages = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-                    val canvasImages = pageImages.canvas
-                    canvasImages.drawRect(0f, 0f, 595f, 842f, pageBgPaint)
-                    canvasImages.drawRoundRect(RectF(30f, 30f, 565f, 800f), 8f, 8f, cardBgPaint)
-                    canvasImages.drawRoundRect(RectF(30f, 30f, 565f, 800f), 8f, 8f, cardBorderPaint)
-
-                    val suffix = if (chunkedImages.size > 1) " (חלק ${chunkIndex + 1})" else ""
-                    canvasImages.drawText("נספח מצורף - צילומים ותמונות שטח$suffix", 297f, 60f, h2Paint)
-                    val locationHeader = if(form.isUnaddressedSite) form.gpsCoordinates else form.clientCity
-                    canvasImages.drawText("לקוח: ${form.clientName} | ישוב: $locationHeader | \u200Eתאריך: \u200E${form.date}", 297f, 80f, metaPaint)
-                    canvasImages.drawLine(50f, 95f, 545f, 95f, cardBorderPaint)
-
-                    fun drawAttachedImage(uriStr: String, label: String, left: Float, top: Float, width: Float, height: Float) {
-                        try {
-                            decodeBitmapWithExifRotation(context, Uri.parse(uriStr))?.let { rawBitmap ->
-                                val bitmap = applyWatermark(rawBitmap, watermarkText)
-                                if (rawBitmap != bitmap) rawBitmap.recycle()
-                                canvasImages.drawBitmap(bitmap, null, RectF(left, top, left + width, top + height), bitmapPaint)
-                                canvasImages.drawText(label, left + width / 2, top + height + 20f, Paint(h2Paint).apply{ textSize = 12f; color = textDark })
-                                bitmap.recycle()
-                            }
-                        } catch (e: Exception) { e.printStackTrace() }
-                    }
-                    val currentPair = chunkedImages[chunkIndex]
-                    if (currentPair.size == 2) {
-                        drawAttachedImage(currentPair[0].first, currentPair[0].second, 50f, 130f, 220f, 320f)
-                        drawAttachedImage(currentPair[1].first, currentPair[1].second, 325f, 130f, 220f, 320f)
-                    } else {
-                        drawAttachedImage(currentPair[0].first, currentPair[0].second, 147.5f, 130f, 300f, 400f)
-                    }
-                    drawFooter(canvasImages)
-                    pdfDocument.finishPage(pageImages)
-                }
-            }
-
-            val outputDir = if (settingsManager.isAutoSavePdfEnabled) settingsManager.getAutoSaveDir(context) else context.cacheDir
-            val rawClientName = form.clientName
-            val sanitizedClientName = if (rawClientName.isBlank()) "ללא_שם" else rawClientName.replace(" ", "_")
-            val outputFile = File(outputDir, "טופס_158_${sanitizedClientName}_${form.createdAt}.pdf")
-            FileOutputStream(outputFile).use { out -> pdfDocument.writeTo(out) }
-
-            val treeUriStr = settingsManager.customStorageTreeUri
-            if (settingsManager.isAutoSavePdfEnabled && !treeUriStr.isNullOrEmpty()) {
-                try {
-                    val treeUri = Uri.parse(treeUriStr)
-                    context.contentResolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                    val docFolder = DocumentFile.fromTreeUri(context, treeUri)
-                    if (docFolder != null && docFolder.canWrite()) {
-                        val fileName = "טופס_158_${sanitizedClientName}_${form.createdAt}.pdf"
-                        docFolder.findFile(fileName)?.delete()
-                        val createdFile = docFolder.createFile("application/pdf", fileName)
-                        if (createdFile != null) {
-                            context.contentResolver.openOutputStream(createdFile.uri)?.use { outStream ->
-                                FileInputStream(outputFile).use { inStream -> inStream.copyTo(outStream) }
-                            }
-                        }
-                    }
-                } catch (e: Exception) { e.printStackTrace() }
-            }
-            return outputFile
-        } catch (e: Exception) { e.printStackTrace(); return null } finally { pdfDocument.close() }
-    }
-
     fun generatePeriodicFormPdf(context: Context, form: PeriodicGasForm): File? {
         val pdfDocument = android.graphics.pdf.PdfDocument()
         var currentPageNum = 1
@@ -1031,7 +618,6 @@ object PdfGenerator {
         var yPosition = 120f
         var tableRowIndex = 0
 
-        // הגדרת קווי האורך של הטבלה
         val xLines = floatArrayOf(550f, 220f, 150f, 80f, 10f)
 
         fun drawPageHeader() {
@@ -1049,11 +635,10 @@ object PdfGenerator {
             canvas.drawText(contractorHeader, 297f, 45f, headerTextPaint)
             canvas.drawText(defaultPhone, 297f, 70f, headerPhonePaint)
 
-            // מספר שוטף
             canvas.drawText("(טופס מס': ${form.sequentialNumber})", 30f, 45f, Paint().apply { color = Color.parseColor("#FFCC00"); textSize = 14f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.LEFT })
 
             canvas.drawText("אישור על בדיקת תקינות למערכת הגז והתאמתה לתקן 158 (חלק 4)", 297f, 115f, titlePaint)
-            canvas.drawText("טופס ד-1: דוח בדיקה תקופתית של מאגר גפ\"מ קיים במכלים", 297f, 135f, titlePaint)
+            canvas.drawText("דוח בדיקה תקופתית למערכת גז מרכזית (מכלים מיטלטלים)", 297f, 135f, titlePaint)
         }
 
         drawPageHeader()
@@ -1093,7 +678,23 @@ object PdfGenerator {
         }
 
         fun drawCheckRow(text: String, state: String) {
-            val h = 28f
+            val maxWidth = 330f
+            val words = text.split(" ")
+            val lines = mutableListOf<String>()
+            var currentLine = ""
+            for (word in words) {
+                val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+                if (paint.measureText(testLine) > maxWidth) {
+                    if (currentLine.isNotEmpty()) lines.add(currentLine)
+                    currentLine = word
+                } else {
+                    currentLine = testLine
+                }
+            }
+            if (currentLine.isNotEmpty()) lines.add(currentLine)
+
+            val textHeight = lines.size * 14f
+            val h = Math.max(28f, textHeight + 10f)
 
             if (yPosition + h > 780f) {
                 pdfDocument.finishPage(page)
@@ -1106,54 +707,61 @@ object PdfGenerator {
                 drawTableHeader()
             }
 
-            if (state == "HEADER") {
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL })
+            if (state == "HEADER" || state == "SUBHEADER") {
+                val bgPaint = if (state == "HEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
+                canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
                 canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
-                canvas.drawText(text, 540f, yPosition + 19f, Paint(boldPaint).apply { textSize = 12f })
+
+                var textY = yPosition + 19f
+                val headerTextPaint = Paint(boldPaint).apply { textSize = 12f }
+                for (line in lines) {
+                    canvas.drawText(line, 540f, textY, headerTextPaint)
+                    textY += 14f
+                }
                 yPosition += h
-                tableRowIndex = 0
+                if (state == "HEADER") tableRowIndex = 0
                 return
             }
 
-            // צביעת שורות (זברה או אדום ללקויים)
-            if (state == "FAIL") {
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = Color.parseColor("#FFEEEE"); style = Paint.Style.FILL })
-            } else {
-                val rowColor = if (tableRowIndex % 2 == 0) Color.parseColor("#F9F9F9") else Color.WHITE
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = rowColor; style = Paint.Style.FILL })
-            }
+            val rowColor = if (state == "FAIL") Color.parseColor("#FFEEEE") else if (tableRowIndex % 2 == 0) Color.parseColor("#F9F9F9") else Color.WHITE
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = rowColor; style = Paint.Style.FILL })
             tableRowIndex++
 
             canvas.drawRect(10f, yPosition, 550f, yPosition + h, linePaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + h, linePaint)
 
-            var safeText = text
-            if (paint.measureText(text) > 320f) safeText = text.substring(0, 45) + "..."
-            canvas.drawText(safeText, 540f, yPosition + 19f, paint)
+            var textY = yPosition + 19f
+            for (line in lines) {
+                canvas.drawText(line, 540f, textY, paint)
+                textY += 14f
+            }
 
             val centerPass = 185f
             val centerFail = 115f
             val centerNA = 45f
+            val iconY = yPosition + (h / 2) + 5f
 
             when (state) {
-                "PASS" -> canvas.drawText("V", centerPass, yPosition + 19f, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
-                "FAIL" -> canvas.drawText("X", centerFail, yPosition + 19f, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
-                "NA" -> canvas.drawText("-", centerNA, yPosition + 19f, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
+                "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
+                "NA" -> canvas.drawText("-", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
             }
             yPosition += h
         }
 
         drawTableHeader()
         drawCheckRow("1. בחינה חזותית של המאגר", "HEADER")
-        drawCheckRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך/מגורים", form.checkLocationOpen)
-        drawCheckRow("1.1.2.1 מרחק 0.7 מ' ממקור חום/ניצוצות", form.checkSafetyDistances07Heat)
-        drawCheckRow("1.1.2.2 מרחק 1.7 מ' מאש גלויה", form.checkSafetyDistances17Fire)
-        drawCheckRow("1.1.2.3 0.5מ' מבורות/תאים סגורים (אלא אם מוגבהים)", form.checkSafetyDistances05Pits)
+        drawCheckRow("1.1 מיקום המכלים :", "SUBHEADER")
+        drawCheckRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך, לא במקום המשמש למגורים", form.checkLocationOpen)
+        drawCheckRow("1.1.2 מרחקים (*):", "SUBHEADER")
+        drawCheckRow("1.1.2.1 0.7 מ' ממקור חום וניצוצות", form.checkSafetyDistances07Heat)
+        drawCheckRow("1.1.2.2 1.7 מ' מאש גלויה", form.checkSafetyDistances17Fire)
+        drawCheckRow("1.1.2.3 0.5מ' מבורות/תאים סגורים", form.checkSafetyDistances05Pits)
         drawCheckRow("1.1.2.4 3מ' מבורות ופתחי ניקוז פתוחים", form.checkSafetyDistances3Drainage)
-        drawCheckRow("1.1.2.5 1.2מ' מפתח בניין (אלא אם סף גבוה ב-0.5מ')", form.checkSafetyDistances12Building)
+        drawCheckRow("1.1.2.5 1.2מ' מפתח בניין", form.checkSafetyDistances12Building)
         drawCheckRow("1.1.2.6 3מ' מפתחי מפלס נמוך", form.checkSafetyDistances3LowLevel)
         drawCheckRow("1.2 הווסת והסעפת מקובעים כראוי", form.checkRegulatorSecured)
-        drawCheckRow("1.3 יש שילוט אזהרה (מתלקח, סמל, ספק)", form.checkWarningSigns)
+        drawCheckRow("1.3 יש שילוט אזהרה עם הכיתוב ''סכנה גז מתלקח! אסור לעשן!'' וסמל הדליקות, הכולל את שם ספק הגז ומספר טלפון לחירום", form.checkWarningSigns)
         drawCheckRow("1.4 במתקן מים, מובטחת התזה על כל המכלים", form.checkWaterSprinklers)
         drawCheckRow("1.5.1 אם בחדר: בחדר יש עד 20 מכלים", form.checkGasRoomMax20)
         drawCheckRow("1.5.2 אם בחדר: תאורה בתקרה, מפסק בחוץ", form.checkGasRoomLighting)
@@ -1169,7 +777,7 @@ object PdfGenerator {
         drawCheckRow("2.4 שסתומי פריקה מחוברים לאוויר חוץ כחוק", form.checkDischargeValves)
         drawCheckRow("2.5 לחץ הגז בפנים המבנה אינו גדול מ-1.4 בר", form.checkPressureUpTo1_4)
         drawCheckRow("2.6 הצנרת ומרכיביה מקובעים", form.checkPipingSecured)
-        drawCheckRow("2.7 מוצאים ללא שימוש קבוע סגורים בפקק/ברז", form.checkUnusedOutletsPlugged)
+        drawCheckRow("2.7 כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", form.checkUnusedOutletsPlugged)
 
         // סגירת טבלה תחתונה
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
@@ -1187,7 +795,6 @@ object PdfGenerator {
         val pressureKeepText = if (form.isIntermediatePressureKept) "הלחץ נשמר ✓" else "הלחץ לא נשמר ✗"
         canvas.drawText("לחץ ביניים (15 דק'): ${form.intermediatePressureValue} mbar | $pressureKeepText", rightMargin, yPosition, paint)
 
-        // הערות ליקויים - בעיצוב החדש והבולט
         if (form.failedReasonsJson.isNotBlank() && form.failedReasonsJson != "{}") {
             yPosition += 25f
             if (yPosition > 700f) {
@@ -1240,16 +847,13 @@ object PdfGenerator {
                         boxBottom = yPosition + textHeightNeeded
                     }
 
-                    // ציור מסגרת הליקוי האדומה
                     val rect = RectF(boxLeft, boxTop, boxRight, boxBottom)
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.parseColor("#FAFAFA"); style = Paint.Style.FILL })
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.RED; style = Paint.Style.STROKE; strokeWidth = 1.5f })
 
-                    // כותרת פנימית
                     val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f }
                     canvas.drawText("סעיף $key:", boxRight - 10f, boxTop + 18f, labelPaint)
 
-                    // התוכן עצמו
                     var textY = boxTop + 35f
                     for (line in innerLines) {
                         canvas.drawText(line, boxRight - 10f, textY, paint)
@@ -1272,7 +876,6 @@ object PdfGenerator {
             yPosition = 140f
         }
 
-        // סיכום סטטוס והערות ביצוע
         canvas.drawText("4. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
@@ -1290,7 +893,6 @@ object PdfGenerator {
             canvas.drawText("הערות מסכמות: ${form.executionRemarks}", rightMargin, yPosition, paint)
         }
 
-        // חתימות
         yPosition += 40f
         if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
 
@@ -1302,7 +904,6 @@ object PdfGenerator {
         yPosition += rowHeight
         canvas.drawText("שם: ${form.technicianName}", rightMargin, yPosition, paint)
 
-        // תיקון באג קריטי משיכת החתימה בטופס התקופתי
         val settingsSigUri = SettingsManager(context).savedSignatureUri.takeIf { !it.isNullOrBlank() } ?: SettingsManager(context).technicianLicenseUri
         if (!settingsSigUri.isNullOrBlank()) {
             try {
@@ -1322,7 +923,6 @@ object PdfGenerator {
             } catch (e: Exception) { e.printStackTrace() }
         }
 
-        // הדפסת מספר רישיון טכנאי תחת החתימה גם בטופס התקופתי
         val techLicenseNum = SettingsManager(context).technicianLicenseNumber
         val techLevel = SettingsManager(context).technicianLevel
         if (techLicenseNum.isNotBlank()) {
@@ -1342,7 +942,6 @@ object PdfGenerator {
 
         pdfDocument.finishPage(page)
 
-        // הוספת עמודי נספחים
         val extraUris = mutableListOf<String>()
 
         if (form.extraImagesUris.isNotBlank()) {

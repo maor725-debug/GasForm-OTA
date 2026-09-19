@@ -167,6 +167,9 @@ fun PeriodicFormEditScreen(
     var selectedExtraUris by remember { mutableStateOf<List<Uri>>(initialForm?.extraImagesUris?.split(",")?.filter { it.isNotBlank() }?.map { Uri.parse(it) } ?: emptyList()) }
     var isFormSavedToTarget by remember { mutableStateOf(initialForm?.isSavedToTarget == true) }
 
+    // מצב להפעלת התראת ליקוי חמור (ניתוק)
+    var showCriticalWarningDialog by remember { mutableStateOf(false) }
+
     fun buildCurrentForm(): PeriodicGasForm {
         val jsonReasons = JSONObject(failedReasonsMap.toMap()).toString()
         return PeriodicGasForm(
@@ -285,6 +288,19 @@ fun PeriodicFormEditScreen(
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        if (showCriticalWarningDialog) {
+            AlertDialog(
+                onDismissRequest = { showCriticalWarningDialog = false },
+                title = { Text("סכנה - ליקוי חמור", color = errorRed, fontWeight = FontWeight.Bold, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
+                text = { Text("יש להפסיק הספקת גז למתקן!\n\nסימנת 'לא מתאים' בסעיף קריטי (⊕). הסטטוס בסוף הדוח עודכן אוטומטית למצב של ניתוק.", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
+                confirmButton = {
+                    Button(onClick = { showCriticalWarningDialog = false; saveToDatabase() }, colors = ButtonDefaults.buttonColors(containerColor = errorRed)) {
+                        Text("הבנתי, המערכת נותקה")
+                    }
+                }
+            )
+        }
+
         Scaffold(
             containerColor = bgScreenColor,
             topBar = {
@@ -293,7 +309,7 @@ fun PeriodicFormEditScreen(
                         Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = { saveToDatabase(); onNavigateBack() }) { Icon(Icons.Default.ArrowForward, "חזור", tint = textWhite) }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("דוח בדיקה תקופתית (ד-1) מס' $sequentialNumber", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+                            Text("דוח תקופתי מרכזית גז (ד-1) - $sequentialNumber", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
                         }
                     }
                 }
@@ -352,7 +368,8 @@ fun PeriodicFormEditScreen(
                 }
 
                 FormCard("1. בחינה חזותית של המאגר", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך ולא למגורים", checkLocationOpen, { checkLocationOpen = it })
+                    Text("1.1 מיקום המכלים :", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך ולא למגורים", checkLocationOpen, { checkLocationOpen = it }, isSubItem = true)
 
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(modifier = Modifier.fillMaxWidth().background(if(isDark) Color(0xFF263238) else Color(0xFFECEFF1), RoundedCornerShape(4.dp)).padding(8.dp)) {
@@ -368,7 +385,7 @@ fun PeriodicFormEditScreen(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = borderColor)
                     ThreeStateRow("1.2 הווסת והסעפת מקובעים כראוי", checkRegulatorSecured, { checkRegulatorSecured = it })
                     HorizontalDivider(color = borderColor)
-                    ThreeStateRow("1.3 יש שילוט אזהרה (גז מתלקח, סמל דליקות, פרטי ספק)", checkWarningSigns, { checkWarningSigns = it })
+                    ThreeStateRow("1.3 יש שילוט אזהרה עם הכיתוב ''סכנה גז מתלקח! אסור לעשן!'' וסמל הדליקות, הכולל את שם ספק הגז ומספר טלפון לחירום", checkWarningSigns, { checkWarningSigns = it })
                     HorizontalDivider(color = borderColor)
                     ThreeStateRow("1.4 אם יש מתקן מים, מובטחת התזה על כל המכלים", checkWaterSprinklers, { checkWaterSprinklers = it })
 
@@ -398,7 +415,13 @@ fun PeriodicFormEditScreen(
                     ThreeStateRow("2.4 שסתומי פריקה מחוברים לאוויר חוץ כחוק", checkDischargeValves, { checkDischargeValves = it })
                     ThreeStateRow("2.5 לחץ הגז בצנרת פנים המבנה אינו גדול מ-1.4 בר", checkPressureUpTo1_4, { checkPressureUpTo1_4 = it })
                     ThreeStateRow("2.6 הצנרת ומרכיביה מקובעים", checkPipingSecured, { checkPipingSecured = it })
-                    ThreeStateRow("2.7 כל מוצא שאינו בשימוש קבוע, סגור בפקק/ברז תקין", checkUnusedOutletsPlugged, { checkUnusedOutletsPlugged = it })
+                    ThreeStateRow("2.7 כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", checkUnusedOutletsPlugged, { newState ->
+                        checkUnusedOutletsPlugged = newState
+                        if (newState == "FAIL") {
+                            finalStatus = "DISCONNECTED"
+                            showCriticalWarningDialog = true
+                        }
+                    })
                 }
 
                 FormCard("3. בדיקת אטימות ולחצים", cardBg, borderColor, primaryColor) {
@@ -446,7 +469,6 @@ fun PeriodicFormEditScreen(
                     OutlinedTextField(value = executionRemarks, onValueChange = { executionRemarks = it; saveToDatabase() }, label = { Text("הערות נוספות וסיכום הליקויים") }, modifier = Modifier.fillMaxWidth(), minLines = 3, colors = textFieldColors)
                 }
 
-                // תיבות פירוט ליקויים (הועבר לסוף הדוח לפני תמונות וחתימות)
                 AnimatedVisibility(visible = failedReasonsMap.isNotEmpty()) {
                     FormCard("פירוט ליקויים שנמצאו בבדיקה (חובה למלא)", cardBg, errorRed, errorRed) {
                         failedReasonsMap.keys.forEach { sectionTitle ->
