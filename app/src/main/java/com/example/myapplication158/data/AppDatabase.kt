@@ -7,10 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [GasForm::class, PeriodicGasForm::class, WorkOrder::class], version = 19, exportSchema = false)
+@Database(entities = [GasForm::class, PeriodicGasForm::class, GasFormD2::class, WorkOrder::class], version = 20, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gasFormDao(): GasFormDao
     abstract fun periodicGasFormDao(): PeriodicGasFormDao
+    abstract fun gasFormD2Dao(): GasFormD2Dao
     abstract fun workOrderDao(): WorkOrderDao
 
     companion object {
@@ -131,6 +132,72 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // המיגרציה החדשה: יצירת הטבלה של טופס ד-2 (מכלים נייחים)
+        private val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `GasFormD2` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `sequentialNumber` INTEGER NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `businessName` TEXT NOT NULL,
+                        `businessType` TEXT NOT NULL,
+                        `businessId` TEXT NOT NULL,
+                        `fireDeptFileNumber` TEXT NOT NULL,
+                        `city` TEXT NOT NULL,
+                        `street` TEXT NOT NULL,
+                        `building` TEXT NOT NULL,
+                        `clientName` TEXT NOT NULL,
+                        `clientPhone` TEXT NOT NULL,
+                        `gasProvider` TEXT NOT NULL,
+                        `isUnaddressedSite` INTEGER NOT NULL,
+                        `gpsCoordinates` TEXT NOT NULL,
+                        `sitePhotoUri` TEXT NOT NULL,
+                        `manufactureOrTestYear` TEXT NOT NULL,
+                        `capacityPerTank` TEXT NOT NULL,
+                        `totalCapacity` TEXT NOT NULL,
+                        `tankType` TEXT NOT NULL,
+                        `usageType` TEXT NOT NULL,
+                        `manifoldNumber` TEXT NOT NULL,
+                        `suppliesToBuildings` TEXT NOT NULL,
+                        `checkSiteSignage` TEXT NOT NULL,
+                        `checkSiteClean` TEXT NOT NULL,
+                        `checkTankPlate` TEXT NOT NULL,
+                        `checkTankCover` TEXT NOT NULL,
+                        `checkTankFittings` TEXT NOT NULL,
+                        `checkSafeAccess` TEXT NOT NULL,
+                        `checkFittingsHeight` TEXT NOT NULL,
+                        `checkSafetyDistances` TEXT NOT NULL,
+                        `checkElecDistances` TEXT NOT NULL,
+                        `checkFillPipe` TEXT NOT NULL,
+                        `checkEarthquakeValve` TEXT NOT NULL,
+                        `checkValveLevel` TEXT NOT NULL,
+                        `checkMainValve` TEXT NOT NULL,
+                        `checkDischargeValve` TEXT NOT NULL,
+                        `checkPressure1_4` TEXT NOT NULL,
+                        `checkPipingSecured` TEXT NOT NULL,
+                        `checkOutletsPlugged` TEXT NOT NULL,
+                        `isLeakFoundPrimary` INTEGER NOT NULL,
+                        `leakLocationDetails` TEXT NOT NULL,
+                        `intermediatePressureValue` TEXT NOT NULL,
+                        `isIntermediatePressureKept` INTEGER NOT NULL,
+                        `finalStatus` TEXT NOT NULL,
+                        `defectsFixByDate` TEXT NOT NULL,
+                        `executionRemarks` TEXT NOT NULL,
+                        `technicianName` TEXT NOT NULL,
+                        `technicianLicense` TEXT NOT NULL,
+                        `clientNameConfirm` TEXT NOT NULL,
+                        `clientSignatureUri` TEXT NOT NULL,
+                        `extraImagesUris` TEXT NOT NULL,
+                        `failedReasonsJson` TEXT NOT NULL,
+                        `savedTargetLocation` TEXT NOT NULL,
+                        `isSavedToTarget` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -138,7 +205,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gas_forms_database"
                 )
-                    .addMigrations(MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+                    .addMigrations(MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

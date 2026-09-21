@@ -167,7 +167,6 @@ fun PeriodicFormEditScreen(
     var selectedExtraUris by remember { mutableStateOf<List<Uri>>(initialForm?.extraImagesUris?.split(",")?.filter { it.isNotBlank() }?.map { Uri.parse(it) } ?: emptyList()) }
     var isFormSavedToTarget by remember { mutableStateOf(initialForm?.isSavedToTarget == true) }
 
-    // מצב להפעלת התראת ליקוי חמור (ניתוק)
     var showCriticalWarningDialog by remember { mutableStateOf(false) }
 
     fun buildCurrentForm(): PeriodicGasForm {
@@ -525,10 +524,7 @@ fun PeriodicFormEditScreen(
                 }
 
                 FormCard("אישור לקוח וחתימות", cardBg, borderColor, primaryColor) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = technicianName, onValueChange = { technicianName = it; saveToDatabase() }, label = { Text("שם מבצע הבדיקה") }, modifier = Modifier.weight(1f), colors = textFieldColors)
-                        OutlinedTextField(value = technicianLicense, onValueChange = { technicianLicense = it; saveToDatabase() }, label = { Text("מס' רישיון מתקין") }, modifier = Modifier.weight(1f), colors = textFieldColors)
-                    }
+                    OutlinedTextField(value = technicianName, onValueChange = { technicianName = it; saveToDatabase() }, label = { Text("שם מבצע הבדיקה") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("חתימת הלקוח (נציג ועד הבית / אחראי):", color = textWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     TechnicianSignatureTouchPad(modifier = Modifier.fillMaxWidth().height(150.dp).padding(top = 8.dp), initialSignatureUri = if (clientSignatureUri.isNotEmpty()) clientSignatureUri else null, onSignatureSaved = { uri -> clientSignatureUri = uri; saveToDatabase() })

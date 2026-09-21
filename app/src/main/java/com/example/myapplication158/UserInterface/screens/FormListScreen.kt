@@ -35,6 +35,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.data.PeriodicGasForm
+import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.FinancialReportDialog
@@ -55,19 +56,23 @@ fun FormListScreen(
     onAddOtherForms: () -> Unit,
     onEditForm: (GasForm) -> Unit,
     onEditPeriodicForm: (PeriodicGasForm) -> Unit = {},
+    onEditD2Form: (GasFormD2) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val forms by viewModel.allForms.collectAsState()
     val periodicForms by viewModel.allPeriodicForms.collectAsState()
+    val d2Forms by viewModel.allD2Forms.collectAsState()
 
-    val combinedForms = remember(forms, periodicForms) {
+    val combinedForms = remember(forms, periodicForms, d2Forms) {
         val list = mutableListOf<Any>()
         list.addAll(forms)
         list.addAll(periodicForms)
+        list.addAll(d2Forms)
         list.sortedByDescending {
             when (it) {
                 is GasForm -> it.createdAt
                 is PeriodicGasForm -> it.createdAt
+                is GasFormD2 -> it.createdAt
                 else -> 0L
             }
         }
@@ -128,6 +133,7 @@ fun FormListScreen(
 
     val isDark = settingsManager.isDarkMode
     val primaryColor = MaterialTheme.colorScheme.primary
+    val d2PrimaryColor = Color(0xFF2196F3)
     val aiBgColor = if (isDark) Color(0xFF0D0D0D) else Color(0xFFF4F6F8)
     val aiHeaderBg = if (isDark) {
         when (settingsManager.appTheme) {
@@ -153,6 +159,7 @@ fun FormListScreen(
         when (it) {
             is GasForm -> it.date.contains(currentMonth)
             is PeriodicGasForm -> it.date.contains(currentMonth)
+            is GasFormD2 -> it.date.contains(currentMonth)
             else -> false
         }
     }
@@ -166,6 +173,13 @@ fun FormListScreen(
                         item.partnerNumber.contains(searchQuery, ignoreCase = true)
             }
             is PeriodicGasForm -> {
+                item.businessName.contains(searchQuery, ignoreCase = true) ||
+                        item.clientName.contains(searchQuery, ignoreCase = true) ||
+                        item.city.contains(searchQuery, ignoreCase = true) ||
+                        item.date.contains(searchQuery, ignoreCase = true) ||
+                        item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
+            }
+            is GasFormD2 -> {
                 item.businessName.contains(searchQuery, ignoreCase = true) ||
                         item.clientName.contains(searchQuery, ignoreCase = true) ||
                         item.city.contains(searchQuery, ignoreCase = true) ||
@@ -282,6 +296,9 @@ fun FormListScreen(
                                     is PeriodicGasForm -> {
                                         PeriodicFormListItemAiStyle(form = form, onEdit = { onEditPeriodicForm(form) }, onPreview = { viewModel.previewPeriodicPdf(context, form) }, onShare = { viewModel.sharePeriodicPdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = Color(0xFF4CAF50), aiBorderColor = aiBorderColor)
                                     }
+                                    is GasFormD2 -> {
+                                        D2FormListItemAiStyle(form = form, onEdit = { onEditD2Form(form) }, onPreview = { viewModel.previewPdfD2(context, form) }, onShare = { viewModel.sharePdfD2(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d2PrimaryColor, aiBorderColor = aiBorderColor)
+                                    }
                                 }
                             }
                             item {
@@ -356,8 +373,11 @@ fun FormListScreen(
                     containerColor = aiCardBg,
                     confirmButton = {
                         Button(onClick = {
-                            if (form is GasForm) viewModel.deleteForm(form)
-                            else if (form is PeriodicGasForm) viewModel.deletePeriodicForm(form)
+                            when (form) {
+                                is GasForm -> viewModel.deleteForm(form)
+                                is PeriodicGasForm -> viewModel.deletePeriodicForm(form)
+                                is GasFormD2 -> viewModel.deleteFormD2(form)
+                            }
                             showDeleteConfirmDialog = null
                         }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252))) { Text("מחק") }
                     },
@@ -450,6 +470,51 @@ private fun PeriodicFormListItemAiStyle(
                 val remainingDays = (60 - elapsedDays).coerceAtLeast(0)
                 val draftText = if (isDraft) " • ⏳ נותרו $remainingDays ימים" else ""
                 Text("ד-1 | מרכזיה$draftText | מס' ${form.sequentialNumber} | ${form.date}", color = aiTextGray, fontSize = 12.sp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                IconButton(onClick = onShare, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Share, null, tint = primaryColor, modifier = Modifier.size(18.dp)) }
+                IconButton(onClick = onPreview, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Visibility, null, tint = primaryColor, modifier = Modifier.size(18.dp)) }
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Delete, null, tint = Color.Red.copy(alpha=0.7f), modifier = Modifier.size(18.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun D2FormListItemAiStyle(
+    form: GasFormD2,
+    onEdit: () -> Unit,
+    onPreview: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+    aiCardBg: Color,
+    aiTextColor: Color,
+    aiTextGray: Color,
+    primaryColor: Color,
+    aiBorderColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() },
+        colors = CardDefaults.cardColors(containerColor = aiCardBg),
+        border = BorderStroke(1.dp, aiBorderColor),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.PropaneTank, contentDescription = null, tint = primaryColor)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "דוח ד-2 חדש"
+                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                Spacer(modifier = Modifier.height(2.dp))
+                val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
+                val now = System.currentTimeMillis()
+                val createdAt = if (form.createdAt > 0) form.createdAt else now
+                val elapsedDays = ((now - createdAt) / (1000 * 60 * 60 * 24)).toInt()
+                val remainingDays = (60 - elapsedDays).coerceAtLeast(0)
+                val draftText = if (isDraft) " • ⏳ נותרו $remainingDays ימים" else ""
+                Text("ד-2 | מכלים נייחים$draftText | מס' ${form.sequentialNumber} | ${form.date}", color = aiTextGray, fontSize = 12.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 IconButton(onClick = onShare, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Share, null, tint = primaryColor, modifier = Modifier.size(18.dp)) }

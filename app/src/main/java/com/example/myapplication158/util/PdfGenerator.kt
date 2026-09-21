@@ -8,6 +8,7 @@ import android.net.Uri
 import android.media.ExifInterface
 import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.data.PeriodicGasForm
+import com.example.myapplication158.data.GasFormD2
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -174,10 +175,6 @@ object PdfGenerator {
 
     fun generateFormPdf(context: Context, form: GasForm): File? {
         val settingsManager = SettingsManager(context)
-        return generateClassicFormPdf(context, form, settingsManager)
-    }
-
-    private fun generateClassicFormPdf(context: Context, form: GasForm, settingsManager: SettingsManager): File? {
         val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "מאור מנחם - קבלן עבודות גז" else settingsManager.contractorHeader
         val headerPhone = "טלפון: " + if (settingsManager.contractorPhone.isNullOrBlank()) "054-6096487" else settingsManager.contractorPhone
 
@@ -779,11 +776,9 @@ object PdfGenerator {
         drawCheckRow("2.6 הצנרת ומרכיביה מקובעים", form.checkPipingSecured)
         drawCheckRow("2.7 כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", form.checkUnusedOutletsPlugged)
 
-        // סגירת טבלה תחתונה
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
 
-        // בדיקות אטימות
         canvas.drawText("3. בדיקות אטימות ולחץ", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
@@ -943,10 +938,7 @@ object PdfGenerator {
         pdfDocument.finishPage(page)
 
         val extraUris = mutableListOf<String>()
-
-        if (form.extraImagesUris.isNotBlank()) {
-            extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotBlank() })
-        }
+        if (form.extraImagesUris.isNotBlank()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotBlank() }) }
 
         if (extraUris.isNotEmpty()) {
             currentPageNum++
@@ -984,6 +976,391 @@ object PdfGenerator {
         return try {
             val dir = File(context.filesDir, "pdfs").apply { if (!exists()) mkdirs() }
             val file = File(dir, "PeriodicForm_${form.sequentialNumber}_${System.currentTimeMillis()}.pdf")
+            pdfDocument.writeTo(FileOutputStream(file))
+            pdfDocument.close()
+            file
+        } catch (e: Exception) {
+            e.printStackTrace()
+            pdfDocument.close()
+            null
+        }
+    }
+
+    // פונקציית מחולל ה-PDF החדשה עבור ד-2
+    fun generateFormD2Pdf(context: Context, form: GasFormD2): File? {
+        val pdfDocument = android.graphics.pdf.PdfDocument()
+        var currentPageNum = 1
+        var pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+        var page = pdfDocument.startPage(pageInfo)
+        var canvas = page.canvas
+
+        val paint = Paint().apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textSize = 11f; color = Color.BLACK; textAlign = Paint.Align.RIGHT }
+        val boldPaint = Paint().apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textSize = 11f; color = Color.BLACK; textAlign = Paint.Align.RIGHT }
+        val boldPaintCenter = Paint(boldPaint).apply { textAlign = Paint.Align.CENTER }
+        val titlePaint = Paint().apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textSize = 15f; color = Color.BLACK; textAlign = Paint.Align.CENTER }
+        val linePaint = Paint().apply { color = Color.parseColor("#BDBDBD"); strokeWidth = 1f; style = Paint.Style.STROKE }
+        val borderPaint = Paint().apply { color = Color.BLACK; strokeWidth = 2f; style = Paint.Style.STROKE }
+
+        var yPosition = 120f
+        var tableRowIndex = 0
+
+        val xLines = floatArrayOf(550f, 220f, 150f, 80f, 10f)
+
+        fun drawPageHeader() {
+            canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
+
+            val headerBgPaint = Paint().apply { color = Color.parseColor("#1976D2"); style = Paint.Style.FILL } // כחול לד-2
+            canvas.drawRect(0f, 0f, 595f, 90f, headerBgPaint)
+
+            val settingsManager = SettingsManager(context)
+            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "מאור מנחם - קבלן עבודות גז"
+            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "054-6096487"
+            val headerTextPaint = Paint().apply { color = Color.WHITE; textSize = 20f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+            val headerPhonePaint = Paint().apply { color = Color.WHITE; textSize = 14f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.CENTER }
+
+            canvas.drawText(contractorHeader, 297f, 45f, headerTextPaint)
+            canvas.drawText(defaultPhone, 297f, 70f, headerPhonePaint)
+
+            canvas.drawText("(טופס מס': ${form.sequentialNumber})", 30f, 45f, Paint().apply { color = Color.parseColor("#FFCC00"); textSize = 14f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.LEFT })
+
+            canvas.drawText("אישור על בדיקת תקינות למערכת הגז והתאמתה לתקן 158 (חלק 4)", 297f, 115f, titlePaint)
+            canvas.drawText("דוח בדיקה תקופתית: מאגר גפ\"מ (מכלים נייחים)", 297f, 135f, titlePaint)
+        }
+
+        drawPageHeader()
+        yPosition = 160f
+
+        val rightMargin = 550f
+        val rowHeight = 22f
+
+        canvas.drawText("תאריך בדיקה: ${form.date}", rightMargin, yPosition, boldPaint)
+        yPosition += 25f
+
+        canvas.drawRect(10f, yPosition - 15f, 550f, yPosition + 70f, Paint().apply { color = Color.parseColor("#E3F2FD"); style = Paint.Style.FILL })
+        canvas.drawRect(10f, yPosition - 15f, 550f, yPosition + 70f, linePaint)
+
+        canvas.drawText("פרטי האתר והמערכת:", rightMargin - 5f, yPosition, boldPaint)
+        yPosition += rowHeight
+        val addressText = if (form.isUnaddressedSite) "אתר בבנייה/ללא כתובת. נ.צ: ${form.gpsCoordinates}" else "${form.street} ${form.building}, ${form.city}"
+        canvas.drawText("שם העסק: ${form.businessName}  |  ישוב: ${form.city}  |  רחוב: ${form.street} ${form.building}", rightMargin - 5f, yPosition, paint)
+        yPosition += rowHeight
+        canvas.drawText("איש קשר: ${form.clientName}  |  טלפון: ${form.clientPhone}", rightMargin - 5f, yPosition, paint)
+        yPosition += rowHeight
+        canvas.drawText("סוג מכלים: ${form.tankType}  |  שימוש: ${form.usageType}  |  שנת ייצור: ${form.manufactureOrTestYear}", rightMargin - 5f, yPosition, paint)
+        yPosition += rowHeight
+        canvas.drawText("קיבול מכל: ${form.capacityPerTank} ק\"ג  |  סה\"כ: ${form.totalCapacity} ק\"ג  |  מרכזייה: ${form.manifoldNumber}", rightMargin - 5f, yPosition, paint)
+
+        yPosition += 30f
+
+        fun drawTableHeader() {
+            canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, Paint().apply { color = Color.parseColor("#E0E0E0"); style = Paint.Style.FILL })
+            canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
+            for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
+
+            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 12f }
+            canvas.drawText("סעיף בדיקה", 385f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מתאים", 185f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא מתאים", 115f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא ישים", 45f, yPosition + 17f, tableHeaderPaint)
+            yPosition += 25f
+        }
+
+        fun drawCheckRow(text: String, state: String) {
+            val maxWidth = 330f
+            val words = text.split(" ")
+            val lines = mutableListOf<String>()
+            var currentLine = ""
+            for (word in words) {
+                val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+                if (paint.measureText(testLine) > maxWidth) {
+                    if (currentLine.isNotEmpty()) lines.add(currentLine)
+                    currentLine = word
+                } else {
+                    currentLine = testLine
+                }
+            }
+            if (currentLine.isNotEmpty()) lines.add(currentLine)
+
+            val textHeight = lines.size * 14f
+            val h = Math.max(28f, textHeight + 10f)
+
+            if (yPosition + h > 780f) {
+                pdfDocument.finishPage(page)
+                currentPageNum++
+                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                drawPageHeader()
+                yPosition = 140f
+                drawTableHeader()
+            }
+
+            if (state == "HEADER") {
+                val bgPaint = Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL }
+                canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
+                canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
+
+                var textY = yPosition + 19f
+                val headerTextPaint = Paint(boldPaint).apply { textSize = 12f }
+                for (line in lines) {
+                    canvas.drawText(line, 540f, textY, headerTextPaint)
+                    textY += 14f
+                }
+                yPosition += h
+                tableRowIndex = 0
+                return
+            }
+
+            val rowColor = if (state == "FAIL") Color.parseColor("#FFEEEE") else if (tableRowIndex % 2 == 0) Color.parseColor("#F9F9F9") else Color.WHITE
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = rowColor; style = Paint.Style.FILL })
+            tableRowIndex++
+
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, linePaint)
+            for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + h, linePaint)
+
+            var textY = yPosition + 19f
+            for (line in lines) {
+                canvas.drawText(line, 540f, textY, paint)
+                textY += 14f
+            }
+
+            val centerPass = 185f
+            val centerFail = 115f
+            val centerNA = 45f
+            val iconY = yPosition + (h / 2) + 5f
+
+            when (state) {
+                "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
+                "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
+                "NA" -> canvas.drawText("-", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+            }
+            yPosition += h
+        }
+
+        drawTableHeader()
+        drawCheckRow("1. אתר ההתקנה", "HEADER")
+        drawCheckRow("1.1 יש שילוט בטיחות ומחסום יציב בפני רכבים", form.checkSiteSignage)
+        drawCheckRow("1.2 אתר ההתקנה תקין (שלמות כיסוי וניקיון)", form.checkSiteClean)
+
+        drawCheckRow("2. המכלים (בדיקה חזותית)", "HEADER")
+        drawCheckRow("2.1 למכל יש לוחית זיהוי קריאה", form.checkTankPlate)
+        drawCheckRow("2.2 ברכת האביזרים/המכסה תקין", form.checkTankCover)
+        drawCheckRow("2.3 האביזרים שלמים ונקיים", form.checkTankFittings)
+        drawCheckRow("2.4 יש סידור לגישה בטוחה לאביזרי המכל", form.checkSafeAccess)
+        drawCheckRow("2.5 חיבורים ומוצאים גבוהים ממפלס המים", form.checkFittingsHeight)
+        drawCheckRow("2.6 נשמרים מרחקי הבטיחות (טבלה 2)", form.checkSafetyDistances)
+        drawCheckRow("2.7 נשמרים מרחקי בטיחות לציוד חשמלי", form.checkElecDistances)
+        drawCheckRow("2.8 פתח צינור מילוי מתאים לדרישות", form.checkFillPipe)
+
+        drawCheckRow("3. מערכת הצינורות המשותפת", "HEADER")
+        drawCheckRow("3.1 שסתום לרעידת אדמה בקו לחץ ביניים", form.checkEarthquakeValve)
+        drawCheckRow("3.2 השסתום מפולס והתקנתו תקינה", form.checkValveLevel)
+        drawCheckRow("3.3 ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", form.checkMainValve)
+        drawCheckRow("3.4 שסתומי פריקה מחוברים לאוויר חוץ", form.checkDischargeValve)
+        drawCheckRow("3.5 לחץ הגז בצנרת פנים אינו גדול מ-1.4 בר", form.checkPressure1_4)
+        drawCheckRow("3.6 הצנרת ומרכיביה מקובעים", form.checkPipingSecured)
+        drawCheckRow("3.7 כל מוצא שאינו בשימוש קבוע סגור בפקק/ברז תקין", form.checkOutletsPlugged)
+
+        canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
+        yPosition += 25f
+
+        canvas.drawText("4. בדיקות אטימות ולחץ", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
+        yPosition += 20f
+
+        val leakText = if (form.isLeakFoundPrimary) "נמצאה דליפה! מיקום: ${form.leakLocationDetails}" else "תקין. לא נמצאה דליפה בבדיקת נוזל ראשונית."
+        val leakPaint = if (form.isLeakFoundPrimary) Paint(boldPaint).apply { color = Color.RED } else paint
+        canvas.drawText("אטימות לחץ ראשוני: $leakText", rightMargin, yPosition, leakPaint)
+        yPosition += rowHeight
+
+        val pressureKeepText = if (form.isIntermediatePressureKept) "הלחץ נשמר ✓" else "הלחץ לא נשמר ✗"
+        canvas.drawText("לחץ ביניים (15 דק'): ${form.intermediatePressureValue} mbar | $pressureKeepText", rightMargin, yPosition, paint)
+
+        if (form.failedReasonsJson.isNotBlank() && form.failedReasonsJson != "{}") {
+            yPosition += 25f
+            if (yPosition > 700f) {
+                pdfDocument.finishPage(page)
+                currentPageNum++
+                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                drawPageHeader()
+                yPosition = 140f
+            }
+
+            canvas.drawText("הערות ליקויים (פירוט סעיפים לא תקינים):", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 14f; color = Color.RED })
+            yPosition += 20f
+
+            try {
+                val json = org.json.JSONObject(form.failedReasonsJson)
+                json.keys().forEach { key ->
+                    val reason = json.getString(key)
+
+                    val boxTop = yPosition
+                    var boxBottom = yPosition + 50f
+                    val boxRight = 550f
+                    val boxLeft = 10f
+
+                    val innerLines = mutableListOf<String>()
+                    val words = reason.split(" ")
+                    var currentLine = ""
+                    for (word in words) {
+                        val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+                        if (paint.measureText(testLine) > (boxRight - boxLeft - 20f)) {
+                            innerLines.add(currentLine)
+                            currentLine = word
+                        } else {
+                            currentLine = testLine
+                        }
+                    }
+                    if (currentLine.isNotEmpty()) {
+                        innerLines.add(currentLine)
+                    }
+
+                    val textHeightNeeded = innerLines.size * 18f + 35f
+                    if (textHeightNeeded > 50f) {
+                        boxBottom = yPosition + textHeightNeeded
+                    }
+
+                    if (boxBottom > 780f) {
+                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
+                        yPosition = 140f
+                        boxBottom = yPosition + textHeightNeeded
+                    }
+
+                    val rect = RectF(boxLeft, boxTop, boxRight, boxBottom)
+                    canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.parseColor("#FAFAFA"); style = Paint.Style.FILL })
+                    canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.RED; style = Paint.Style.STROKE; strokeWidth = 1.5f })
+
+                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f }
+                    canvas.drawText("סעיף $key:", boxRight - 10f, boxTop + 18f, labelPaint)
+
+                    var textY = boxTop + 35f
+                    for (line in innerLines) {
+                        canvas.drawText(line, boxRight - 10f, textY, paint)
+                        textY += 18f
+                    }
+
+                    yPosition = boxBottom + 15f
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+
+        yPosition += 20f
+        if (yPosition > 700f) {
+            pdfDocument.finishPage(page)
+            currentPageNum++
+            pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
+            drawPageHeader()
+            yPosition = 140f
+        }
+
+        canvas.drawText("5. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
+        yPosition += 20f
+
+        val statusMessage = when (form.finalStatus) {
+            "OK" -> "המתקן נמצא תקין בהתאם לדרישות התקן."
+            "DEFECTS" -> "נמצאו ליקויים. יש לתקן עד תאריך: ${form.defectsFixByDate}"
+            "DISCONNECTED" -> "אזהרה: הספקת הגז נותקה עקב ליקויים חמורים!"
+            else -> "טרם הוגדר סטטוס."
+        }
+        val finalStatusPaint = if (form.finalStatus == "OK") Paint(boldPaint).apply { color = Color.parseColor("#007A00"); textSize=14f } else Paint(boldPaint).apply { color = Color.RED; textSize=14f }
+        canvas.drawText(statusMessage, rightMargin, yPosition, finalStatusPaint)
+
+        if (form.executionRemarks.isNotBlank()) {
+            yPosition += 25f
+            canvas.drawText("הערות מסכמות: ${form.executionRemarks}", rightMargin, yPosition, paint)
+        }
+
+        yPosition += 40f
+        if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+
+        canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
+        yPosition += 20f
+        canvas.drawText("חתימת מבצע הבדיקה", rightMargin, yPosition, boldPaint)
+        canvas.drawText("חתימת הלקוח / אחראי המאגר", 200f, yPosition, boldPaint)
+
+        yPosition += rowHeight
+        canvas.drawText("שם: ${form.technicianName}", rightMargin, yPosition, paint)
+
+        val settingsSigUri = SettingsManager(context).savedSignatureUri.takeIf { !it.isNullOrBlank() } ?: SettingsManager(context).technicianLicenseUri
+        if (!settingsSigUri.isNullOrBlank()) {
+            try {
+                decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
+                    val boxWidth = 200f; val boxHeight = 110f
+                    val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                    val boxRatio = boxWidth / boxHeight
+                    var drawWidth = boxWidth; var drawHeight = boxHeight
+                    if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
+
+                    val left = rightMargin - drawWidth
+                    val top = yPosition + 10f
+                    val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
+                    canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
+                    bitmap.recycle()
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+
+        val techLicenseNum = SettingsManager(context).technicianLicenseNumber
+        val techLevel = SettingsManager(context).technicianLevel
+        if (techLicenseNum.isNotBlank()) {
+            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", rightMargin - 100f, yPosition + 130f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
+        }
+
+        canvas.drawText("שם החותם: ${form.clientNameConfirm}", 200f, yPosition, paint)
+
+        if (form.clientSignatureUri.isNotBlank()) {
+            try {
+                decodeBitmapWithExifRotation(context, Uri.parse(form.clientSignatureUri))?.let { bitmap ->
+                    canvas.drawBitmap(bitmap, null, RectF(50f, yPosition + 10f, 200f, yPosition + 60f), Paint().apply { isFilterBitmap = true })
+                    bitmap.recycle()
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+
+        pdfDocument.finishPage(page)
+
+        val extraUris = mutableListOf<String>()
+        if (form.extraImagesUris.isNotBlank()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotBlank() }) }
+
+        if (extraUris.isNotEmpty()) {
+            currentPageNum++
+            var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+            var appendixCanvas = appendixPage.canvas
+            drawPageHeader()
+            var imgYPosition = 140f
+            appendixCanvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
+            imgYPosition += 40f
+
+            for (uriStr in extraUris) {
+                if (imgYPosition > 600f) {
+                    pdfDocument.finishPage(appendixPage)
+                    currentPageNum++
+                    appendixPage = pdfDocument.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+                    appendixCanvas = appendixPage.canvas
+                    drawPageHeader()
+                    imgYPosition = 140f
+                }
+                try {
+                    decodeBitmapWithExifRotation(context, Uri.parse(uriStr))?.let { bitmap ->
+                        val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                        val targetWidth = 400
+                        val targetHeight = (targetWidth / aspectRatio).toInt()
+                        val xPos = (595f - targetWidth) / 2f
+                        appendixCanvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
+                        bitmap.recycle()
+                        imgYPosition += targetHeight + 20f
+                    }
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+            pdfDocument.finishPage(appendixPage)
+        }
+
+        return try {
+            val dir = File(context.filesDir, "pdfs").apply { if (!exists()) mkdirs() }
+            val file = File(dir, "PeriodicFormD2_${form.sequentialNumber}_${System.currentTimeMillis()}.pdf")
             pdfDocument.writeTo(FileOutputStream(file))
             pdfDocument.close()
             file

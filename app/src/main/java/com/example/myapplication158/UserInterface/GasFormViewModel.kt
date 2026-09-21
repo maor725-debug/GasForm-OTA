@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.myapplication158.data.AppDatabase
 import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.data.PeriodicGasForm
+import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.data.isNotEmptyOrBlank
 import com.example.myapplication158.util.PdfGenerator
@@ -30,6 +31,7 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
 
     private val gasFormDao = AppDatabase.getDatabase(application).gasFormDao()
     private val periodicGasFormDao = AppDatabase.getDatabase(application).periodicGasFormDao()
+    private val gasFormD2Dao = AppDatabase.getDatabase(application).gasFormD2Dao()
     private val workOrderDao = AppDatabase.getDatabase(application).workOrderDao()
     private val workOrderReminderManager = WorkOrderReminderManager(application)
     private val supabaseManager = SupabaseManager(application)
@@ -39,6 +41,8 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
 
     val allPeriodicForms: StateFlow<List<PeriodicGasForm>> = periodicGasFormDao.getAllForms().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val currentPeriodicForm = MutableStateFlow<PeriodicGasForm?>(null)
+
+    val allD2Forms: StateFlow<List<GasFormD2>> = gasFormD2Dao.getAllForms().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allWorkOrders: StateFlow<List<WorkOrder>> = workOrderDao.getAllWorkOrders().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -60,6 +64,7 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun toggleMuteWorkOrder(workOrder: WorkOrder) { updateWorkOrder(workOrder.copy(isMuted = !workOrder.isMuted)) }
+
     fun addToNativeCalendar(workOrder: WorkOrder) { workOrderReminderManager.addToNativeCalendar(workOrder) }
 
     init {
@@ -69,6 +74,13 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             allPeriodicForms.collect { forms -> forms.filter { !it.isNotEmptyOrBlank() }.forEach { periodicGasFormDao.deleteForm(it) } }
         }
+        viewModelScope.launch(Dispatchers.IO) {
+            allD2Forms.collect { forms ->
+                forms.filter { form ->
+                    form.businessName.isBlank() && form.clientName.isBlank() && form.clientPhone.isBlank()
+                }.forEach { gasFormD2Dao.deleteForm(it) }
+            }
+        }
     }
 
     fun getNextPartnerNumber(): String {
@@ -77,21 +89,25 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun selectForm(form: GasForm?) { currentForm.value = form }
+
     fun saveCurrentForm(form: GasForm, onComplete: () -> Unit) {
         if (!form.isNotEmptyOrBlank()) { viewModelScope.launch(Dispatchers.IO) { if (form.id != 0) gasFormDao.deleteForm(form); withContext(Dispatchers.Main) { onComplete() } }; return }
         viewModelScope.launch(Dispatchers.IO) {
             try { if (form.id == 0) gasFormDao.insertForm(form) else gasFormDao.updateForm(form) } catch (e: Exception) { e.printStackTrace() } finally { withContext(Dispatchers.Main) { onComplete() } }
         }
     }
+
     fun autoSaveForm(form: GasForm, onIdAssigned: ((Int) -> Unit)? = null) {
         if (!form.isNotEmptyOrBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
             try { if (form.id == 0) { val newId = gasFormDao.insertForm(form); withContext(Dispatchers.Main) { onIdAssigned?.invoke(newId.toInt()) } } else gasFormDao.updateForm(form) } catch (e: Exception) { e.printStackTrace() }
         }
     }
+
     fun deleteForm(form: GasForm) {
         viewModelScope.launch(Dispatchers.IO) { try { if (form.id != 0) gasFormDao.deleteForm(form); if (!form.savedPdfFilePath.isNullOrEmpty()) { val file = File(form.savedPdfFilePath); if (file.exists()) file.delete() } } catch (e: Exception) { e.printStackTrace() } }
     }
+
     fun previewPdf(context: Context, form: GasForm) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -123,6 +139,7 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
+
     private suspend fun shareFileSafe(context: Context, form: GasForm, pdfFile: File, isPeriodic: Boolean) {
         withContext(Dispatchers.Main) {
             try {
@@ -135,14 +152,17 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun selectPeriodicForm(form: PeriodicGasForm?) { currentPeriodicForm.value = form }
+
     fun saveCurrentPeriodicForm(form: PeriodicGasForm, onComplete: () -> Unit) {
         if (!form.isNotEmptyOrBlank()) { viewModelScope.launch(Dispatchers.IO) { if (form.id != 0) periodicGasFormDao.deleteForm(form); withContext(Dispatchers.Main) { onComplete() } }; return }
         viewModelScope.launch(Dispatchers.IO) { try { if (form.id == 0) periodicGasFormDao.insertForm(form) else periodicGasFormDao.updateForm(form) } catch (e: Exception) { e.printStackTrace() } finally { withContext(Dispatchers.Main) { onComplete() } } }
     }
+
     fun autoSavePeriodicForm(form: PeriodicGasForm, onIdAssigned: ((Int) -> Unit)? = null) {
         if (!form.isNotEmptyOrBlank()) return
         viewModelScope.launch(Dispatchers.IO) { try { if (form.id == 0) { val newId = periodicGasFormDao.insertForm(form); withContext(Dispatchers.Main) { onIdAssigned?.invoke(newId.toInt()) } } else periodicGasFormDao.updateForm(form) } catch (e: Exception) { e.printStackTrace() } }
     }
+
     fun deletePeriodicForm(form: PeriodicGasForm) { viewModelScope.launch(Dispatchers.IO) { try { if (form.id != 0) periodicGasFormDao.deleteForm(form) } catch (e: Exception) { e.printStackTrace() } } }
 
     fun previewPeriodicPdf(context: Context, form: PeriodicGasForm) {
@@ -174,6 +194,7 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
+
     private suspend fun sharePeriodicFileSafe(context: Context, form: PeriodicGasForm, pdfFile: File) {
         withContext(Dispatchers.Main) {
             try {
@@ -188,4 +209,84 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     fun scanAndRestoreFromPdfFolder(context: Context, onResult: (Int) -> Unit) { onResult(0) }
     fun exportBackup(context: Context, uri: Uri, onResult: (Boolean, String) -> Unit) { onResult(false, "ייצוא יופעל בעדכון הבא") }
     fun importBackup(context: Context, uri: Uri, onResult: (Boolean, String) -> Unit) { onResult(false, "שחזור יופעל בעדכון הבא") }
+
+    // =====================================
+    // הפונקציות המחוברות לד-2 (מסד הנתונים)
+    // =====================================
+    fun autoSaveFormD2(form: GasFormD2, onIdAssigned: ((Int) -> Unit)? = null) {
+        val isBlankForm = form.businessName.isBlank() && form.clientName.isBlank() && form.clientPhone.isBlank()
+        if (isBlankForm) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (form.id == 0) {
+                    val newId = gasFormD2Dao.insertForm(form)
+                    withContext(Dispatchers.Main) { onIdAssigned?.invoke(newId.toInt()) }
+                } else {
+                    gasFormD2Dao.updateForm(form)
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun saveCurrentFormD2(form: GasFormD2, onComplete: () -> Unit) {
+        val isBlankForm = form.businessName.isBlank() && form.clientName.isBlank() && form.clientPhone.isBlank()
+        if (isBlankForm) {
+            viewModelScope.launch(Dispatchers.IO) {
+                if (form.id != 0) gasFormD2Dao.deleteForm(form)
+                withContext(Dispatchers.Main) { onComplete() }
+            }
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (form.id == 0) gasFormD2Dao.insertForm(form) else gasFormD2Dao.updateForm(form)
+            } catch (e: Exception) { e.printStackTrace() }
+            finally { withContext(Dispatchers.Main) { onComplete() } }
+        }
+    }
+
+    fun deleteFormD2(form: GasFormD2) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try { if (form.id != 0) gasFormD2Dao.deleteForm(form) } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun previewPdfD2(context: Context, form: GasFormD2) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val pdfFile = PdfGenerator.generateFormD2Pdf(context, form)
+                if (pdfFile != null && pdfFile.exists()) {
+                    withContext(Dispatchers.Main) {
+                        try {
+                            val contentUri: Uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", pdfFile)
+                            context.startActivity(Intent(Intent.ACTION_VIEW).apply { setDataAndType(contentUri, "application/pdf"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+                        } catch (e: ActivityNotFoundException) { Toast.makeText(context, "שגיאה: לא מותקנת אפליקציה להצגת PDF.", Toast.LENGTH_LONG).show() }
+                    }
+                } else { withContext(Dispatchers.Main) { Toast.makeText(context, "שגיאה ביצירת ה-PDF.", Toast.LENGTH_SHORT).show() } }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun sharePdfD2(context: Context, form: GasFormD2, onComplete: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val pdfFile = PdfGenerator.generateFormD2Pdf(context, form)
+                if (pdfFile != null && pdfFile.exists()) {
+                    val updatedForm = form.copy(isSavedToTarget = true, savedTargetLocation = "Shared")
+                    val savedFormId = if (form.id == 0) gasFormD2Dao.insertForm(updatedForm).toInt() else { gasFormD2Dao.updateForm(updatedForm); form.id }
+                    val finalSavedForm = updatedForm.copy(id = savedFormId)
+
+                    withContext(Dispatchers.Main) {
+                        try {
+                            val contentUri: Uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", pdfFile)
+                            val clientName = finalSavedForm.businessName.takeIf { it.isNotBlank() } ?: "לקוח יקר"
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply { type = "application/pdf"; putExtra(Intent.EXTRA_STREAM, contentUri); putExtra(Intent.EXTRA_SUBJECT, "דוח בדיקה תקופתית ד-2 - $clientName"); putExtra(Intent.EXTRA_TEXT, "מצורף דוח מתאריך ${finalSavedForm.date}."); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                            context.startActivity(Intent.createChooser(shareIntent, "שתף טופס באמצעות").apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+                            onComplete()
+                        } catch (e: Exception) { Toast.makeText(context, "שגיאה בהפעלת שיתוף.", Toast.LENGTH_LONG).show() }
+                    }
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
 }
