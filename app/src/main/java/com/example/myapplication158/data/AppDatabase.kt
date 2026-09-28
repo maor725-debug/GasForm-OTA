@@ -7,12 +7,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [GasForm::class, PeriodicGasForm::class, GasFormD2::class, GasFormD3::class, WorkOrder::class], version = 21, exportSchema = false)
+@Database(entities = [GasForm::class, PeriodicGasForm::class, GasFormD2::class, GasFormD3::class, GasFormD4::class, WorkOrder::class], version = 22, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gasFormDao(): GasFormDao
     abstract fun periodicGasFormDao(): PeriodicGasFormDao
     abstract fun gasFormD2Dao(): GasFormD2Dao
-    abstract fun gasFormD3Dao(): GasFormD3Dao // הפונקציה החסרה שגרמה לשגיאה!
+    abstract fun gasFormD3Dao(): GasFormD3Dao
+    abstract fun gasFormD4Dao(): GasFormD4Dao // תוספת לד-4
     abstract fun workOrderDao(): WorkOrderDao
 
     companion object {
@@ -196,7 +197,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // המיגרציה החדשה: יצירת טבלת ד-3
         private val MIGRATION_20_21 = object : Migration(20, 21) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
@@ -270,6 +270,96 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // הגירה לגרסה 22: יצירת טבלת ד-4
+        private val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `GasFormD4` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `sequentialNumber` INTEGER NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `consumerNumber` TEXT NOT NULL,
+                        `gasProvider` TEXT NOT NULL,
+                        `facilityType` TEXT NOT NULL,
+                        `activationDate` TEXT NOT NULL,
+                        `businessId` TEXT NOT NULL,
+                        `businessName` TEXT NOT NULL,
+                        `businessType` TEXT NOT NULL,
+                        `fireDeptFileNumber` TEXT NOT NULL,
+                        `city` TEXT NOT NULL,
+                        `street` TEXT NOT NULL,
+                        `building` TEXT NOT NULL,
+                        `zip` TEXT NOT NULL,
+                        `poBox` TEXT NOT NULL,
+                        `mainContactName` TEXT NOT NULL,
+                        `contactRole` TEXT NOT NULL,
+                        `clientPhone` TEXT NOT NULL,
+                        `email` TEXT NOT NULL,
+                        `clientName` TEXT NOT NULL,
+                        `check1_1_1` TEXT NOT NULL,
+                        `check1_1_2_1` TEXT NOT NULL,
+                        `check1_1_2_2` TEXT NOT NULL,
+                        `check1_1_2_3` TEXT NOT NULL,
+                        `check1_1_2_4` TEXT NOT NULL,
+                        `check1_1_2_5` TEXT NOT NULL,
+                        `check1_1_2_6` TEXT NOT NULL,
+                        `check1_2` TEXT NOT NULL,
+                        `check1_3` TEXT NOT NULL,
+                        `check1_4` TEXT NOT NULL,
+                        `check1_5_1` TEXT NOT NULL,
+                        `check1_5_2` TEXT NOT NULL,
+                        `check1_5_3` TEXT NOT NULL,
+                        `check1_6_1` TEXT NOT NULL,
+                        `check1_6_2` TEXT NOT NULL,
+                        `check1_7` TEXT NOT NULL,
+                        `check2_1_1` TEXT NOT NULL,
+                        `check2_2_1` TEXT NOT NULL,
+                        `check3_1` TEXT NOT NULL,
+                        `check3_2` TEXT NOT NULL,
+                        `check3_3` TEXT NOT NULL,
+                        `check3_4` TEXT NOT NULL,
+                        `check3_5` TEXT NOT NULL,
+                        `check3_6` TEXT NOT NULL,
+                        `check3_7` TEXT NOT NULL,
+                        `check3_8` TEXT NOT NULL,
+                        `check3_9` TEXT NOT NULL,
+                        `devicesList` TEXT NOT NULL,
+                        `check4_2` TEXT NOT NULL,
+                        `check4_3` TEXT NOT NULL,
+                        `check4_4` TEXT NOT NULL,
+                        `check4_5_1` TEXT NOT NULL,
+                        `check4_5_2` TEXT NOT NULL,
+                        `check4_5_3` TEXT NOT NULL,
+                        `check4_5_4` TEXT NOT NULL,
+                        `check4_6` TEXT NOT NULL,
+                        `check4_7_1` TEXT NOT NULL,
+                        `check4_7_2` TEXT NOT NULL,
+                        `check4_7_3` TEXT NOT NULL,
+                        `check4_8_1` TEXT NOT NULL,
+                        `check4_8_2` TEXT NOT NULL,
+                        `check4_9` TEXT NOT NULL,
+                        `testPressure` TEXT NOT NULL,
+                        `check5_1` TEXT NOT NULL,
+                        `check5_2` TEXT NOT NULL,
+                        `isFacilityValid` INTEGER NOT NULL,
+                        `requiresFixes` INTEGER NOT NULL,
+                        `fixByDate` TEXT NOT NULL,
+                        `isDisconnected` INTEGER NOT NULL,
+                        `disconnectReason` TEXT NOT NULL,
+                        `additionalNotes` TEXT NOT NULL,
+                        `failedReasonsJson` TEXT NOT NULL,
+                        `extraImagesUris` TEXT NOT NULL,
+                        `technicianSignatureUri` TEXT NOT NULL,
+                        `clientSignatureUri` TEXT NOT NULL,
+                        `clientNameConfirm` TEXT NOT NULL,
+                        `savedTargetLocation` TEXT NOT NULL,
+                        `isSavedToTarget` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -277,7 +367,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gas_forms_database"
                 )
-                    .addMigrations(MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21)
+                    .addMigrations(
+                        MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
+                        MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22
+                    )
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

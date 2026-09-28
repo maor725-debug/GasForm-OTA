@@ -31,14 +31,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.data.GasFormD2
-import com.example.myapplication158.data.GasFormD3 // תוספת לד-3
+import com.example.myapplication158.data.GasFormD3
+import com.example.myapplication158.data.GasFormD4 // תוספת לד-4
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.screens.FormEditScreen
 import com.example.myapplication158.UserInterface.screens.FormListScreen
 import com.example.myapplication158.UserInterface.screens.OnboardingScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD2
-import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD3 // תוספת לד-3
+import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD3
+import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD4 // תוספת לד-4
 import com.example.myapplication158.UserInterface.screens.LoginScreen
 import com.example.myapplication158.UserInterface.screens.SettingsDialog
 import com.example.myapplication158.UserInterface.screens.WelcomeScreen
@@ -146,7 +148,8 @@ sealed class Screen {
     data class Edit(val form: GasForm) : Screen()
     data class EditPeriodic(val form: PeriodicGasForm) : Screen()
     data class EditD2(val form: GasFormD2) : Screen()
-    data class EditD3(val form: GasFormD3) : Screen() // תוספת לד-3
+    data class EditD3(val form: GasFormD3) : Screen()
+    data class EditD4(val form: GasFormD4) : Screen() // תוספת לד-4
 }
 
 @Composable
@@ -206,7 +209,8 @@ fun MainNavigation() {
                 if (remoteTracker != null) {
                     if (remoteTracker.forms_created > trialFormsCount) { trialFormsCount = remoteTracker.forms_created; appPrefs.edit().putInt("trial_forms_count", trialFormsCount).apply() }
                 } else {
-                    SupabaseManager.client.postgrest["trials_tracker"].insert(TrialTracker(device_id = androidId, forms_created = trialFormsCount))
+                    // תיקון קריסת RLS: שימוש ב-upsert במקום ב-insert
+                    SupabaseManager.client.postgrest["trials_tracker"].upsert(TrialTracker(device_id = androidId, forms_created = trialFormsCount))
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
@@ -274,7 +278,8 @@ fun MainNavigation() {
                 is Screen.Edit -> { FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
                 is Screen.EditPeriodic -> { PeriodicFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
                 is Screen.EditD2 -> { PeriodicFormEditScreenD2(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
-                is Screen.EditD3 -> { PeriodicFormEditScreenD3(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) } // תוספת לד-3
+                is Screen.EditD3 -> { PeriodicFormEditScreenD3(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
+                is Screen.EditD4 -> { PeriodicFormEditScreenD4(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) } // תוספת לד-4
             }
         }
     }
@@ -296,11 +301,16 @@ fun MainNavigation() {
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)), modifier = Modifier.fillMaxWidth()
                     ) { Text("דוח בדיקה תקופתית: מאגר גפ\"מ (מכלים נייחים)", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp)) }
 
-                    // תוספת הכפתור לד-3
                     Button(
                         onClick = { showFormTypeDialog = false; handleNewFormAttempt { currentScreen = Screen.EditD3(GasFormD3()) } },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)), modifier = Modifier.fillMaxWidth()
                     ) { Text("דוח ד-3: מתקן ממאגר משותף", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp)) }
+
+                    // תוספת לד-4
+                    Button(
+                        onClick = { showFormTypeDialog = false; handleNewFormAttempt { currentScreen = Screen.EditD4(GasFormD4()) } },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)), modifier = Modifier.fillMaxWidth()
+                    ) { Text("דוח ד-4: מתקן עם מאגר נפרד", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp)) }
                 }
             },
             dismissButton = { TextButton(onClick = { showFormTypeDialog = false }, modifier = Modifier.fillMaxWidth()) { Text("ביטול", color = Color.Gray, textAlign = TextAlign.Center) } }
