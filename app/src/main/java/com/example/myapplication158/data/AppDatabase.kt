@@ -7,11 +7,12 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [GasForm::class, PeriodicGasForm::class, GasFormD2::class, WorkOrder::class], version = 20, exportSchema = false)
+@Database(entities = [GasForm::class, PeriodicGasForm::class, GasFormD2::class, GasFormD3::class, WorkOrder::class], version = 21, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gasFormDao(): GasFormDao
     abstract fun periodicGasFormDao(): PeriodicGasFormDao
     abstract fun gasFormD2Dao(): GasFormD2Dao
+    abstract fun gasFormD3Dao(): GasFormD3Dao // הפונקציה החסרה שגרמה לשגיאה!
     abstract fun workOrderDao(): WorkOrderDao
 
     companion object {
@@ -31,7 +32,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // המיגרציה: יצירת טבלת הטפסים התקופתיים מאפס מבלי לגעת בטפסים הנורמטיביים
         private val MIGRATION_16_17 = object : Migration(16, 17) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
@@ -101,7 +101,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // מיגרציה 18: הוספת 6 עמודות לשאלות מרחקי הבטיחות הספציפיות בטופס ד-1
         private val MIGRATION_17_18 = object : Migration(17, 18) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE periodic_gas_forms ADD COLUMN checkSafetyDistances07Heat TEXT NOT NULL DEFAULT ''")
@@ -132,7 +131,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // המיגרציה החדשה: יצירת הטבלה של טופס ד-2 (מכלים נייחים)
         private val MIGRATION_19_20 = object : Migration(19, 20) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
@@ -198,6 +196,80 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // המיגרציה החדשה: יצירת טבלת ד-3
+        private val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `GasFormD3` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `sequentialNumber` INTEGER NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `consumerNumber` TEXT NOT NULL,
+                        `consumerMeterNumber` TEXT NOT NULL,
+                        `meterManufactureYear` TEXT NOT NULL,
+                        `clientName` TEXT NOT NULL,
+                        `city` TEXT NOT NULL,
+                        `street` TEXT NOT NULL,
+                        `gasProvider` TEXT NOT NULL,
+                        `facilityType` TEXT NOT NULL,
+                        `businessId` TEXT NOT NULL,
+                        `businessName` TEXT NOT NULL,
+                        `businessType` TEXT NOT NULL,
+                        `fireDeptFileNumber` TEXT NOT NULL,
+                        `poBox` TEXT NOT NULL,
+                        `zip` TEXT NOT NULL,
+                        `building` TEXT NOT NULL,
+                        `mainContactName` TEXT NOT NULL,
+                        `contactRole` TEXT NOT NULL,
+                        `clientPhone` TEXT NOT NULL,
+                        `email` TEXT NOT NULL,
+                        `check1_1` TEXT NOT NULL,
+                        `check1_2` TEXT NOT NULL,
+                        `check1_3` TEXT NOT NULL,
+                        `check1_4` TEXT NOT NULL,
+                        `check1_5` TEXT NOT NULL,
+                        `check1_6` TEXT NOT NULL,
+                        `check1_7` TEXT NOT NULL,
+                        `check1_8` TEXT NOT NULL,
+                        `check1_9` TEXT NOT NULL,
+                        `devicesList` TEXT NOT NULL,
+                        `check2_1` TEXT NOT NULL,
+                        `check2_2` TEXT NOT NULL,
+                        `check2_3` TEXT NOT NULL,
+                        `check2_4` TEXT NOT NULL,
+                        `check2_5` TEXT NOT NULL,
+                        `check2_6_1` TEXT NOT NULL,
+                        `check2_6_2` TEXT NOT NULL,
+                        `check2_6_3` TEXT NOT NULL,
+                        `check2_6_4` TEXT NOT NULL,
+                        `check2_6_5` TEXT NOT NULL,
+                        `check2_7_1` TEXT NOT NULL,
+                        `check2_7_2` TEXT NOT NULL,
+                        `check2_7_3` TEXT NOT NULL,
+                        `check2_8_1` TEXT NOT NULL,
+                        `check2_8_2` TEXT NOT NULL,
+                        `check2_9` TEXT NOT NULL,
+                        `check3_1` TEXT NOT NULL,
+                        `testPressure` TEXT NOT NULL,
+                        `check3_2` TEXT NOT NULL,
+                        `isFacilityValid` INTEGER NOT NULL,
+                        `requiresFixes` INTEGER NOT NULL,
+                        `fixByDate` TEXT NOT NULL,
+                        `isDisconnected` INTEGER NOT NULL,
+                        `disconnectReason` TEXT NOT NULL,
+                        `additionalNotes` TEXT NOT NULL,
+                        `failedReasonsJson` TEXT NOT NULL,
+                        `extraImagesUris` TEXT NOT NULL,
+                        `technicianSignatureUri` TEXT NOT NULL,
+                        `clientSignatureUri` TEXT NOT NULL,
+                        `savedTargetLocation` TEXT NOT NULL,
+                        `isSavedToTarget` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -205,7 +277,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gas_forms_database"
                 )
-                    .addMigrations(MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20)
+                    .addMigrations(MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
