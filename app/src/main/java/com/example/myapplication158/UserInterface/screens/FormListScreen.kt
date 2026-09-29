@@ -2,6 +2,7 @@ package com.example.myapplication158.UserInterface.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.BorderStroke
@@ -37,7 +38,7 @@ import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.data.GasFormD3
-import com.example.myapplication158.data.GasFormD4 // תוספת לד-4
+import com.example.myapplication158.data.GasFormD4
 import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.FinancialReportDialog
@@ -45,10 +46,25 @@ import com.example.myapplication158.UserInterface.components.FormListItemAiStyle
 import com.example.myapplication158.UserInterface.components.PricingDialog
 import com.example.myapplication158.UserInterface.components.WorkOrderDialog
 import com.example.myapplication158.UserInterface.components.WorkOrdersListDialog
+import com.example.myapplication158.util.AppLogger
 import com.example.myapplication158.util.SettingsManager
+import com.example.myapplication158.util.SupabaseManager
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+@Serializable
+data class SupportTicket(
+    val device_id: String,
+    val category: String,
+    val message: String,
+    val system_logs: String? = null
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,14 +76,14 @@ fun FormListScreen(
     onEditPeriodicForm: (PeriodicGasForm) -> Unit = {},
     onEditD2Form: (GasFormD2) -> Unit = {},
     onEditD3Form: (GasFormD3) -> Unit = {},
-    onEditD4Form: (GasFormD4) -> Unit = {}, // תוספת לד-4
+    onEditD4Form: (GasFormD4) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val forms by viewModel.allForms.collectAsState()
     val periodicForms by viewModel.allPeriodicForms.collectAsState()
     val d2Forms by viewModel.allD2Forms.collectAsState()
     val d3Forms by viewModel.allD3Forms.collectAsState()
-    val d4Forms by viewModel.allD4Forms.collectAsState() // תוספת לד-4
+    val d4Forms by viewModel.allD4Forms.collectAsState()
 
     val combinedForms = remember(forms, periodicForms, d2Forms, d3Forms, d4Forms) {
         val list = mutableListOf<Any>()
@@ -75,14 +91,14 @@ fun FormListScreen(
         list.addAll(periodicForms)
         list.addAll(d2Forms)
         list.addAll(d3Forms)
-        list.addAll(d4Forms) // תוספת לד-4
+        list.addAll(d4Forms)
         list.sortedByDescending {
             when (it) {
                 is GasForm -> it.createdAt
                 is PeriodicGasForm -> it.createdAt
                 is GasFormD2 -> it.createdAt
                 is GasFormD3 -> it.createdAt
-                is GasFormD4 -> it.createdAt // תוספת לד-4
+                is GasFormD4 -> it.createdAt
                 else -> 0L
             }
         }
@@ -103,6 +119,14 @@ fun FormListScreen(
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
     val activity = LocalActivity.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val androidId = remember { Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE" }
+
+    var showSupportDialog by remember { mutableStateOf(false) }
+    var supportCategory by remember { mutableStateOf("דיווח על באג / תקלה") }
+    var supportMessage by remember { mutableStateOf("") }
+    var isSubmittingSupport by remember { mutableStateOf(false) }
 
     var isSetupComplete by remember { mutableStateOf(true) }
     var missingFieldsText by remember { mutableStateOf("") }
@@ -145,7 +169,7 @@ fun FormListScreen(
     val primaryColor = MaterialTheme.colorScheme.primary
     val d2PrimaryColor = Color(0xFF2196F3)
     val d3PrimaryColor = Color(0xFFFF9800)
-    val d4PrimaryColor = Color(0xFF673AB7) // סגול עבור ד-4
+    val d4PrimaryColor = Color(0xFF673AB7)
 
     val aiBgColor = if (isDark) Color(0xFF0D0D0D) else Color(0xFFF4F6F8)
     val aiHeaderBg = if (isDark) {
@@ -174,7 +198,7 @@ fun FormListScreen(
             is PeriodicGasForm -> it.date.contains(currentMonth)
             is GasFormD2 -> it.date.contains(currentMonth)
             is GasFormD3 -> it.date.contains(currentMonth)
-            is GasFormD4 -> it.date.contains(currentMonth) // תוספת לד-4
+            is GasFormD4 -> it.date.contains(currentMonth)
             else -> false
         }
     }
@@ -208,7 +232,7 @@ fun FormListScreen(
                         item.date.contains(searchQuery, ignoreCase = true) ||
                         item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
             }
-            is GasFormD4 -> { // תוספת לד-4
+            is GasFormD4 -> {
                 item.businessName.contains(searchQuery, ignoreCase = true) ||
                         item.clientName.contains(searchQuery, ignoreCase = true) ||
                         item.city.contains(searchQuery, ignoreCase = true) ||
@@ -225,10 +249,18 @@ fun FormListScreen(
             topBar = {
                 Surface(color = aiHeaderBg, modifier = Modifier.fillMaxWidth(), shadowElevation = 4.dp) {
                     Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.clickable { settingsInitialTab = 0; showSettingsDialog = true }.size(22.dp))
-                            Icon(if (isDark) Icons.Default.Brightness7 else Icons.Default.Brightness4, "מצב לילה/יום", tint = primaryColor, modifier = Modifier.size(22.dp).clickable { settingsManager.isDarkMode = !isDark; activity?.recreate() })
-                            Icon(Icons.Default.BarChart, "דוחות", tint = primaryColor, modifier = Modifier.size(22.dp).clickable { showReportDialog = true })
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.clickable { settingsInitialTab = 0; showSettingsDialog = true }.size(24.dp))
+                            Icon(if (isDark) Icons.Default.Brightness7 else Icons.Default.Brightness4, "מצב לילה/יום", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { settingsManager.isDarkMode = !isDark; activity?.recreate() })
+                            Icon(Icons.Default.BarChart, "דוחות", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { showReportDialog = true })
+
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { showSupportDialog = true }
+                            ) {
+                                Icon(Icons.Default.SupportAgent, "תמיכה", tint = primaryColor, modifier = Modifier.size(24.dp))
+                                Text("תמיכה טכנית", color = primaryColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text("מערכת מילוי טפסים", fontWeight = FontWeight.ExtraBold, color = aiHeaderTextColor, fontSize = 15.sp, maxLines = 1)
@@ -331,7 +363,7 @@ fun FormListScreen(
                                     is GasFormD3 -> {
                                         D3FormListItemAiStyle(form = form, onEdit = { onEditD3Form(form) }, onPreview = { viewModel.previewPdfD3(context, form) }, onShare = { viewModel.sharePdfD3(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d3PrimaryColor, aiBorderColor = aiBorderColor)
                                     }
-                                    is GasFormD4 -> { // תוספת התצוגה של ד-4 ברשימה
+                                    is GasFormD4 -> {
                                         D4FormListItemAiStyle(form = form, onEdit = { onEditD4Form(form) }, onPreview = { viewModel.previewPdfD4(context, form) }, onShare = { viewModel.sharePdfD4(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d4PrimaryColor, aiBorderColor = aiBorderColor)
                                     }
                                 }
@@ -367,6 +399,109 @@ fun FormListScreen(
                         modifier = Modifier.size(26.dp)
                     )
                 }
+            }
+
+            if (showSupportDialog) {
+                AlertDialog(
+                    onDismissRequest = { if (!isSubmittingSupport) showSupportDialog = false },
+                    containerColor = aiCardBg,
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Text("פנייה למפתח המערכת", color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(Modifier.width(8.dp))
+                            Icon(Icons.Default.SupportAgent, contentDescription = null, tint = primaryColor)
+                        }
+                    },
+                    text = {
+                        Column {
+                            Text("במה נוכל לעזור?", color = aiTextColor, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Right)
+                            val categories = listOf("דיווח על באג / תקלה", "הצעת ייעול או פיצ'ר חדש", "שאלה כללית")
+                            categories.forEach { cat ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().clickable { supportCategory = cat }.padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Text(cat, color = aiTextColor)
+                                    Spacer(Modifier.width(8.dp))
+                                    RadioButton(
+                                        selected = supportCategory == cat,
+                                        onClick = { supportCategory = cat },
+                                        colors = RadioButtonDefaults.colors(selectedColor = primaryColor)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            OutlinedTextField(
+                                value = supportMessage,
+                                onValueChange = { supportMessage = it },
+                                label = { Text("פרט ככל הניתן את פנייתך כאן...", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = primaryColor, unfocusedBorderColor = aiBorderColor,
+                                    focusedTextColor = aiTextColor, unfocusedTextColor = aiTextColor
+                                ),
+                                maxLines = 5,
+                                textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Right)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (supportMessage.isBlank()) {
+                                    Toast.makeText(context, "אנא הזן את תוכן הפנייה", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                isSubmittingSupport = true
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val logsToAttach = if (supportCategory == "דיווח על באג / תקלה") {
+                                            AppLogger.getLogsForLastWeek(context)
+                                        } else null
+
+                                        val ticket = SupportTicket(
+                                            device_id = androidId,
+                                            category = supportCategory,
+                                            message = supportMessage,
+                                            system_logs = logsToAttach
+                                        )
+                                        SupabaseManager.client.postgrest["support_tickets"].insert(ticket)
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "הפנייה נשלחה בהצלחה! נטפל בה בהקדם.", Toast.LENGTH_LONG).show()
+                                            showSupportDialog = false
+                                            supportMessage = ""
+                                            isSubmittingSupport = false
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "שגיאה בשליחת הפנייה. נסה שוב.", Toast.LENGTH_SHORT).show()
+                                            isSubmittingSupport = false
+                                        }
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                            enabled = !isSubmittingSupport
+                        ) {
+                            if (isSubmittingSupport) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("שלח פנייה", fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showSupportDialog = false }, enabled = !isSubmittingSupport) {
+                            Text("ביטול", color = aiTextGray)
+                        }
+                    }
+                )
             }
 
             if (!isSetupComplete && !suppressOnboarding) {
@@ -413,7 +548,7 @@ fun FormListScreen(
                                 is PeriodicGasForm -> viewModel.deletePeriodicForm(form)
                                 is GasFormD2 -> viewModel.deleteFormD2(form)
                                 is GasFormD3 -> viewModel.deleteFormD3(form)
-                                is GasFormD4 -> viewModel.deleteFormD4(form) // חיבור מחיקה לד-4
+                                is GasFormD4 -> viewModel.deleteFormD4(form)
                             }
                             showDeleteConfirmDialog = null
                         }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252))) { Text("מחק") }
@@ -607,7 +742,6 @@ private fun D3FormListItemAiStyle(
     }
 }
 
-// קומפוננטת העיצוב החדשה עבור טופסי ד-4 ברשימה
 @Composable
 private fun D4FormListItemAiStyle(
     form: GasFormD4,
@@ -629,7 +763,6 @@ private fun D4FormListItemAiStyle(
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                // אייקון של מאגר עבור ד-4
                 Icon(Icons.Default.Storage, contentDescription = null, tint = primaryColor)
             }
             Spacer(modifier = Modifier.width(12.dp))

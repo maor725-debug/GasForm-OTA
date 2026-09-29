@@ -10,13 +10,18 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AvTimer
+import androidx.compose.material.icons.filled.PropaneTank
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +37,7 @@ import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.data.GasFormD3
-import com.example.myapplication158.data.GasFormD4 // תוספת לד-4
+import com.example.myapplication158.data.GasFormD4
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.screens.FormEditScreen
 import com.example.myapplication158.UserInterface.screens.FormListScreen
@@ -40,10 +45,11 @@ import com.example.myapplication158.UserInterface.screens.OnboardingScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD2
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD3
-import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD4 // תוספת לד-4
+import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD4
 import com.example.myapplication158.UserInterface.screens.LoginScreen
 import com.example.myapplication158.UserInterface.screens.SettingsDialog
 import com.example.myapplication158.UserInterface.screens.WelcomeScreen
+import com.example.myapplication158.util.AppLogger
 import com.example.myapplication158.util.OtaUpdateManager
 import com.example.myapplication158.util.SettingsManager
 import com.example.myapplication158.util.SupabaseManager
@@ -65,6 +71,17 @@ data class MessageRead(val message_id: String, val device_id: String)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val defaultExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, exception ->
+            AppLogger.logError(
+                context = applicationContext,
+                tag = "FATAL_CRASH",
+                message = "קריסה חמורה לא צפויה באפליקציה",
+                throwable = exception
+            )
+            defaultExceptionHandler?.uncaughtException(thread, exception)
+        }
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -149,7 +166,7 @@ sealed class Screen {
     data class EditPeriodic(val form: PeriodicGasForm) : Screen()
     data class EditD2(val form: GasFormD2) : Screen()
     data class EditD3(val form: GasFormD3) : Screen()
-    data class EditD4(val form: GasFormD4) : Screen() // תוספת לד-4
+    data class EditD4(val form: GasFormD4) : Screen()
 }
 
 @Composable
@@ -209,7 +226,6 @@ fun MainNavigation() {
                 if (remoteTracker != null) {
                     if (remoteTracker.forms_created > trialFormsCount) { trialFormsCount = remoteTracker.forms_created; appPrefs.edit().putInt("trial_forms_count", trialFormsCount).apply() }
                 } else {
-                    // תיקון קריסת RLS: שימוש ב-upsert במקום ב-insert
                     SupabaseManager.client.postgrest["trials_tracker"].upsert(TrialTracker(device_id = androidId, forms_created = trialFormsCount))
                 }
             } catch (e: Exception) { e.printStackTrace() }
@@ -279,7 +295,7 @@ fun MainNavigation() {
                 is Screen.EditPeriodic -> { PeriodicFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
                 is Screen.EditD2 -> { PeriodicFormEditScreenD2(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
                 is Screen.EditD3 -> { PeriodicFormEditScreenD3(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
-                is Screen.EditD4 -> { PeriodicFormEditScreenD4(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) } // תוספת לד-4
+                is Screen.EditD4 -> { PeriodicFormEditScreenD4(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
             }
         }
     }
@@ -287,7 +303,7 @@ fun MainNavigation() {
     if (showFormTypeDialog) {
         AlertDialog(
             onDismissRequest = { showFormTypeDialog = false },
-            title = { Text("טפסים נוספים", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
+            title = { Text("טפסים נוספים", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth(), fontWeight = FontWeight.Bold) },
             text = { Text("בחר איזה טופס למלא:", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
             confirmButton = {
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -304,13 +320,27 @@ fun MainNavigation() {
                     Button(
                         onClick = { showFormTypeDialog = false; handleNewFormAttempt { currentScreen = Screen.EditD3(GasFormD3()) } },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)), modifier = Modifier.fillMaxWidth()
-                    ) { Text("דוח ד-3: מתקן ממאגר משותף", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp)) }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Text("דוח בדיקה מאגר משותף (מונה)", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.Default.AvTimer, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                    }
 
-                    // תוספת לד-4
                     Button(
                         onClick = { showFormTypeDialog = false; handleNewFormAttempt { currentScreen = Screen.EditD4(GasFormD4()) } },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)), modifier = Modifier.fillMaxWidth()
-                    ) { Text("דוח ד-4: מתקן עם מאגר נפרד", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp)) }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Text("דוח בדיקה מאגר נפרד (בלונים)", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy((-4).dp)) {
+                                Icon(Icons.Default.PropaneTank, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.PropaneTank, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
                 }
             },
             dismissButton = { TextButton(onClick = { showFormTypeDialog = false }, modifier = Modifier.fillMaxWidth()) { Text("ביטול", color = Color.Gray, textAlign = TextAlign.Center) } }
