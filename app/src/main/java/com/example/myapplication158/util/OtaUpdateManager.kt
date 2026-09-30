@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
-import android.os.Build
+import androidx.core.content.ContextCompat
 import android.os.Environment
 import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
@@ -84,11 +84,12 @@ class OtaUpdateManager(private val context: Context) {
                 }
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                appContext.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED)
-            } else {
-                appContext.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
-            }
+            ContextCompat.registerReceiver(
+                appContext, 
+                onComplete, 
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), 
+                ContextCompat.RECEIVER_EXPORTED
+            )
 
         } catch (e: Exception) {
             Toast.makeText(appContext, "שגיאה בהורדה: ${e.message}", Toast.LENGTH_LONG).show()
