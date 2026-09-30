@@ -1777,9 +1777,9 @@ object PdfGenerator {
     }
 
     fun generateFormD4Pdf(context: Context, form: GasFormD4): File? {
-        val pdfDocument = PdfDocument()
+        val pdfDocument = android.graphics.pdf.PdfDocument()
         var currentPageNum = 1
-        var pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+        var pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
 
@@ -1874,7 +1874,7 @@ object PdfGenerator {
             if (yPosition + h > 780f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -1926,7 +1926,7 @@ object PdfGenerator {
 
         drawTableHeader()
         drawCheckRow("1. בחינה חזותית של מאגר גפ\"מ במכלים מיטלטלים", "HEADER")
-        drawCheckRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך, לא במקום המשמש למגורים", form.check1_1_1)
+        drawCheckRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך/מגורים", form.check1_1_1)
         drawCheckRow("1.1.2 מרחקי בטיחות (⊕) (סעיף מורחב):", "SUBHEADER")
         drawCheckRow("1.1.2.1 0.7 מ' ממקור חום וניצוצות", form.check1_1_2_1)
         drawCheckRow("1.1.2.2 1.7 מ' מאש גלויה", form.check1_1_2_2)
@@ -1947,9 +1947,9 @@ object PdfGenerator {
         drawCheckRow("1.7 המאספים ('רמפות') מותקנים בצורה יציבה ולכל אחד ברז ניתוק", form.check1_7)
 
         drawCheckRow("2. מאגר גפ\"מ במכלים נייחים", "HEADER")
-        drawCheckRow("2.1 אתר ההתקנה", "SUBHEADER")
+        drawCheckRow("2.1 אתר ההתקנה", form.check2_1)
         drawCheckRow("2.1.1 יש מחסום בפני התקרבות כלי רכב ושילוט בטיחות", form.check2_1_1)
-        drawCheckRow("2.2 המכלים (בדיקה חזותית)", "SUBHEADER")
+        drawCheckRow("2.2 המכלים (בדיקה חזותית)", form.check2_2)
         drawCheckRow("2.2.1 למכל יש לוחית זיהוי קריאה והנתונים תואמים", form.check2_2_1)
 
         drawCheckRow("3. מערכת הצינורות", "HEADER")
@@ -2000,7 +2000,7 @@ object PdfGenerator {
             if (yPosition > 700f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -2011,7 +2011,7 @@ object PdfGenerator {
             yPosition += 20f
 
             try {
-                val json = JSONObject(form.failedReasonsJson)
+                val json = org.json.JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
 
@@ -2042,7 +2042,7 @@ object PdfGenerator {
                     }
 
                     if (boxBottom > 780f) {
-                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
+                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
                         boxBottom = yPosition + textHeightNeeded
                     }
@@ -2069,7 +2069,7 @@ object PdfGenerator {
         if (yPosition > 700f) {
             pdfDocument.finishPage(page)
             currentPageNum++
-            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
@@ -2090,11 +2090,11 @@ object PdfGenerator {
 
         if (form.additionalNotes.isNotEmpty()) {
             yPosition += 25f
-            canvas.drawText("הערות נוספות: ${form.additionalNotes}", rightMargin, yPosition, paint)
+            canvas.drawText("הערות מסכמות: ${form.additionalNotes}", rightMargin, yPosition, paint)
         }
 
         yPosition += 40f
-        if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
@@ -2151,7 +2151,7 @@ object PdfGenerator {
 
         if (extraUris.isNotEmpty()) {
             currentPageNum++
-            var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+            var appendixPage = pdfDocument.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
             var appendixCanvas = appendixPage.canvas
             drawPageHeader()
             var imgYPosition = 140f
@@ -2162,7 +2162,7 @@ object PdfGenerator {
                 if (imgYPosition > 600f) {
                     pdfDocument.finishPage(appendixPage)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+                    appendixPage = pdfDocument.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
                     appendixCanvas = appendixPage.canvas
                     drawPageHeader()
                     imgYPosition = 140f

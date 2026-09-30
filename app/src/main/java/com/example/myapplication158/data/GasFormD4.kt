@@ -14,6 +14,7 @@ data class GasFormD4(
     val consumerNumber: String = "",
     val gasProvider: String = "",
     val facilityType: String = "פרטי",
+    val facilityPhotoUri: String = "", // תוספת: תמונה ספציפית לסוג מתקן
     val activationDate: String = "",
 
     val businessId: String = "",
@@ -51,7 +52,9 @@ data class GasFormD4(
     val check1_7: String = "",
 
     // 2. מאגר גפ"מ - מכלים נייחים
+    val check2_1: String = "", // תוספת: שאלה ראשית 2.1
     val check2_1_1: String = "",
+    val check2_2: String = "", // תוספת: שאלה ראשית 2.2
     val check2_2_1: String = "",
 
     // 3. מערכת הצינורות

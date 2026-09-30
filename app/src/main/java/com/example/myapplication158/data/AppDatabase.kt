@@ -7,13 +7,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [GasForm::class, PeriodicGasForm::class, GasFormD2::class, GasFormD3::class, GasFormD4::class, WorkOrder::class], version = 22, exportSchema = false)
+@Database(entities = [GasForm::class, PeriodicGasForm::class, GasFormD2::class, GasFormD3::class, GasFormD4::class, WorkOrder::class], version = 23, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gasFormDao(): GasFormDao
     abstract fun periodicGasFormDao(): PeriodicGasFormDao
     abstract fun gasFormD2Dao(): GasFormD2Dao
     abstract fun gasFormD3Dao(): GasFormD3Dao
-    abstract fun gasFormD4Dao(): GasFormD4Dao // תוספת לד-4
+    abstract fun gasFormD4Dao(): GasFormD4Dao
     abstract fun workOrderDao(): WorkOrderDao
 
     companion object {
@@ -270,7 +270,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // הגירה לגרסה 22: יצירת טבלת ד-4
         private val MIGRATION_21_22 = object : Migration(21, 22) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
@@ -360,6 +359,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // הגירה לגרסה 23: הוספת שדות חסרים לד-4 (שאלות 2.1, 2.2 ותמונת מתקן)
+        private val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE GasFormD4 ADD COLUMN check2_1 TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE GasFormD4 ADD COLUMN check2_2 TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE GasFormD4 ADD COLUMN facilityPhotoUri TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -369,7 +377,7 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
-                        MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22
+                        MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23
                     )
                     .fallbackToDestructiveMigration()
                     .build()

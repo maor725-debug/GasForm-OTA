@@ -288,7 +288,10 @@ fun MainNavigation() {
                         onAddNormativeForm = { handleNewFormAttempt { currentScreen = Screen.Edit(GasForm(partnerNumber = viewModel.getNextPartnerNumber())) } },
                         onAddOtherForms = { showFormTypeDialog = true },
                         onEditForm = { form -> currentScreen = Screen.Edit(form) },
-                        onEditPeriodicForm = { form -> currentScreen = Screen.EditPeriodic(form) }
+                        onEditPeriodicForm = { form -> currentScreen = Screen.EditPeriodic(form) },
+                        onEditD2Form = { form -> currentScreen = Screen.EditD2(form) },
+                        onEditD3Form = { form -> currentScreen = Screen.EditD3(form) },
+                        onEditD4Form = { form -> currentScreen = Screen.EditD4(form) }
                     )
                 }
                 is Screen.Edit -> { FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
