@@ -236,7 +236,7 @@ fun PeriodicFormEditScreen(
     }
 
     @Composable
-    fun ThreeStateRow(title: String, currentState: String, onStateChange: (String) -> Unit, isSubItem: Boolean = false) {
+    fun ThreeStateRow(number: String, title: String, currentState: String, onStateChange: (String) -> Unit, isSubItem: Boolean = false) {
         val rowModifier = if (isSubItem) {
             Modifier
                 .fillMaxWidth()
@@ -251,7 +251,14 @@ fun PeriodicFormEditScreen(
         }
 
         Column(modifier = rowModifier) {
-            Text(title, color = textWhite, fontSize = 13.sp, fontWeight = if(isSubItem) FontWeight.Normal else FontWeight.Bold, lineHeight = 18.sp)
+            // טקסט השאלה עם מקף וללא בולד
+            Text(
+                text = "$number - $title",
+                color = textWhite,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                lineHeight = 18.sp
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val passColor = if (currentState == "PASS") successGreen else cardBg
@@ -261,7 +268,7 @@ fun PeriodicFormEditScreen(
                 Surface(onClick = {
                     val newState = if (currentState == "PASS") "" else "PASS"
                     onStateChange(newState)
-                    failedReasonsMap.remove(title)
+                    failedReasonsMap.remove(number)
                     saveToDatabase()
                 }, modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), color = passColor, border = BorderStroke(1.dp, if(currentState == "PASS") successGreen else borderColor)) {
                     Box(contentAlignment = Alignment.Center) { Text("מתאים ✓", color = if(currentState == "PASS") Color.White else successGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
@@ -269,7 +276,7 @@ fun PeriodicFormEditScreen(
                 Surface(onClick = {
                     val newState = if (currentState == "FAIL") "" else "FAIL"
                     onStateChange(newState)
-                    if (newState == "FAIL") failedReasonsMap[title] = failedReasonsMap[title] ?: "" else failedReasonsMap.remove(title)
+                    if (newState == "FAIL") failedReasonsMap[number] = failedReasonsMap[number] ?: "" else failedReasonsMap.remove(number)
                     saveToDatabase()
                 }, modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), color = failColor, border = BorderStroke(1.dp, if(currentState == "FAIL") errorRed else borderColor)) {
                     Box(contentAlignment = Alignment.Center) { Text("לא מתאים ✗", color = if(currentState == "FAIL") Color.White else errorRed, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
@@ -277,7 +284,7 @@ fun PeriodicFormEditScreen(
                 Surface(onClick = {
                     val newState = if (currentState == "NA") "" else "NA"
                     onStateChange(newState)
-                    failedReasonsMap.remove(title)
+                    failedReasonsMap.remove(number)
                     saveToDatabase()
                 }, modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), color = naColor, border = BorderStroke(1.dp, if(currentState == "NA") Color.Gray else borderColor)) {
                     Box(contentAlignment = Alignment.Center) { Text("לא ישים ⚪", color = if(currentState == "NA") Color.White else Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
@@ -368,53 +375,53 @@ fun PeriodicFormEditScreen(
 
                 FormCard("1. בחינה חזותית של המאגר", cardBg, borderColor, primaryColor) {
                     Text("1.1 מיקום המכלים :", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך ולא למגורים", checkLocationOpen, { checkLocationOpen = it }, isSubItem = true)
+                    ThreeStateRow("1.1.1", "במקום פתוח ומאוורר. לא במפלס נמוך ולא למגורים", checkLocationOpen, { checkLocationOpen = it }, isSubItem = true)
 
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(modifier = Modifier.fillMaxWidth().background(if(isDark) Color(0xFF263238) else Color(0xFFECEFF1), RoundedCornerShape(4.dp)).padding(8.dp)) {
                         Text("1.1.2 מרחקי בטיחות:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
                     }
-                    ThreeStateRow("1.1.2.1 - 0.7 מ' ממקור חום וניצוצות (קריטי)", checkSafetyDistances07Heat, { checkSafetyDistances07Heat = it }, isSubItem = true)
-                    ThreeStateRow("1.1.2.2 - 1.7 מ' מאש גלויה (קריטי)", checkSafetyDistances17Fire, { checkSafetyDistances17Fire = it }, isSubItem = true)
-                    ThreeStateRow("1.1.2.3 - 0.5 מ' מבורות ומתאי בקרה הסגורים במכסה קבוע", checkSafetyDistances05Pits, { checkSafetyDistances05Pits = it }, isSubItem = true)
-                    ThreeStateRow("1.1.2.4 - 3 מ' מבורות ופתחי ניקוז פתוחים", checkSafetyDistances3Drainage, { checkSafetyDistances3Drainage = it }, isSubItem = true)
-                    ThreeStateRow("1.1.2.5 - 1.2 מ' מפתח בניין", checkSafetyDistances12Building, { checkSafetyDistances12Building = it }, isSubItem = true)
-                    ThreeStateRow("1.1.2.6 - 3 מ' מפתחי מפלס נמוך", checkSafetyDistances3LowLevel, { checkSafetyDistances3LowLevel = it }, isSubItem = true)
+                    ThreeStateRow("1.1.2.1", "0.7 מ' ממקור חום וניצוצות (קריטי)", checkSafetyDistances07Heat, { checkSafetyDistances07Heat = it }, isSubItem = true)
+                    ThreeStateRow("1.1.2.2", "1.7 מ' מאש גלויה (קריטי)", checkSafetyDistances17Fire, { checkSafetyDistances17Fire = it }, isSubItem = true)
+                    ThreeStateRow("1.1.2.3", "0.5 מ' מבורות ומתאי בקרה הסגורים במכסה קבוע", checkSafetyDistances05Pits, { checkSafetyDistances05Pits = it }, isSubItem = true)
+                    ThreeStateRow("1.1.2.4", "3 מ' מבורות ופתחי ניקוז פתוחים", checkSafetyDistances3Drainage, { checkSafetyDistances3Drainage = it }, isSubItem = true)
+                    ThreeStateRow("1.1.2.5", "1.2 מ' מפתח בניין", checkSafetyDistances12Building, { checkSafetyDistances12Building = it }, isSubItem = true)
+                    ThreeStateRow("1.1.2.6", "3 מ' מפתחי מפלס נמוך", checkSafetyDistances3LowLevel, { checkSafetyDistances3LowLevel = it }, isSubItem = true)
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = borderColor)
-                    ThreeStateRow("1.2 הווסת והסעפת מקובעים כראוי", checkRegulatorSecured, { checkRegulatorSecured = it })
+                    ThreeStateRow("1.2", "הווסת והסעפת מקובעים כראוי", checkRegulatorSecured, { checkRegulatorSecured = it })
                     HorizontalDivider(color = borderColor)
-                    ThreeStateRow("1.3 יש שילוט אזהרה עם הכיתוב ''סכנה גז מתלקח! אסור לעשן!'' וסמל הדליקות, הכולל את שם ספק הגז ומספר טלפון לחירום", checkWarningSigns, { checkWarningSigns = it })
+                    ThreeStateRow("1.3", "יש שילוט אזהרה עם הכיתוב ''סכנה גז מתלקח! אסור לעשן!'' וסמל הדליקות, הכולל את שם ספק הגז ומספר טלפון לחירום", checkWarningSigns, { checkWarningSigns = it })
                     HorizontalDivider(color = borderColor)
-                    ThreeStateRow("1.4 אם יש מתקן מים, מובטחת התזה על כל המכלים", checkWaterSprinklers, { checkWaterSprinklers = it })
+                    ThreeStateRow("1.4", "אם יש מתקן מים, מובטחת התזה על כל המכלים", checkWaterSprinklers, { checkWaterSprinklers = it })
 
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(modifier = Modifier.fillMaxWidth().background(if(isDark) Color(0xFF263238) else Color(0xFFECEFF1), RoundedCornerShape(4.dp)).padding(8.dp)) {
                         Text("1.5 אם המאגר בחדר גז, בדוק גם:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
                     }
-                    ThreeStateRow("1.5.1 בחדר יש עד 20 מכלים ק\"ג (1000 ק\"ג)", checkGasRoomMax20, { checkGasRoomMax20 = it }, isSubItem = true)
-                    ThreeStateRow("1.5.2 גוף התאורה בתקרה והמפסק מחוץ לחדר", checkGasRoomLighting, { checkGasRoomLighting = it }, isSubItem = true)
-                    ThreeStateRow("1.5.3 בחדר לא מוחזקים חומרים דליקים (קריטי)", checkGasRoomNoFlammables, { checkGasRoomNoFlammables = it }, isSubItem = true)
+                    ThreeStateRow("1.5.1", "בחדר יש עד 20 מכלים ק\"ג (1000 ק\"ג)", checkGasRoomMax20, { checkGasRoomMax20 = it }, isSubItem = true)
+                    ThreeStateRow("1.5.2", "גוף התאורה בתקרה והמפסק מחוץ לחדר", checkGasRoomLighting, { checkGasRoomLighting = it }, isSubItem = true)
+                    ThreeStateRow("1.5.3", "בחדר לא מוחזקים חומרים דליקים (קריטי)", checkGasRoomNoFlammables, { checkGasRoomNoFlammables = it }, isSubItem = true)
 
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(modifier = Modifier.fillMaxWidth().background(if(isDark) Color(0xFF263238) else Color(0xFFECEFF1), RoundedCornerShape(4.dp)).padding(8.dp)) {
                         Text("1.6 אם המאגר במכלאה, בדוק גם:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
                     }
-                    ThreeStateRow("1.6.1 במכלאה יש עד 20 מכלים", checkCageMax20, { checkCageMax20 = it }, isSubItem = true)
-                    ThreeStateRow("1.6.2 המכלאה מגודרת ומאווררת", checkCageVentilated, { checkCageVentilated = it }, isSubItem = true)
+                    ThreeStateRow("1.6.1", "במכלאה יש עד 20 מכלים", checkCageMax20, { checkCageMax20 = it }, isSubItem = true)
+                    ThreeStateRow("1.6.2", "המכלאה מגודרת ומאווררת", checkCageVentilated, { checkCageVentilated = it }, isSubItem = true)
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = borderColor)
-                    ThreeStateRow("1.7 המאספים (רמפות) יציבים ולכל אחד ברז ניתוק", checkRampsSecured, { checkRampsSecured = it })
+                    ThreeStateRow("1.7", "המאספים (רמפות) יציבים ולכל אחד ברז ניתוק", checkRampsSecured, { checkRampsSecured = it })
                 }
 
                 FormCard("2. מערכת הצינורות המשותפת", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("2.1 שסתום לרעידת אדמה בקו לחץ ביניים (אחרי פבר' 2012)", checkEarthquakeValve, { checkEarthquakeValve = it })
-                    ThreeStateRow("2.2 השסתום מפולס והתקנתו תקינה", checkEarthquakeValveSecured, { checkEarthquakeValveSecured = it })
-                    ThreeStateRow("2.3 ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", checkMainValveAccessible, { checkMainValveAccessible = it })
-                    ThreeStateRow("2.4 שסתומי פריקה מחוברים לאוויר חוץ כחוק", checkDischargeValves, { checkDischargeValves = it })
-                    ThreeStateRow("2.5 לחץ הגז בצנרת פנים המבנה אינו גדול מ-1.4 בר", checkPressureUpTo1_4, { checkPressureUpTo1_4 = it })
-                    ThreeStateRow("2.6 הצנרת ומרכיביה מקובעים", checkPipingSecured, { checkPipingSecured = it })
-                    ThreeStateRow("2.7 כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", checkUnusedOutletsPlugged, { newState ->
+                    ThreeStateRow("2.1", "שסתום לרעידת אדמה בקו לחץ ביניים (אחרי פבר' 2012)", checkEarthquakeValve, { checkEarthquakeValve = it })
+                    ThreeStateRow("2.2", "השסתום מפולס והתקנתו תקינה", checkEarthquakeValveSecured, { checkEarthquakeValveSecured = it })
+                    ThreeStateRow("2.3", "ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", checkMainValveAccessible, { checkMainValveAccessible = it })
+                    ThreeStateRow("2.4", "שסתומי פריקה מחוברים לאוויר חוץ כחוק", checkDischargeValves, { checkDischargeValves = it })
+                    ThreeStateRow("2.5", "לחץ הגז בצנרת פנים המבנה אינו גדול מ-1.4 בר", checkPressureUpTo1_4, { checkPressureUpTo1_4 = it })
+                    ThreeStateRow("2.6", "הצנרת ומרכיביה מקובעים", checkPipingSecured, { checkPipingSecured = it })
+                    ThreeStateRow("2.7", "כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", checkUnusedOutletsPlugged, { newState ->
                         checkUnusedOutletsPlugged = newState
                         if (newState == "FAIL") {
                             finalStatus = "DISCONNECTED"
@@ -487,7 +494,7 @@ fun PeriodicFormEditScreen(
                             OutlinedTextField(
                                 value = failedReasonsMap[sectionTitle] ?: "",
                                 onValueChange = { failedReasonsMap[sectionTitle] = it; saveToDatabase() },
-                                label = { Text("פרט מדוע '$sectionTitle' אינו תקין") },
+                                label = { Text("פרט מדוע סעיף $sectionTitle אינו תקין") },
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = errorFieldColors, minLines = 2
                             )
                         }

@@ -63,7 +63,6 @@ fun PeriodicFormEditScreenD4(
 
     val initialForm = form as? GasFormD4
 
-    // משתנה שמתעדכן ב-ID החדש אחרי השמירה הראשונה כדי למנוע כפילויות
     var currentFormId by remember { mutableIntStateOf(initialForm?.id ?: 0) }
 
     var sequentialNumber by remember { mutableIntStateOf(if (initialForm != null && initialForm.sequentialNumber > 0) initialForm.sequentialNumber else settingsManager.currentFormNumber) }
@@ -101,7 +100,7 @@ fun PeriodicFormEditScreenD4(
             initialForm?.facilityType?.startsWith("פרטי") == true -> "פרטי"
             initialForm?.facilityType?.startsWith("מסחרי") == true -> "מסחרי"
             initialForm?.facilityType?.startsWith("אחר") == true -> "אחר"
-            else -> "פרטי"
+            else -> ""
         }
     ) }
     var facilityDetailsText by remember { mutableStateOf(
@@ -217,7 +216,7 @@ fun PeriodicFormEditScreenD4(
 
     fun buildCurrentForm(): GasFormD4 {
         val jsonReasons = JSONObject(failedReasonsMap.toMap()).toString()
-        val currentFacilityType = "$facilityTypeSelection: $facilityDetailsText"
+        val currentFacilityType = if (facilityTypeSelection.isNotBlank()) "$facilityTypeSelection: $facilityDetailsText" else ""
 
         return GasFormD4(
             id = currentFormId, sequentialNumber = sequentialNumber, date = currentDate,
@@ -252,7 +251,7 @@ fun PeriodicFormEditScreenD4(
         if (clientName.isBlank() && businessName.isBlank()) return "חובה למלא את שם הלקוח או העסק."
         if (clientPhone.isBlank()) return "חובה למלא מס' טלפון איש קשר."
         if (city.isBlank() || street.isBlank()) return "חובה למלא את הכתובת (יישוב ורחוב)."
-        if (facilityDetailsText.isBlank()) return "חובה לפרט בתיבת הטקסט של 'סוג המתקן' ($facilityTypeSelection)."
+        if (facilityTypeSelection.isBlank() || facilityDetailsText.isBlank()) return "חובה לבחור ולפרט בתיבת הטקסט את 'סוג המתקן'."
 
         val requiredChecks = listOf(
             check1_1_1 to "1.1.1", check1_1_2_1 to "1.1.2.1", check1_1_2_2 to "1.1.2.2",
@@ -322,23 +321,14 @@ fun PeriodicFormEditScreenD4(
         }
 
         Column(modifier = rowModifier) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = number,
-                    color = textWhite,
-                    fontSize = customFontSize?.sp ?: 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(end = 6.dp)
-                )
-                Text(
-                    text = title,
-                    color = textWhite,
-                    fontSize = customFontSize?.sp ?: 13.sp,
-                    fontWeight = if (isSubItem) FontWeight.Normal else FontWeight.Bold,
-                    lineHeight = 18.sp,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            // הנה השינוי: מספר הסעיף עם מקף וטקסט רגיל (לא מודגש)
+            Text(
+                text = "$number - $title",
+                color = textWhite,
+                fontSize = customFontSize?.sp ?: 13.sp,
+                fontWeight = FontWeight.Normal,
+                lineHeight = 18.sp
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(onClick = {
@@ -435,7 +425,7 @@ fun PeriodicFormEditScreenD4(
                         OutlinedTextField(value = activationDate, onValueChange = { activationDate = it; saveToDatabase() }, label = { Text("תאריך הפעלת מתקן") }, modifier = Modifier.weight(1f), colors = textFieldColors)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("סוג המתקן (חובה לפרט):", color = textWhite, fontSize = 13.sp)
+                    Text("סוג המתקן (חובה לפרט):", color = textWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = facilityTypeSelection == "פרטי", onClick = { facilityTypeSelection = "פרטי"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("פרטי", color = textWhite)
@@ -447,34 +437,36 @@ fun PeriodicFormEditScreenD4(
                         Text("אחר", color = textWhite)
                     }
 
-                    OutlinedTextField(
-                        value = facilityDetailsText,
-                        onValueChange = { facilityDetailsText = it; saveToDatabase() },
-                        label = { Text("פרט סוג מתקן ($facilityTypeSelection)") },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        colors = textFieldColors
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        val secondaryButtonBg = if (isDark) Color(0xFF333333) else Color(0xFFE0E0E0)
-                        val secondaryButtonText = if (isDark) Color.White else Color.Black
-                        Button(onClick = { launchFacilityCamera() }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = secondaryButtonBg)) {
-                            Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(16.dp), tint = secondaryButtonText); Spacer(modifier = Modifier.width(4.dp)); Text("צלם מתקן", color = secondaryButtonText, fontSize = 12.sp)
-                        }
-                        Button(onClick = { facilityGalleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = secondaryButtonBg)) {
-                            Icon(Icons.Default.Collections, null, modifier = Modifier.size(16.dp), tint = secondaryButtonText); Spacer(modifier = Modifier.width(4.dp)); Text("גלריה", color = secondaryButtonText, fontSize = 12.sp)
-                        }
-                    }
-
-                    if (facilityPhotoUri.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Box(modifier = Modifier.size(100.dp)) {
-                            AsyncImage(model = Uri.parse(facilityPhotoUri), contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
-                            IconButton(
-                                onClick = { facilityPhotoUri = ""; saveToDatabase() },
-                                modifier = Modifier.align(Alignment.TopEnd).padding(2.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape).size(24.dp)
-                            ) { Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp)) }
+                    AnimatedVisibility(visible = facilityTypeSelection.isNotBlank()) {
+                        Column {
+                            OutlinedTextField(
+                                value = facilityDetailsText,
+                                onValueChange = { facilityDetailsText = it; saveToDatabase() },
+                                label = { Text("פרט סוג מתקן ($facilityTypeSelection)") },
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                colors = textFieldColors
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                val secondaryButtonBg = if (isDark) Color(0xFF333333) else Color(0xFFE0E0E0)
+                                val secondaryButtonText = if (isDark) Color.White else Color.Black
+                                Button(onClick = { launchFacilityCamera() }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = secondaryButtonBg)) {
+                                    Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(16.dp), tint = secondaryButtonText); Spacer(modifier = Modifier.width(4.dp)); Text("צלם מתקן", color = secondaryButtonText, fontSize = 12.sp)
+                                }
+                                Button(onClick = { facilityGalleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = secondaryButtonBg)) {
+                                    Icon(Icons.Default.Collections, null, modifier = Modifier.size(16.dp), tint = secondaryButtonText); Spacer(modifier = Modifier.width(4.dp)); Text("גלריה", color = secondaryButtonText, fontSize = 12.sp)
+                                }
+                            }
+                            if (facilityPhotoUri.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Box(modifier = Modifier.size(100.dp)) {
+                                    AsyncImage(model = Uri.parse(facilityPhotoUri), contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                                    IconButton(
+                                        onClick = { facilityPhotoUri = ""; saveToDatabase() },
+                                        modifier = Modifier.align(Alignment.TopEnd).padding(2.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape).size(24.dp)
+                                    ) { Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp)) }
+                                }
+                            }
                         }
                     }
                 }
@@ -598,13 +590,13 @@ fun PeriodicFormEditScreenD4(
                 AnimatedVisibility(visible = failedReasonsMap.isNotEmpty()) {
                     FormCard("פירוט ליקויים שנמצאו בבדיקה (חובה למלא)", cardBg, errorRed, errorRed) {
                         failedReasonsMap.keys.forEach { sectionTitle ->
-                            OutlinedTextField(value = failedReasonsMap[sectionTitle] ?: "", onValueChange = { failedReasonsMap[sectionTitle] = it; saveToDatabase() }, label = { Text("פרט מדוע '$sectionTitle' אינו תקין") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = errorFieldColors, minLines = 2)
+                            OutlinedTextField(value = failedReasonsMap[sectionTitle] ?: "", onValueChange = { failedReasonsMap[sectionTitle] = it; saveToDatabase() }, label = { Text("פרט מדוע סעיף $sectionTitle אינו תקין") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = errorFieldColors, minLines = 2)
                         }
                     }
                 }
 
-                FormCard("תמונות מצורפים", cardBg, borderColor, primaryColor) {
-                    Text("התמונות יצורפו בסוף הדוח.", color = textGray, fontSize = 12.sp, lineHeight = 16.sp)
+                FormCard("תמונות ומסמכים מצורפים", cardBg, borderColor, primaryColor) {
+                    Text("ניתן להוסיף צילומים של המתקן. הם יצורפו בסוף הדוח.", color = textGray, fontSize = 12.sp, lineHeight = 16.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         val secondaryButtonBg = if (isDark) Color(0xFF333333) else Color(0xFFE0E0E0)

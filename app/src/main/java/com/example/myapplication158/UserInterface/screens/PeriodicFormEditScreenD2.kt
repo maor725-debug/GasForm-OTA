@@ -41,7 +41,6 @@ import coil.compose.AsyncImage
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
 import com.example.myapplication158.UserInterface.components.FormCard
-import com.example.myapplication158.UserInterface.components.CheckboxWithLabel
 import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.util.SettingsManager
 import org.json.JSONObject
@@ -197,14 +196,22 @@ fun PeriodicFormEditScreenD2(
     }
 
     @Composable
-    fun ThreeStateRow(title: String, currentState: String, isCritical: Boolean = false, onStateChange: (String) -> Unit) {
+    fun ThreeStateRow(number: String, title: String, currentState: String, isCritical: Boolean = false, onStateChange: (String) -> Unit) {
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-            Text(title, color = textWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold, lineHeight = 18.sp)
+            // טקסט השאלה עם מקף וללא בולד
+            Text(
+                text = "$number - $title",
+                color = textWhite,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                lineHeight = 18.sp
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(onClick = {
                     onStateChange(if(currentState == "PASS") "" else "PASS")
-                    failedReasonsMap.remove(title)
+                    failedReasonsMap.remove(number)
+                    saveToDatabase()
                 }, modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), color = if(currentState == "PASS") successGreen else cardBg, border = BorderStroke(1.dp, if(currentState == "PASS") successGreen else borderColor)) {
                     Box(contentAlignment = Alignment.Center) { Text("מתאים ✓", color = if(currentState == "PASS") Color.White else successGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                 }
@@ -212,15 +219,17 @@ fun PeriodicFormEditScreenD2(
                     val newState = if(currentState == "FAIL") "" else "FAIL"
                     onStateChange(newState)
                     if (newState == "FAIL") {
-                        failedReasonsMap[title] = failedReasonsMap[title] ?: ""
+                        failedReasonsMap[number] = failedReasonsMap[number] ?: ""
                         if (isCritical) triggerCriticalFailure()
-                    } else failedReasonsMap.remove(title)
+                    } else failedReasonsMap.remove(number)
+                    saveToDatabase()
                 }, modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), color = if(currentState == "FAIL") errorRed else cardBg, border = BorderStroke(1.dp, if(currentState == "FAIL") errorRed else borderColor)) {
                     Box(contentAlignment = Alignment.Center) { Text("לא מתאים ✗", color = if(currentState == "FAIL") Color.White else errorRed, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                 }
                 Surface(onClick = {
                     onStateChange(if(currentState == "NA") "" else "NA")
-                    failedReasonsMap.remove(title)
+                    failedReasonsMap.remove(number)
+                    saveToDatabase()
                 }, modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), color = if(currentState == "NA") Color.Gray else cardBg, border = BorderStroke(1.dp, if(currentState == "NA") Color.Gray else borderColor)) {
                     Box(contentAlignment = Alignment.Center) { Text("לא ישים ⚪", color = if(currentState == "NA") Color.White else Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                 }
@@ -256,95 +265,113 @@ fun PeriodicFormEditScreenD2(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 FormCard("פרטי האתר והמערכת", cardBg, borderColor, primaryColor) {
-                    OutlinedTextField(value = businessName, onValueChange = { businessName = it }, label = { Text("שם העסק/הבניין") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors)
+                    OutlinedTextField(value = businessName, onValueChange = { businessName = it; saveToDatabase() }, label = { Text("שם העסק/הבניין") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = clientName, onValueChange = { clientName = it }, label = { Text("איש קשר") }, modifier = Modifier.weight(1f), colors = textFieldColors)
-                        OutlinedTextField(value = clientPhone, onValueChange = { clientPhone = it }, label = { Text("טלפון נייד") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), colors = textFieldColors)
+                        OutlinedTextField(value = clientName, onValueChange = { clientName = it; saveToDatabase() }, label = { Text("איש קשר") }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                        OutlinedTextField(value = clientPhone, onValueChange = { clientPhone = it; saveToDatabase() }, label = { Text("טלפון נייד") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), colors = textFieldColors)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = city, onValueChange = { city = it }, label = { Text("יישוב") }, modifier = Modifier.weight(1f), colors = textFieldColors)
-                        OutlinedTextField(value = street, onValueChange = { street = it }, label = { Text("רחוב/בית") }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                        OutlinedTextField(value = city, onValueChange = { city = it; saveToDatabase() }, label = { Text("יישוב") }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                        OutlinedTextField(value = street, onValueChange = { street = it; saveToDatabase() }, label = { Text("רחוב/בית") }, modifier = Modifier.weight(1f), colors = textFieldColors)
                     }
                 }
 
                 FormCard("נתוני המאגר", cardBg, borderColor, primaryColor) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = capacityPerTank, onValueChange = { capacityPerTank = it }, label = { Text("קיבול מכל (ק\"ג)") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = textFieldColors)
-                        OutlinedTextField(value = totalCapacity, onValueChange = { totalCapacity = it }, label = { Text("סה\"כ קיבול (ק\"ג)") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = textFieldColors)
+                        OutlinedTextField(value = capacityPerTank, onValueChange = { capacityPerTank = it; saveToDatabase() }, label = { Text("קיבול מכל (ק\"ג)") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = textFieldColors)
+                        OutlinedTextField(value = totalCapacity, onValueChange = { totalCapacity = it; saveToDatabase() }, label = { Text("סה\"כ קיבול (ק\"ג)") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = textFieldColors)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = manufactureOrTestYear, onValueChange = { manufactureOrTestYear = it }, label = { Text("שנת ייצור/בדיקה") }, modifier = Modifier.weight(1f), colors = textFieldColors)
-                        OutlinedTextField(value = manifoldNumber, onValueChange = { manifoldNumber = it }, label = { Text("מס' מרכזייה") }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                        OutlinedTextField(value = manufactureOrTestYear, onValueChange = { manufactureOrTestYear = it; saveToDatabase() }, label = { Text("שנת ייצור/בדיקה") }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                        OutlinedTextField(value = manifoldNumber, onValueChange = { manifoldNumber = it; saveToDatabase() }, label = { Text("מס' מרכזייה") }, modifier = Modifier.weight(1f), colors = textFieldColors)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("סוג המכלים:", color = textWhite, fontSize = 13.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = tankType == "על-קרקעי", onClick = { tankType = "על-קרקעי" }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
+                        RadioButton(selected = tankType == "על-קרקעי", onClick = { tankType = "על-קרקעי"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("על-קרקעי", color = textWhite)
                         Spacer(modifier = Modifier.width(16.dp))
-                        RadioButton(selected = tankType == "תת-קרקעי", onClick = { tankType = "תת-קרקעי" }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
+                        RadioButton(selected = tankType == "תת-קרקעי", onClick = { tankType = "תת-קרקעי"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("תת-קרקעי", color = textWhite)
                     }
                     Text("משמש ל:", color = textWhite, fontSize = 13.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = usageType == "מגורים", onClick = { usageType = "מגורים" }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
+                        RadioButton(selected = usageType == "מגורים", onClick = { usageType = "מגורים"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("מגורים", color = textWhite)
                         Spacer(modifier = Modifier.width(8.dp))
-                        RadioButton(selected = usageType == "מסחרי", onClick = { usageType = "מסחרי" }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
+                        RadioButton(selected = usageType == "מסחרי", onClick = { usageType = "מסחרי"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("מסחרי", color = textWhite)
                         Spacer(modifier = Modifier.width(8.dp))
-                        RadioButton(selected = usageType == "אחר", onClick = { usageType = "אחר" }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
+                        RadioButton(selected = usageType == "אחר", onClick = { usageType = "אחר"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("אחר", color = textWhite)
                     }
                 }
 
                 FormCard("1. אתר ההתקנה", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("1.1 יש שילוט בטיחות ומחסום יציב בפני רכבים", checkSiteSignage) { checkSiteSignage = it }
-                    ThreeStateRow("1.2 אתר ההתקנה תקין (שלמות כיסוי וניקיון)", checkSiteClean) { checkSiteClean = it }
+                    ThreeStateRow("1.1", "יש שילוט בטיחות ומחסום יציב בפני רכבים", checkSiteSignage) { checkSiteSignage = it }
+                    ThreeStateRow("1.2", "אתר ההתקנה תקין (שלמות כיסוי וניקיון)", checkSiteClean) { checkSiteClean = it }
                 }
 
                 FormCard("2. המכלים (בדיקה חזותית)", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("2.1 למכל יש לוחית זיהוי קריאה", checkTankPlate) { checkTankPlate = it }
-                    ThreeStateRow("2.2 ברכת האביזרים/המכסה תקין", checkTankCover) { checkTankCover = it }
-                    ThreeStateRow("2.3 האביזרים שלמים ונקיים", checkTankFittings) { checkTankFittings = it }
-                    ThreeStateRow("2.4 יש סידור לגישה בטוחה לאביזרי המכל", checkSafeAccess) { checkSafeAccess = it }
-                    ThreeStateRow("2.5 חיבורים ומוצאים גבוהים ממפלס המים", checkFittingsHeight) { checkFittingsHeight = it }
-                    ThreeStateRow("2.6 נשמרים מרחקי הבטיחות (טבלה 2)", checkSafetyDistances, isCritical = true) { checkSafetyDistances = it }
-                    ThreeStateRow("2.7 נשמרים מרחקי בטיחות לציוד חשמלי", checkElecDistances, isCritical = true) { checkElecDistances = it }
-                    ThreeStateRow("2.8 פתח צינור מילוי מתאים לדרישות", checkFillPipe) { checkFillPipe = it }
+                    ThreeStateRow("2.1", "למכל יש לוחית זיהוי קריאה", checkTankPlate) { checkTankPlate = it }
+                    ThreeStateRow("2.2", "ברכת האביזרים/המכסה תקין", checkTankCover) { checkTankCover = it }
+                    ThreeStateRow("2.3", "האביזרים שלמים ונקיים", checkTankFittings) { checkTankFittings = it }
+                    ThreeStateRow("2.4", "יש סידור לגישה בטוחה לאביזרי המכל", checkSafeAccess) { checkSafeAccess = it }
+                    ThreeStateRow("2.5", "חיבורים ומוצאים גבוהים ממפלס המים", checkFittingsHeight) { checkFittingsHeight = it }
+                    ThreeStateRow("2.6", "נשמרים מרחקי הבטיחות (טבלה 2)", checkSafetyDistances, isCritical = true) { checkSafetyDistances = it }
+                    ThreeStateRow("2.7", "נשמרים מרחקי בטיחות לציוד חשמלי", checkElecDistances, isCritical = true) { checkElecDistances = it }
+                    ThreeStateRow("2.8", "פתח צינור מילוי מתאים לדרישות", checkFillPipe) { checkFillPipe = it }
                 }
 
                 FormCard("3. מערכת הצינורות המשותפת", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("3.1 שסתום לרעידת אדמה בקו לחץ ביניים", checkEarthquakeValve) { checkEarthquakeValve = it }
-                    ThreeStateRow("3.2 השסתום מפולס והתקנתו תקינה", checkValveLevel) { checkValveLevel = it }
-                    ThreeStateRow("3.3 ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", checkMainValve) { checkMainValve = it }
-                    ThreeStateRow("3.4 שסתומי פריקה מחוברים לאוויר חוץ", checkDischargeValve) { checkDischargeValve = it }
-                    ThreeStateRow("3.5 לחץ הגז בצנרת פנים אינו גדול מ-1.4 בר", checkPressure1_4) { checkPressure1_4 = it }
-                    ThreeStateRow("3.6 הצנרת ומרכיביה מקובעים", checkPipingSecured) { checkPipingSecured = it }
-                    ThreeStateRow("3.7 כל מוצא שאינו בשימוש קבוע סגור בפקק/ברז תקין", checkOutletsPlugged, isCritical = true) { checkOutletsPlugged = it }
+                    ThreeStateRow("3.1", "שסתום לרעידת אדמה בקו לחץ ביניים", checkEarthquakeValve) { checkEarthquakeValve = it }
+                    ThreeStateRow("3.2", "השסתום מפולס והתקנתו תקינה", checkValveLevel) { checkValveLevel = it }
+                    ThreeStateRow("3.3", "ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", checkMainValve) { checkMainValve = it }
+                    ThreeStateRow("3.4", "שסתומי פריקה מחוברים לאוויר חוץ", checkDischargeValve) { checkDischargeValve = it }
+                    ThreeStateRow("3.5", "לחץ הגז בצנרת פנים אינו גדול מ-1.4 בר", checkPressure1_4) { checkPressure1_4 = it }
+                    ThreeStateRow("3.6", "הצנרת ומרכיביה מקובעים", checkPipingSecured) { checkPipingSecured = it }
+                    ThreeStateRow("3.7", "כל מוצא שאינו בשימוש קבוע סגור בפקק/ברז תקין", checkOutletsPlugged, isCritical = true) { checkOutletsPlugged = it }
                 }
 
                 FormCard("4. בדיקת אטימות ולחצים", cardBg, borderColor, primaryColor) {
                     Text("4.1 אטימות לחץ ראשוני (בדיקת נוזל בלחץ מכל):", fontWeight = FontWeight.Bold, color = textWhite, fontSize = 13.sp)
-                    CheckboxWithLabel("נמצאה דליפה (קריטי!)", isLeakFoundPrimary, {
-                        isLeakFoundPrimary = it
-                        if (it) triggerCriticalFailure()
-                    }, CheckboxDefaults.colors(checkedColor = errorRed), textWhite, Modifier.fillMaxWidth())
+
+                    // החלפת הרכיב ב-Row נייטיב כדי למנוע שגיאות קימפול
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp).clickable {
+                            isLeakFoundPrimary = !isLeakFoundPrimary
+                            if (isLeakFoundPrimary) triggerCriticalFailure()
+                            saveToDatabase()
+                        }
+                    ) {
+                        Checkbox(
+                            checked = isLeakFoundPrimary,
+                            onCheckedChange = {
+                                isLeakFoundPrimary = it
+                                if (it) triggerCriticalFailure()
+                                saveToDatabase()
+                            },
+                            colors = CheckboxDefaults.colors(checkedColor = errorRed)
+                        )
+                        Text("נמצאה דליפה (קריטי!)", color = textWhite)
+                    }
+
                     AnimatedVisibility(visible = isLeakFoundPrimary) {
-                        OutlinedTextField(value = leakLocationDetails, onValueChange = { leakLocationDetails = it }, label = { Text("ציין את מקום הדליפה") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = errorFieldColors)
+                        OutlinedTextField(value = leakLocationDetails, onValueChange = { leakLocationDetails = it; saveToDatabase() }, label = { Text("ציין את מקום הדליפה") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = errorFieldColors)
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = borderColor)
                     Text("4.2 אטימות מערכת ללחץ ביניים (15 דק'):", fontWeight = FontWeight.Bold, color = textWhite, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(value = intermediatePressureValue, onValueChange = { intermediatePressureValue = it }, label = { Text("לחץ הבדיקה (mbar/bar)") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(value = intermediatePressureValue, onValueChange = { intermediatePressureValue = it; saveToDatabase() }, label = { Text("לחץ הבדיקה (mbar/bar)") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("האם הלחץ נשמר?", color = textWhite, modifier = Modifier.weight(1f))
-                        RadioButton(selected = isIntermediatePressureKept, onClick = { isIntermediatePressureKept = true }, colors = RadioButtonDefaults.colors(selectedColor = successGreen))
+                        RadioButton(selected = isIntermediatePressureKept, onClick = { isIntermediatePressureKept = true; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = successGreen))
                         Text("כן", color = textWhite)
                         Spacer(modifier = Modifier.width(16.dp))
                         RadioButton(selected = !isIntermediatePressureKept, onClick = {
@@ -356,30 +383,30 @@ fun PeriodicFormEditScreenD2(
                 }
 
                 FormCard("5. סיכום מבצע הבדיקה (סטטוס)", cardBg, borderColor, primaryColor) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { finalStatus = "OK" }) {
-                        RadioButton(selected = finalStatus == "OK", onClick = { finalStatus = "OK" }, colors = RadioButtonDefaults.colors(selectedColor = successGreen))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { finalStatus = "OK"; saveToDatabase() }) {
+                        RadioButton(selected = finalStatus == "OK", onClick = { finalStatus = "OK"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = successGreen))
                         Text("המתקן נמצא תקין בהתאם לדרישות", color = successGreen, fontWeight = FontWeight.Bold)
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { finalStatus = "DEFECTS" }) {
-                        RadioButton(selected = finalStatus == "DEFECTS", onClick = { finalStatus = "DEFECTS" }, colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFFF9800)))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { finalStatus = "DEFECTS"; saveToDatabase() }) {
+                        RadioButton(selected = finalStatus == "DEFECTS", onClick = { finalStatus = "DEFECTS"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFFF9800)))
                         Text("נמצאו ליקויים ויש לתקנם עד תאריך:", color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
                     }
                     AnimatedVisibility(visible = finalStatus == "DEFECTS") {
-                        OutlinedTextField(value = defectsFixByDate, onValueChange = { defectsFixByDate = it }, label = { Text("תאריך יעד לתיקון (DD/MM/YYYY)") }, modifier = Modifier.fillMaxWidth().padding(start = 40.dp, bottom = 8.dp), colors = textFieldColors)
+                        OutlinedTextField(value = defectsFixByDate, onValueChange = { defectsFixByDate = it; saveToDatabase() }, label = { Text("תאריך יעד לתיקון (DD/MM/YYYY)") }, modifier = Modifier.fillMaxWidth().padding(start = 40.dp, bottom = 8.dp), colors = textFieldColors)
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { finalStatus = "DISCONNECTED" }) {
-                        RadioButton(selected = finalStatus == "DISCONNECTED", onClick = { finalStatus = "DISCONNECTED" }, colors = RadioButtonDefaults.colors(selectedColor = errorRed))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { finalStatus = "DISCONNECTED"; saveToDatabase() }) {
+                        RadioButton(selected = finalStatus == "DISCONNECTED", onClick = { finalStatus = "DISCONNECTED"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = errorRed))
                         Text("הספקת הגז נותקה עקב ליקויים חמורים", color = errorRed, fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(value = executionRemarks, onValueChange = { executionRemarks = it }, label = { Text("הערות נוספות וסיכום הליקויים") }, modifier = Modifier.fillMaxWidth(), minLines = 3, colors = textFieldColors)
+                    OutlinedTextField(value = executionRemarks, onValueChange = { executionRemarks = it; saveToDatabase() }, label = { Text("הערות נוספות וסיכום הליקויים") }, modifier = Modifier.fillMaxWidth(), minLines = 3, colors = textFieldColors)
                 }
 
                 AnimatedVisibility(visible = failedReasonsMap.isNotEmpty()) {
                     FormCard("פירוט ליקויים שנמצאו בבדיקה (חובה למלא)", cardBg, errorRed, errorRed) {
                         failedReasonsMap.keys.forEach { sectionTitle ->
-                            OutlinedTextField(value = failedReasonsMap[sectionTitle] ?: "", onValueChange = { failedReasonsMap[sectionTitle] = it }, label = { Text("פרט מדוע '$sectionTitle' אינו תקין") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = errorFieldColors, minLines = 2)
+                            OutlinedTextField(value = failedReasonsMap[sectionTitle] ?: "", onValueChange = { failedReasonsMap[sectionTitle] = it; saveToDatabase() }, label = { Text("פרט מדוע סעיף $sectionTitle אינו תקין") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = errorFieldColors, minLines = 2)
                         }
                     }
                 }

@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -152,7 +151,7 @@ fun FormListScreen(
         missingFieldsText = missing.joinToString("\n")
     }
 
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) checkSetup()
@@ -254,12 +253,13 @@ fun FormListScreen(
                             Icon(if (isDark) Icons.Default.Brightness7 else Icons.Default.Brightness4, "מצב לילה/יום", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { settingsManager.isDarkMode = !isDark; activity?.recreate() })
                             Icon(Icons.Default.BarChart, "דוחות", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { showReportDialog = true })
 
+                            // הנה התיקון: כפתור התמיכה עכשיו ירוק
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.clickable { showSupportDialog = true }
                             ) {
-                                Icon(Icons.Default.SupportAgent, "תמיכה", tint = primaryColor, modifier = Modifier.size(24.dp))
-                                Text("תמיכה טכנית", color = primaryColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Default.SupportAgent, "תמיכה", tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
+                                Text("תמיכה טכנית", color = Color(0xFF4CAF50), fontSize = 9.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                         Column(horizontalAlignment = Alignment.End) {

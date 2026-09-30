@@ -19,6 +19,7 @@ data class GasFormD3(
     val street: String = "",
     val gasProvider: String = "",
     val facilityType: String = "פרטי",
+    val facilityPhotoUri: String = "",
     val businessId: String = "",
     val businessName: String = "",
     val businessType: String = "",
@@ -30,6 +31,7 @@ data class GasFormD3(
     val contactRole: String = "",
     val clientPhone: String = "",
     val email: String = "",
+
     val check1_1: String = "",
     val check1_2: String = "",
     val check1_3: String = "",
@@ -39,6 +41,7 @@ data class GasFormD3(
     val check1_7: String = "",
     val check1_8: String = "",
     val check1_9: String = "",
+
     val devicesList: String = "",
     val check2_1: String = "",
     val check2_2: String = "",
@@ -56,19 +59,23 @@ data class GasFormD3(
     val check2_8_1: String = "",
     val check2_8_2: String = "",
     val check2_9: String = "",
+
     val check3_1: String = "",
     val testPressure: String = "",
     val check3_2: String = "",
+
     val isFacilityValid: Boolean = true,
     val requiresFixes: Boolean = false,
     val fixByDate: String = "",
     val isDisconnected: Boolean = false,
     val disconnectReason: String = "",
     val additionalNotes: String = "",
+
     val failedReasonsJson: String = "",
     val extraImagesUris: String = "",
     val technicianSignatureUri: String = "",
     val clientSignatureUri: String = "",
+    val clientNameConfirm: String = "", // הוסף כדי לפתור את השגיאה
 
     val savedTargetLocation: String = "מכשיר",
     val isSavedToTarget: Boolean = false,
