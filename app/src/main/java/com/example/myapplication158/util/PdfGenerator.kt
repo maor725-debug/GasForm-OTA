@@ -15,6 +15,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import androidx.documentfile.provider.DocumentFile
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -604,9 +605,9 @@ object PdfGenerator {
     }
 
     fun generatePeriodicFormPdf(context: Context, form: PeriodicGasForm): File? {
-        val pdfDocument = android.graphics.pdf.PdfDocument()
+        val pdfDocument = PdfDocument()
         var currentPageNum = 1
-        var pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+        var pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
 
@@ -701,7 +702,7 @@ object PdfGenerator {
             if (yPosition + h > 780f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -800,7 +801,7 @@ object PdfGenerator {
             if (yPosition > 700f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -811,7 +812,7 @@ object PdfGenerator {
             yPosition += 20f
 
             try {
-                val json = org.json.JSONObject(form.failedReasonsJson)
+                val json = JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
 
@@ -842,7 +843,7 @@ object PdfGenerator {
                     }
 
                     if (boxBottom > 780f) {
-                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
+                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
                         boxBottom = yPosition + textHeightNeeded
                     }
@@ -869,7 +870,7 @@ object PdfGenerator {
         if (yPosition > 700f) {
             pdfDocument.finishPage(page)
             currentPageNum++
-            pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
@@ -899,7 +900,7 @@ object PdfGenerator {
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
         canvas.drawText("חתימת מבצע הבדיקה", rightMargin, yPosition, boldPaint)
-        canvas.drawText("חתימת הלקוח / אחראי המאגר", 200f, yPosition, boldPaint)
+        canvas.drawText("חתימת הלקוח", 200f, yPosition, boldPaint)
 
         yPosition += rowHeight
         val settingsManager = SettingsManager(context)
@@ -962,7 +963,7 @@ object PdfGenerator {
                 if (imgYPosition > 600f) {
                     pdfDocument.finishPage(appendixPage)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
                     appendixCanvas = appendixPage.canvas
                     drawPageHeader()
                     imgYPosition = 140f
@@ -996,9 +997,9 @@ object PdfGenerator {
     }
 
     fun generateFormD2Pdf(context: Context, form: GasFormD2): File? {
-        val pdfDocument = android.graphics.pdf.PdfDocument()
+        val pdfDocument = PdfDocument()
         var currentPageNum = 1
-        var pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+        var pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
 
@@ -1095,7 +1096,7 @@ object PdfGenerator {
             if (yPosition + h > 780f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -1166,7 +1167,7 @@ object PdfGenerator {
         drawCheckRow("3.3 ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", form.checkMainValve)
         drawCheckRow("3.4 שסתומי פריקה מחוברים לאוויר חוץ", form.checkDischargeValve)
         drawCheckRow("3.5 לחץ הגז בצנרת פנים אינו גדול מ-1.4 בר", form.checkPressure1_4)
-        drawCheckRow("3.6 הצנרת ומרכיביה מקובעים", form.checkPipingSecured)
+        drawCheckRow("3.6 אמצעים להגבלת לחץ בווסתים ללא שסתום פריקה", form.checkPipingSecured)
         drawCheckRow("3.7 כל מוצא שאינו בשימוש קבוע סגור בפקק/ברז תקין", form.checkOutletsPlugged)
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
@@ -1188,7 +1189,7 @@ object PdfGenerator {
             if (yPosition > 700f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -1199,7 +1200,7 @@ object PdfGenerator {
             yPosition += 20f
 
             try {
-                val json = org.json.JSONObject(form.failedReasonsJson)
+                val json = JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
 
@@ -1230,7 +1231,7 @@ object PdfGenerator {
                     }
 
                     if (boxBottom > 780f) {
-                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
+                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
                         boxBottom = yPosition + textHeightNeeded
                     }
@@ -1257,7 +1258,7 @@ object PdfGenerator {
         if (yPosition > 700f) {
             pdfDocument.finishPage(page)
             currentPageNum++
-            pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
@@ -1350,7 +1351,7 @@ object PdfGenerator {
                 if (imgYPosition > 600f) {
                     pdfDocument.finishPage(appendixPage)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
                     appendixCanvas = appendixPage.canvas
                     drawPageHeader()
                     imgYPosition = 140f
@@ -1384,9 +1385,9 @@ object PdfGenerator {
     }
 
     fun generateFormD3Pdf(context: Context, form: GasFormD3): File? {
-        val pdfDocument = android.graphics.pdf.PdfDocument()
+        val pdfDocument = PdfDocument()
         var currentPageNum = 1
-        var pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+        var pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
 
@@ -1481,7 +1482,7 @@ object PdfGenerator {
             if (yPosition + h > 780f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -1533,21 +1534,20 @@ object PdfGenerator {
 
         drawTableHeader()
         drawCheckRow("1. קווי צינורות", "HEADER")
-        drawCheckRow("1.1 ליחידת הצריכה (דירה או בית עסק) קיים ברז ניתוק נגיש", form.check1_1)
+        drawCheckRow("1.1 קיים ברז ניתוק נגיש ליחידת הצריכה (דירה או בית עסק) מזוהה בשם הצרכן או במספר הדירה", form.check1_1)
         drawCheckRow("1.2 המונה מקובע", form.check1_2)
-        drawCheckRow("1.3 פרק הזמן ממועד ייצור המונה אינו גדול מ-18 שנה", form.check1_3)
-        drawCheckRow("1.4 סך הנפח המצטבר אינו גדול מ-2000 ק\"מ...", form.check1_4)
-        drawCheckRow("1.5 בשסתומי פריקה (בתוך בניין)... מוצא השסתום מחובר אל אוויר החוץ", form.check1_5)
-        drawCheckRow("1.6 בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ", form.check1_6)
-        drawCheckRow("1.7 יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check1_7)
-        drawCheckRow("1.8 הצנרת ומרכיביה מקובעים", form.check1_8)
-        drawCheckRow("1.9 כל מוצא של מתקן, שאינו מחובר למכשיר, סגור בפקק...", form.check1_9)
+        drawCheckRow("1.3 פרק הזמן ממועד ייצור המונה אינו גדול מ-18 שנה, ובהתקנה במגורים - סך הנפח המצטבר אינו גדול מ-2000 מ\"ק (מונה שאינו עומד בתנאים יוחלף)", form.check1_3)
+        drawCheckRow("1.4 בשסתומי פריקה המורכבים בווסת או לאחריו, והנמצאים בתוך הבניין, מוצא שסתום הפריקה מחובר אל אוויר החוץ, וקצה הצינור מרוחק 1 מ' מכל פתח בבניין שמתחתיו", form.check1_5)
+        drawCheckRow("1.5 בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן, ואם הם מותקנים בתוך מבנה- יש אמצעים המגבילים את פתח האוויר", form.check1_6)
+        drawCheckRow("1.6 יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check1_7)
+        drawCheckRow("1.7 הצנרת ומרכיביה מקובעים", form.check1_8)
+        drawCheckRow("1.8 כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", form.check1_9)
 
         drawCheckRow("2. חיבור המכשירים", "HEADER")
         if (form.devicesList.isNotBlank()) drawCheckRow("פירוט מכשירים מחוברים: ${form.devicesList}", "SUBHEADER")
-        drawCheckRow("2.1 שלמות המכשירים בבחינה חזותית", form.check2_1)
+        drawCheckRow("שלמות המכשירים בבחינה חזותית:", "SUBHEADER")
         drawCheckRow("2.2 מכשירים קבועים מחוברים בצינור קשיח", form.check2_2)
-        drawCheckRow("2.3 צינור אלסטומרי... הוחלף בעקבות הבחינה החזותית", form.check2_3)
+        drawCheckRow("2.3 צינור אלסטומרי לחיבור מכשיר בצינור תקני... יוחלף בעקבות הבחינה החזותית", form.check2_3)
         drawCheckRow("2.4 קצוות הזרנוק המחוברים לניפלים מחוזקים בחבקים", form.check2_4)
         drawCheckRow("2.5 אורך הצינורות האלסטומריים אינו גדול מ-3 מ'", form.check2_5)
 
@@ -1581,7 +1581,7 @@ object PdfGenerator {
             if (yPosition > 700f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -1592,7 +1592,7 @@ object PdfGenerator {
             yPosition += 20f
 
             try {
-                val json = org.json.JSONObject(form.failedReasonsJson)
+                val json = JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
 
@@ -1623,7 +1623,7 @@ object PdfGenerator {
                     }
 
                     if (boxBottom > 780f) {
-                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
+                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
                         boxBottom = yPosition + textHeightNeeded
                     }
@@ -1650,14 +1650,14 @@ object PdfGenerator {
         if (yPosition > 700f) {
             pdfDocument.finishPage(page)
             currentPageNum++
-            pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
             yPosition = 140f
         }
 
-        canvas.drawText("4. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
+        canvas.drawText("6. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
         val statusMessage = when {
@@ -1671,7 +1671,7 @@ object PdfGenerator {
 
         if (form.additionalNotes.isNotEmpty()) {
             yPosition += 25f
-            canvas.drawText("הערות נוספות: ${form.additionalNotes}", rightMargin, yPosition, paint)
+            canvas.drawText("הערות מסכמות: ${form.additionalNotes}", rightMargin, yPosition, paint)
         }
 
         yPosition += 40f
@@ -1743,7 +1743,7 @@ object PdfGenerator {
                 if (imgYPosition > 600f) {
                     pdfDocument.finishPage(appendixPage)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
                     appendixCanvas = appendixPage.canvas
                     drawPageHeader()
                     imgYPosition = 140f
@@ -1777,9 +1777,9 @@ object PdfGenerator {
     }
 
     fun generateFormD4Pdf(context: Context, form: GasFormD4): File? {
-        val pdfDocument = android.graphics.pdf.PdfDocument()
+        val pdfDocument = PdfDocument()
         var currentPageNum = 1
-        var pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+        var pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
 
@@ -1874,7 +1874,7 @@ object PdfGenerator {
             if (yPosition + h > 780f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -1926,65 +1926,71 @@ object PdfGenerator {
 
         drawTableHeader()
         drawCheckRow("1. בחינה חזותית של מאגר גפ\"מ במכלים מיטלטלים", "HEADER")
-        drawCheckRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך/מגורים", form.check1_1_1)
-        drawCheckRow("1.1.2 מרחקי בטיחות:", "SUBHEADER")
-        drawCheckRow("0.7 מ' ממקור חום וניצוצות", form.check1_1_2_1)
-        drawCheckRow("1.7 מ' מאש גלויה", form.check1_1_2_2)
-        drawCheckRow("0.5 מ' מבורות/תאים סגורים", form.check1_1_2_3)
-        drawCheckRow("3 מ' מבורות ופתחי ניקוז פתוחים", form.check1_1_2_4)
-        drawCheckRow("1.2 מ' מפתחי בניין", form.check1_1_2_5)
-        drawCheckRow("3 מ' מפתחים במפלס נמוך", form.check1_1_2_6)
-        drawCheckRow("1.2 שילוט אזהרה עם שם ספק הגז וטלפון לחירום", form.check1_2)
+        drawCheckRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך, לא במקום המשמש למגורים", form.check1_1_1)
+        drawCheckRow("1.1.2 מרחקי בטיחות (⊕) (סעיף מורחב):", "SUBHEADER")
+        drawCheckRow("1.1.2.1 0.7 מ' ממקור חום וניצוצות", form.check1_1_2_1)
+        drawCheckRow("1.1.2.2 1.7 מ' מאש גלויה", form.check1_1_2_2)
+        drawCheckRow("1.1.2.3 0.5 מ' מבורות/תאים סגורים", form.check1_1_2_3)
+        drawCheckRow("1.1.2.4 3 מ' מבורות ופתחי ניקוז פתוחים", form.check1_1_2_4)
+        drawCheckRow("1.1.2.5 1.2 מ' מפתחי בניין", form.check1_1_2_5)
+        drawCheckRow("1.1.2.6 3 מ' מפתחים במפלס נמוך", form.check1_1_2_6)
+        drawCheckRow("1.2 יש שילוט אזהרה עם הכיתוב סכנה גז מתלקח... וטלפון לחירום", form.check1_2)
         drawCheckRow("1.3 הווסת והסעפת מקובעים", form.check1_3)
-        drawCheckRow("1.4 במתקן התזת מים, מובטחת התזה על כל המכלים", form.check1_4)
-        drawCheckRow("1.5 אם המאגר בחדר גז:", "SUBHEADER")
+        drawCheckRow("1.4 במתקן התזת מים, מובטחת התזה על כל המכלים במאגר", form.check1_4)
+        drawCheckRow("1.5 אם המאגר בחדר גז, גם:", "SUBHEADER")
         drawCheckRow("1.5.1 בחדר יש עד 20 מכלים", form.check1_5_1)
-        drawCheckRow("1.5.2 גוף תאורה בתקרה והמפסק בחוץ", form.check1_5_2)
-        drawCheckRow("1.5.3 בחדר לא מוחזקים חומרים דליקים", form.check1_5_3)
-        drawCheckRow("1.6 אם המאגר במכלאה:", "SUBHEADER")
+        drawCheckRow("1.5.2 אם יש תאורה - גוף התאורה נמצא בתקרה והמפסק מחוץ לחדר", form.check1_5_2)
+        drawCheckRow("1.5.3 בחדר הגז לא מוחזקים חומרים דליקים", form.check1_5_3)
+        drawCheckRow("1.6 אם המאגר במכלאה, גם:", "SUBHEADER")
         drawCheckRow("1.6.1 במכלאה יש עד 20 מכלים", form.check1_6_1)
         drawCheckRow("1.6.2 המכלאה מגודרת ומאווררת", form.check1_6_2)
-        drawCheckRow("1.7 המאספים (רמפות) מותקנים יציב ולכל אחד ברז ניתוק", form.check1_7)
+        drawCheckRow("1.7 המאספים ('רמפות') מותקנים בצורה יציבה ולכל אחד ברז ניתוק", form.check1_7)
 
         drawCheckRow("2. מאגר גפ\"מ במכלים נייחים", "HEADER")
-        drawCheckRow("2.1.1 מחסום בפני כלי רכב ושילוט בטיחות", form.check2_1_1)
-        drawCheckRow("2.2.1 למכל לוחית זיהוי קריאה והנתונים תואמים", form.check2_2_1)
+        drawCheckRow("2.1 אתר ההתקנה", "SUBHEADER")
+        drawCheckRow("2.1.1 יש מחסום בפני התקרבות כלי רכב ושילוט בטיחות", form.check2_1_1)
+        drawCheckRow("2.2 המכלים (בדיקה חזותית)", "SUBHEADER")
+        drawCheckRow("2.2.1 למכל יש לוחית זיהוי קריאה והנתונים תואמים", form.check2_2_1)
 
         drawCheckRow("3. מערכת הצינורות", "HEADER")
-        drawCheckRow("3.1 שסתום סגירה לרעידת אדמה (אחרי 2012)", form.check3_1)
-        drawCheckRow("3.2 השסתום מפולס והחיבורים תקינים", form.check3_2)
-        drawCheckRow("3.3 ברז ניתוק נגיש ומשולט בכניסה לבניין", form.check3_3)
-        drawCheckRow("3.4 מוצא שסתום הפריקה מחובר לאוויר חוץ", form.check3_4)
-        drawCheckRow("3.5 הלחץ בצנרת בתוך המבנה אינו גדול מ-1.4 בר", form.check3_5)
-        drawCheckRow("3.6 אמצעים להגבלת לחץ בווסתים ללא שסתום פריקה", form.check3_6)
-        drawCheckRow("3.7 ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check3_7)
+        drawCheckRow("3.1 בבניין מגורים שבו קיימת מערכת בלחץ ביניים, יש שסתום לסגירה בעת רעידת אדמה...", form.check3_1)
+        drawCheckRow("3.2 אם יש, ודא שהשסתום מפולס, שהחיבורים לא התרופפו...", form.check3_2)
+        drawCheckRow("3.3 יש ברז ניתוק נגיש ומשולט בקרבת הכניסה לבניין", form.check3_3)
+        drawCheckRow("3.4 בשסתומי פריקה המורכבים בווסת או לאחריו... מוצא מחובר אל אוויר החוץ", form.check3_4)
+        drawCheckRow("3.5 לחץ הגז בצנרת הגז הנמצאת בתוך המבנה אינו גדול מ-1.4 בר", form.check3_5)
+        drawCheckRow("3.6 בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן", form.check3_6)
+        drawCheckRow("3.7 יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check3_7)
         drawCheckRow("3.8 הצנרת ומרכיביה מקובעים", form.check3_8)
-        drawCheckRow("3.9 כל מוצא פתוח סגור בפקק או באבזר ניתוק", form.check3_9)
+        drawCheckRow("3.9 כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק...", form.check3_9)
 
         drawCheckRow("4. מכשירים", "HEADER")
-        if (form.devicesList.isNotBlank()) drawCheckRow("פירוט מכשירים: ${form.devicesList}", "SUBHEADER")
-        drawCheckRow("4.2 שלמות המכשירים בבחינה חזותית", form.check4_2)
-        drawCheckRow("4.3 צינור אלסטומרי... הוחלף במידת הצורך", form.check4_3)
-        drawCheckRow("4.4 קצות הזרנוק לניפלים מחוזקים בחבקים / אורך תקין", form.check4_4)
-        drawCheckRow("4.5 מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", "SUBHEADER")
-        drawCheckRow("4.5.1 תווית בדיקה שנתית ד-5 בדירת מגורים", form.check4_5_1)
-        drawCheckRow("4.5.2 חימום מים אינו מותקן בחדרי שינה/רחצה", form.check4_5_2)
-        drawCheckRow("4.5.3 מכשיר הסקה בדירה - לא עברו 3 שנים מתקן 158", form.check4_5_3)
-        drawCheckRow("4.5.4 חימום מים לצריכה (>0.5) - לא עברו 5 שנים", form.check4_5_4)
-        drawCheckRow("4.6 ללא ארובה אינו מותקן בשינה/רחצה", form.check4_6)
-        drawCheckRow("4.7 תקינות ארובות למכשירים צורכי גפ\"מ:", "SUBHEADER")
-        drawCheckRow("4.7.1 הארובה שלמה ומחוזקת למניעת שינוי", form.check4_7_1)
-        drawCheckRow("4.7.2 מוצא ארובה אטמוספרית מרוחק 0.5 מ' מפתח", form.check4_7_2)
-        drawCheckRow("4.7.3 מוצא ארובה כפולה מרוחק 0.4 מ' מפתח", form.check4_7_3)
-        drawCheckRow("4.8 מכשירים ציבורי / מסחרי / חקלאי / תעשייתי:", "SUBHEADER")
-        drawCheckRow("4.8.1 התקן לסגירת גז במכשירי חימום חלל", form.check4_8_1)
-        drawCheckRow("4.8.2 פתח אוורור קבוע במטבחי ציבור", form.check4_8_2)
-        drawCheckRow("4.9 למכשירים במקום נמוך תווית אישור בדיקה ד-6", form.check4_9)
+        if (form.devicesList.isNotBlank()) drawCheckRow("4.1 פרט את המכשירים צורכי הגפ\"מ המחוברים למתקן בזמן הבדיקה: ${form.devicesList}", "SUBHEADER")
+        drawCheckRow("שלמות המכשירים בבחינה חזותית:", "SUBHEADER")
+        drawCheckRow("4.2 מכשירים קבועים מחוברים בצינור קשיח", form.check4_2)
+        drawCheckRow("4.3 הוחלף צינור אלסטומרי לחיבור מכשיר בצינור תקני... קצות הזרנוק המחוברים לניפלים מחוזקים בחבקים", form.check4_3)
+        drawCheckRow("4.4 אורך של הצינורות האלסטומריים אינו גדול מ-3 מ'", form.check4_4)
+
+        drawCheckRow("מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", "SUBHEADER")
+        drawCheckRow("4.5.1 (⊕) למכשיר צורך גפ\"מ עם ארובה אטמוספרית, המותקן בתוך דירת מגורים, יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-5", form.check4_5_1)
+        drawCheckRow("4.5.2 (⊕) מכשיר חימום מים להסקה עם ארובה אטמוספרית אינו מותקן בחדר שינה, שירותים או רחצה", form.check4_5_2)
+        drawCheckRow("4.5.3 (⊕) למכשיר חימום מים להסקה... לא עברו 3 שנים מיום פרסום גיליון התיקון...", form.check4_5_3)
+        drawCheckRow("4.5.4 (⊕) למכשיר חימום מים לצריכה שהספקו גדול מ-0.5... לא עברו 5 שנים...", form.check4_5_4)
+        drawCheckRow("4.6 (⊕) מכשיר צורך גפ\"מ ללא ארובה אינו מותקן באמבטיה, בשירותים או בחדר שינה...", form.check4_6)
+
+        drawCheckRow("תקינות ארובות למכשירים צורכי גפ\"מ:", "SUBHEADER")
+        drawCheckRow("4.7.1 הארובה שלמה ומחוזקת באופן המונע אפשרות לשינוי ממצב ההתקנה", form.check4_7_1)
+        drawCheckRow("4.7.2 מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח בבניין", form.check4_7_2)
+        drawCheckRow("4.7.3 מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח בבניין", form.check4_7_3)
+
+        drawCheckRow("מכשירים לשימוש ציבורי, מסחרי, חקלאי או תעשייתי:", "SUBHEADER")
+        drawCheckRow("4.8.1 מכשירים לחימום חלל במקומות ציבוריים מצוידים בהתקן לסגירת זרימת הגז כשהלהבה כבה", form.check4_8_1)
+        drawCheckRow("4.8.2 במטבחים של מבני ציבור יש פתח אוורור קבוע אל אוויר החוץ או אוורור מאולץ שקיל", form.check4_8_2)
+        drawCheckRow("4.9 למכשירים המותקנים במקום נמוך יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-6", form.check4_9)
 
         drawCheckRow("5. בדיקת אטימות", "HEADER")
         val pressureValue = if (form.testPressure.isNotEmpty()) form.testPressure else "___"
-        drawCheckRow("5.1 בדיקת אטימות ללחץ שימוש (15 דקות). לחץ: $pressureValue mbar", form.check5_1)
-        drawCheckRow("5.2 בדיקת וסת הלחץ (הלחץ אינו גדול ב-30% מהנומינלי)", form.check5_2)
+        drawCheckRow("5.1 (⊕) בדיקת אטימות המערכת ללחץ השימוש... (לחץ בדיקה: $pressureValue mbar)", form.check5_1)
+        drawCheckRow("5.2 (⊕) בדיקת וסת הלחץ... ודא שהלחץ אינו גדול מ-30% מהלחץ הנומינלי", form.check5_2)
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
@@ -1994,7 +2000,7 @@ object PdfGenerator {
             if (yPosition > 700f) {
                 pdfDocument.finishPage(page)
                 currentPageNum++
-                pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
@@ -2005,7 +2011,7 @@ object PdfGenerator {
             yPosition += 20f
 
             try {
-                val json = org.json.JSONObject(form.failedReasonsJson)
+                val json = JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
 
@@ -2036,7 +2042,7 @@ object PdfGenerator {
                     }
 
                     if (boxBottom > 780f) {
-                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
+                        pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
                         boxBottom = yPosition + textHeightNeeded
                     }
@@ -2063,7 +2069,7 @@ object PdfGenerator {
         if (yPosition > 700f) {
             pdfDocument.finishPage(page)
             currentPageNum++
-            pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
@@ -2126,7 +2132,7 @@ object PdfGenerator {
             canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", rightMargin - 100f, yPosition + 130f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
         }
 
-        val clientConfirmName: String = if (form.mainContactName.isNotEmpty()) form.mainContactName else if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else "לקוח"
+        val clientConfirmName: String = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
         canvas.drawText("שם החותם: $clientConfirmName", 200f, yPosition, paint)
 
         if (form.clientSignatureUri.isNotEmpty()) {
@@ -2140,7 +2146,6 @@ object PdfGenerator {
 
         pdfDocument.finishPage(page)
 
-        // ציור נספחים
         val extraUris = mutableListOf<String>()
         if (form.extraImagesUris.isNotEmpty()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotEmpty() }) }
 
@@ -2157,7 +2162,7 @@ object PdfGenerator {
                 if (imgYPosition > 600f) {
                     pdfDocument.finishPage(appendixPage)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
                     appendixCanvas = appendixPage.canvas
                     drawPageHeader()
                     imgYPosition = 140f

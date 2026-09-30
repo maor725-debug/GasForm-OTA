@@ -92,7 +92,21 @@ fun PeriodicFormEditScreenD4(
 
     var consumerNumber by remember { mutableStateOf(initialForm?.consumerNumber ?: "") }
     var gasProvider by remember { mutableStateOf(initialForm?.gasProvider ?: "") }
-    var facilityType by remember { mutableStateOf(initialForm?.facilityType ?: "פרטי") }
+
+    var facilityTypeSelection by remember { mutableStateOf(
+        when {
+            initialForm?.facilityType == "פרטי" -> "פרטי"
+            initialForm?.facilityType == "מסחרי" -> "מסחרי"
+            initialForm?.facilityType?.startsWith("אחר") == true -> "אחר"
+            else -> "פרטי"
+        }
+    ) }
+    var otherFacilityText by remember { mutableStateOf(
+        if (initialForm?.facilityType?.startsWith("אחר:") == true) {
+            initialForm.facilityType.removePrefix("אחר:").trim()
+        } else ""
+    ) }
+
     var activationDate by remember { mutableStateOf(initialForm?.activationDate ?: "") }
 
     var businessId by remember { mutableStateOf(initialForm?.businessId ?: "") }
@@ -195,12 +209,17 @@ fun PeriodicFormEditScreenD4(
         } catch (e: Exception) { null }
     }
 
-    // הוספת פונקציית בניית האובייקט (הייתה חסרה בשלד המקורי)
     fun buildCurrentForm(): GasFormD4 {
         val jsonReasons = JSONObject(failedReasonsMap.toMap()).toString()
+        val currentFacilityType = if (facilityTypeSelection == "אחר") {
+            if (otherFacilityText.isNotBlank()) "אחר: $otherFacilityText" else "אחר"
+        } else {
+            facilityTypeSelection
+        }
+
         return GasFormD4(
             id = initialForm?.id ?: 0, sequentialNumber = sequentialNumber, date = currentDate,
-            consumerNumber = consumerNumber, gasProvider = gasProvider, facilityType = facilityType,
+            consumerNumber = consumerNumber, gasProvider = gasProvider, facilityType = currentFacilityType,
             activationDate = activationDate, businessId = businessId, businessName = businessName,
             businessType = businessType, fireDeptFileNumber = fireDeptFileNumber, city = city,
             street = street, building = building, zip = zip, poBox = poBox,
@@ -226,7 +245,38 @@ fun PeriodicFormEditScreenD4(
         )
     }
 
-    // חיבור שמירה אמיתית ל-Room
+    fun validateForm(): String? {
+        if (clientName.isBlank() && businessName.isBlank()) return "חובה למלא את שם הלקוח או העסק."
+        if (clientPhone.isBlank()) return "חובה למלא מס' טלפון איש קשר."
+        if (city.isBlank() || street.isBlank()) return "חובה למלא את הכתובת (יישוב ורחוב)."
+        if (consumerNumber.isBlank()) return "חובה למלא מספר צרכן."
+        if (gasProvider.isBlank()) return "חובה למלא את ספק הגז."
+        if (facilityTypeSelection == "אחר" && otherFacilityText.isBlank()) return "בחרת סוג מתקן 'אחר' - חובה לפרט בתיבת הטקסט."
+
+        val requiredChecks = listOf(
+            check1_1_1 to "1.1.1", check1_1_2_1 to "1.1.2.1", check1_1_2_2 to "1.1.2.2",
+            check1_1_2_3 to "1.1.2.3", check1_1_2_4 to "1.1.2.4", check1_1_2_5 to "1.1.2.5",
+            check1_1_2_6 to "1.1.2.6", check1_2 to "1.2", check1_3 to "1.3", check1_4 to "1.4",
+            check1_5_1 to "1.5.1", check1_5_2 to "1.5.2", check1_5_3 to "1.5.3",
+            check1_6_1 to "1.6.1", check1_6_2 to "1.6.2", check1_7 to "1.7",
+            check2_1_1 to "2.1.1", check2_2_1 to "2.2.1",
+            check3_1 to "3.1", check3_2 to "3.2", check3_3 to "3.3", check3_4 to "3.4",
+            check3_5 to "3.5", check3_6 to "3.6", check3_7 to "3.7", check3_8 to "3.8", check3_9 to "3.9",
+            check4_2 to "4.2", check4_3 to "4.3", check4_4 to "4.4",
+            check4_5_1 to "4.5.1", check4_5_2 to "4.5.2", check4_5_3 to "4.5.3", check4_5_4 to "4.5.4",
+            check4_6 to "4.6", check4_7_1 to "4.7.1", check4_7_2 to "4.7.2", check4_7_3 to "4.7.3",
+            check4_8_1 to "4.8.1", check4_8_2 to "4.8.2", check4_9 to "4.9",
+            check5_1 to "5.1", check5_2 to "5.2"
+        )
+
+        val missingChecks = requiredChecks.filter { it.first.isBlank() }.map { it.second }
+        if (missingChecks.isNotEmpty()) {
+            return "חובה לסמן את כל סעיפי הבדיקה.\nחסר סימון בסעיפים: ${missingChecks.joinToString(", ")}"
+        }
+
+        return null // הטופס תקין לחלוטין
+    }
+
     val saveToDatabase = {
         viewModel.autoSaveFormD4(buildCurrentForm())
     }
@@ -246,7 +296,7 @@ fun PeriodicFormEditScreenD4(
     }
 
     @Composable
-    fun ThreeStateRow(title: String, currentState: String, isCritical: Boolean = false, isSubItem: Boolean = false, onStateChange: (String) -> Unit) {
+    fun ThreeStateRow(title: String, currentState: String, isCritical: Boolean = false, isSubItem: Boolean = false, customFontSize: Int? = null, onStateChange: (String) -> Unit) {
         val rowModifier = if (isSubItem) {
             Modifier.fillMaxWidth().padding(start = 16.dp, top = 6.dp, bottom = 6.dp).background(if (isDark) Color(0xFF1E1E1E) else Color(0xFFFAFAFA), RoundedCornerShape(10.dp)).border(1.dp, borderColor, RoundedCornerShape(10.dp)).padding(12.dp)
         } else {
@@ -254,7 +304,7 @@ fun PeriodicFormEditScreenD4(
         }
 
         Column(modifier = rowModifier) {
-            Text(title, color = textWhite, fontSize = 13.sp, fontWeight = if(isSubItem) FontWeight.Normal else FontWeight.Bold, lineHeight = 18.sp)
+            Text(title, color = textWhite, fontSize = customFontSize?.sp ?: 13.sp, fontWeight = if(isSubItem) FontWeight.Normal else FontWeight.Bold, lineHeight = 18.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(onClick = {
@@ -353,103 +403,116 @@ fun PeriodicFormEditScreenD4(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("סוג המתקן:", color = textWhite, fontSize = 13.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = facilityType == "פרטי", onClick = { facilityType = "פרטי"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
+                        RadioButton(selected = facilityTypeSelection == "פרטי", onClick = { facilityTypeSelection = "פרטי"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("פרטי", color = textWhite)
                         Spacer(modifier = Modifier.width(16.dp))
-                        RadioButton(selected = facilityType == "מסחרי", onClick = { facilityType = "מסחרי"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
+                        RadioButton(selected = facilityTypeSelection == "מסחרי", onClick = { facilityTypeSelection = "מסחרי"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("מסחרי", color = textWhite)
                         Spacer(modifier = Modifier.width(16.dp))
-                        RadioButton(selected = facilityType == "אחר", onClick = { facilityType = "אחר"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
+                        RadioButton(selected = facilityTypeSelection == "אחר", onClick = { facilityTypeSelection = "אחר"; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                         Text("אחר", color = textWhite)
+                    }
+                    AnimatedVisibility(visible = facilityTypeSelection == "אחר") {
+                        OutlinedTextField(
+                            value = otherFacilityText,
+                            onValueChange = { otherFacilityText = it; saveToDatabase() },
+                            label = { Text("פרט סוג מתקן אחר") },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            colors = textFieldColors
+                        )
                     }
                 }
 
                 FormCard("1. מאגר במכלים מיטלטלים", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("1.1.1 מכלים במקום פתוח ומאוורר (לא במפלס נמוך/מגורים)", check1_1_1, isCritical = true) { check1_1_1 = it }
-                    Text("1.1.2 מרחקי בטיחות (⊕):", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("0.7 מ' ממקור חום וניצוצות", check1_1_2_1, isCritical = true, isSubItem = true) { check1_1_2_1 = it }
-                    ThreeStateRow("1.7 מ' מאש גלויה", check1_1_2_2, isCritical = true, isSubItem = true) { check1_1_2_2 = it }
-                    ThreeStateRow("0.5 מ' מבורות/תאים סגורים", check1_1_2_3, isCritical = true, isSubItem = true) { check1_1_2_3 = it }
-                    ThreeStateRow("3 מ' מבורות ופתחי ניקוז פתוחים", check1_1_2_4, isCritical = true, isSubItem = true) { check1_1_2_4 = it }
-                    ThreeStateRow("1.2 מ' מפתחי בניין", check1_1_2_5, isCritical = true, isSubItem = true) { check1_1_2_5 = it }
-                    ThreeStateRow("3 מ' מפתחים במפלס נמוך", check1_1_2_6, isCritical = true, isSubItem = true) { check1_1_2_6 = it }
+                    ThreeStateRow("1.1.1 במקום פתוח ומאוורר. לא במפלס נמוך, לא במקום המשמש למגורים", check1_1_1, isCritical = true) { check1_1_1 = it }
+                    Text("1.1.2 מרחקי בטיחות (⊕) (סעיף מורחב):", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("1.1.2.1 0.7 מ' ממקור חום וניצוצות", check1_1_2_1, isCritical = true, isSubItem = true) { check1_1_2_1 = it }
+                    ThreeStateRow("1.1.2.2 1.7 מ' מאש גלויה", check1_1_2_2, isCritical = true, isSubItem = true) { check1_1_2_2 = it }
+                    ThreeStateRow("1.1.2.3 0.5 מ' מבורות/תאים סגורים", check1_1_2_3, isCritical = true, isSubItem = true) { check1_1_2_3 = it }
+                    ThreeStateRow("1.1.2.4 3 מ' מבורות ופתחי ניקוז פתוחים", check1_1_2_4, isCritical = true, isSubItem = true) { check1_1_2_4 = it }
+                    ThreeStateRow("1.1.2.5 1.2 מ' מפתחי בניין", check1_1_2_5, isCritical = true, isSubItem = true) { check1_1_2_5 = it }
+                    ThreeStateRow("1.1.2.6 3 מ' מפתחים במפלס נמוך", check1_1_2_6, isCritical = true, isSubItem = true) { check1_1_2_6 = it }
 
-                    ThreeStateRow("1.2 יש שילוט אזהרה עם שם ספק הגז וטלפון לחירום", check1_2) { check1_2 = it }
+                    ThreeStateRow("1.2 יש שילוט אזהרה עם הכיתוב סכנה גז מתלקח... וטלפון לחירום", check1_2) { check1_2 = it }
                     ThreeStateRow("1.3 הווסת והסעפת מקובעים", check1_3) { check1_3 = it }
-                    ThreeStateRow("1.4 במתקן התזת מים, מובטחת התזה על כל המכלים", check1_4) { check1_4 = it }
+                    ThreeStateRow("1.4 במתקן התזת מים, מובטחת התזה על כל המכלים במאגר", check1_4) { check1_4 = it }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("1.5 אם המאגר בחדר גז:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("בחדר יש עד 20 מכלים", check1_5_1, isSubItem = true) { check1_5_1 = it }
-                    ThreeStateRow("גוף תאורה בתקרה והמפסק בחוץ", check1_5_2, isSubItem = true) { check1_5_2 = it }
-                    ThreeStateRow("בחדר לא מוחזקים חומרים דליקים", check1_5_3, isSubItem = true) { check1_5_3 = it }
+                    Text("1.5 אם המאגר בחדר גז, גם:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("1.5.1 בחדר יש עד 20 מכלים", check1_5_1, isSubItem = true) { check1_5_1 = it }
+                    ThreeStateRow("1.5.2 אם יש תאורה - גוף התאורה נמצא בתקרה והמפסק מחוץ לחדר", check1_5_2, isSubItem = true) { check1_5_2 = it }
+                    ThreeStateRow("1.5.3 בחדר הגז לא מוחזקים חומרים דליקים", check1_5_3, isSubItem = true) { check1_5_3 = it }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("1.6 אם המאגר במכלאה:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("במכלאה יש עד 20 מכלים", check1_6_1, isSubItem = true) { check1_6_1 = it }
-                    ThreeStateRow("המכלאה מגודרת ומאווררת", check1_6_2, isSubItem = true) { check1_6_2 = it }
+                    Text("1.6 אם המאגר במכלאה, גם:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("1.6.1 במכלאה יש עד 20 מכלים", check1_6_1, isSubItem = true) { check1_6_1 = it }
+                    ThreeStateRow("1.6.2 המכלאה מגודרת ומאווררת", check1_6_2, isSubItem = true) { check1_6_2 = it }
 
-                    ThreeStateRow("1.7 המאספים (רמפות) מותקנים יציב ולכל אחד ברז ניתוק", check1_7) { check1_7 = it }
+                    ThreeStateRow("1.7 המאספים ('רמפות') מותקנים בצורה יציבה ולכל אחד ברז ניתוק", check1_7) { check1_7 = it }
                 }
 
                 FormCard("2. מאגר במכלים נייחים", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("2.1.1 יש מחסום בפני התקרבות כלי רכב ושילוט בטיחות", check2_1_1) { check2_1_1 = it }
-                    ThreeStateRow("2.2.1 למכל יש לוחית זיהוי קריאה והנתונים תואמים", check2_2_1) { check2_2_1 = it }
+                    Text("2.1 אתר ההתקנה", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("2.1.1 יש מחסום בפני התקרבות כלי רכב ושילוט בטיחות", check2_1_1, isSubItem = true) { check2_1_1 = it }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("2.2 המכלים (בדיקה חזותית)", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("2.2.1 למכל יש לוחית זיהוי קריאה והנתונים תואמים", check2_2_1, isSubItem = true) { check2_2_1 = it }
                 }
 
                 FormCard("3. מערכת הצינורות", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("3.1 יש שסתום סגירה לרעידת אדמה (התקנה אחרי 2012)", check3_1) { check3_1 = it }
-                    ThreeStateRow("3.2 השסתום מפולס והחיבורים תקינים", check3_2) { check3_2 = it }
-                    ThreeStateRow("3.3 יש ברז ניתוק נגיש ומשולט בכניסה לבניין", check3_3) { check3_3 = it }
-                    ThreeStateRow("3.4 מוצא שסתום הפריקה מחובר לאוויר חוץ", check3_4) { check3_4 = it }
-                    ThreeStateRow("3.5 הלחץ בצנרת בתוך המבנה אינו גדול מ-1.4 בר", check3_5, isCritical = true) { check3_5 = it }
-                    ThreeStateRow("3.6 יש אמצעים להגבלת לחץ בווסתים ללא שסתום פריקה", check3_6, isCritical = true) { check3_6 = it }
+                    ThreeStateRow("3.1 בבניין מגורים שבו קיימת מערכת בלחץ ביניים, יש שסתום לסגירה בעת רעידת אדמה...", check3_1) { check3_1 = it }
+                    ThreeStateRow("3.2 אם יש, ודא שהשסתום מפולס, שהחיבורים לא התרופפו...", check3_2) { check3_2 = it }
+                    ThreeStateRow("3.3 יש ברז ניתוק נגיש ומשולט בקרבת הכניסה לבניין", check3_3) { check3_3 = it }
+                    ThreeStateRow("3.4 בשסתומי פריקה המורכבים בווסת או לאחריו... מוצא מחובר אל אוויר החוץ", check3_4) { check3_4 = it }
+                    ThreeStateRow("3.5 לחץ הגז בצנרת הגז הנמצאת בתוך המבנה אינו גדול מ-1.4 בר", check3_5) { check3_5 = it }
+                    ThreeStateRow("3.6 בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן", check3_6) { check3_6 = it }
                     ThreeStateRow("3.7 יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", check3_7) { check3_7 = it }
                     ThreeStateRow("3.8 הצנרת ומרכיביה מקובעים", check3_8) { check3_8 = it }
-                    ThreeStateRow("3.9 (⊕) כל מוצא פתוח סגור בפקק/ברז תקין", check3_9, isCritical = true) { check3_9 = it }
+                    ThreeStateRow("3.9 כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק...", check3_9) { check3_9 = it }
                 }
 
                 FormCard("4. חיבור המכשירים", cardBg, borderColor, primaryColor) {
-                    OutlinedTextField(value = devicesList, onValueChange = { devicesList = it; saveToDatabase() }, label = { Text("4.1 פרט את המכשירים המחוברים") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors, minLines = 2)
+                    OutlinedTextField(value = devicesList, onValueChange = { devicesList = it; saveToDatabase() }, label = { Text("4.1 פרט את המכשירים צורכי הגפ\"מ המחוברים למתקן בזמן הבדיקה") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors, minLines = 2)
                     Spacer(modifier = Modifier.height(12.dp))
-                    ThreeStateRow("4.2 שלמות המכשירים בבחינה חזותית", check4_2) { check4_2 = it }
-                    ThreeStateRow("4.3 צינור אלסטומרי... הוחלף בעקבות הבחינה החזותית", check4_3) { check4_3 = it }
-                    ThreeStateRow("4.4 קצות הזרנוק לניפלים מחוזקים בחבקים / אורך תקין", check4_4) { check4_4 = it }
+                    Text("שלמות המכשירים בבחינה חזותית:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("4.2 מכשירים קבועים מחוברים בצינור קשיח", check4_2, isSubItem = true) { check4_2 = it }
+                    ThreeStateRow("4.3 הוחלף צינור אלסטומרי לחיבור מכשיר בצינור תקני... קצות הזרנוק המחוברים לניפלים מחוזקים בחבקים", check4_3, isSubItem = true, customFontSize = 11) { check4_3 = it }
+                    ThreeStateRow("4.4 אורך של הצינורות האלסטומריים אינו גדול מ-3 מ'", check4_4, isSubItem = true) { check4_4 = it }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("4.5 מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("יש תווית בדיקה שנתית ד-5 בדירת מגורים", check4_5_1, isSubItem = true) { check4_5_1 = it }
-                    ThreeStateRow("מכשיר חימום מים אינו מותקן בחדרי שינה/רחצה", check4_5_2, isSubItem = true) { check4_5_2 = it }
-                    ThreeStateRow("מכשיר להסקה בדירה - לא עברו 3 שנים מתקן 158", check4_5_3, isSubItem = true) { check4_5_3 = it }
-                    ThreeStateRow("מכשיר חימום מים לצריכה (>0.5) - לא עברו 5 שנים", check4_5_4, isSubItem = true) { check4_5_4 = it }
-                    ThreeStateRow("4.6 מכשיר ללא ארובה אינו מותקן בשינה/רחצה", check4_6) { check4_6 = it }
+                    Text("מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("4.5.1 (⊕) למכשיר צורך גפ\"מ עם ארובה אטמוספרית, המותקן בתוך דירת מגורים, יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-5", check4_5_1, isCritical = true, isSubItem = true, customFontSize = 11) { check4_5_1 = it }
+                    ThreeStateRow("4.5.2 (⊕) מכשיר חימום מים להסקה עם ארובה אטמוספרית אינו מותקן בחדר שינה, שירותים או רחצה", check4_5_2, isCritical = true, isSubItem = true, customFontSize = 11) { check4_5_2 = it }
+                    ThreeStateRow("4.5.3 (⊕) למכשיר חימום מים להסקה... לא עברו 3 שנים מיום פרסום גיליון התיקון...", check4_5_3, isCritical = true, isSubItem = true, customFontSize = 11) { check4_5_3 = it }
+                    ThreeStateRow("4.5.4 (⊕) למכשיר חימום מים לצריכה שהספקו גדול מ-0.5... לא עברו 5 שנים...", check4_5_4, isCritical = true, isSubItem = true, customFontSize = 11) { check4_5_4 = it }
+                    ThreeStateRow("4.6 (⊕) מכשיר צורך גפ\"מ ללא ארובה אינו מותקן באמבטיה, בשירותים או בחדר שינה...", check4_6, isCritical = true) { check4_6 = it }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("4.7 תקינות ארובות:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("הארובה שלמה ומחוזקת למניעת שינוי", check4_7_1, isSubItem = true) { check4_7_1 = it }
-                    ThreeStateRow("מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח", check4_7_2, isSubItem = true) { check4_7_2 = it }
-                    ThreeStateRow("מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח", check4_7_3, isSubItem = true) { check4_7_3 = it }
+                    Text("תקינות ארובות למכשירים צורכי גפ\"מ:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("4.7.1 הארובה שלמה ומחוזקת באופן המונע אפשרות לשינוי ממצב ההתקנה", check4_7_1, isSubItem = true) { check4_7_1 = it }
+                    ThreeStateRow("4.7.2 מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח בבניין", check4_7_2, isSubItem = true) { check4_7_2 = it }
+                    ThreeStateRow("4.7.3 מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח בבניין", check4_7_3, isSubItem = true) { check4_7_3 = it }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("4.8 מכשירים לשימוש מסחרי / תעשייתי:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("התקן לסגירת גז במכשירי חימום חלל", check4_8_1, isSubItem = true) { check4_8_1 = it }
-                    ThreeStateRow("פתח אוורור קבוע במטבחי ציבור", check4_8_2, isSubItem = true) { check4_8_2 = it }
-                    ThreeStateRow("4.9 למכשירים במקום נמוך יש תווית ד-6 שנתית", check4_9) { check4_9 = it }
+                    Text("מכשירים לשימוש ציבורי, מסחרי, חקלאי או תעשייתי:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
+                    ThreeStateRow("4.8.1 מכשירים לחימום חלל במקומות ציבוריים מצוידים בהתקן לסגירת זרימת הגז כשהלהבה כבה", check4_8_1, isSubItem = true) { check4_8_1 = it }
+                    ThreeStateRow("4.8.2 במטבחים של מבני ציבור יש פתח אוורור קבוע אל אוויר החוץ או אוורור מאולץ שקיל", check4_8_2, isSubItem = true) { check4_8_2 = it }
+                    ThreeStateRow("4.9 למכשירים המותקנים במקום נמוך יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-6", check4_9) { check4_9 = it }
                 }
 
                 FormCard("5. בדיקת אטימות ולחץ", cardBg, borderColor, primaryColor) {
-                    Text("5.1 בדיקת אטימות (⊕)", fontWeight = FontWeight.Bold, color = textWhite, fontSize = 13.sp)
+                    Text("5.1 (⊕) בדיקת אטימות המערכת ללחץ השימוש...", fontWeight = FontWeight.Bold, color = textWhite, fontSize = 13.sp)
                     Text("הבדיקה בלחץ השורר בקו למשך 15 דק'.", color = textGray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(value = testPressure, onValueChange = { testPressure = it; saveToDatabase() }, label = { Text("לחץ בדיקה במיליבר") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                    ThreeStateRow("הלחץ נשמר ללא ירידה", check5_1, isCritical = true) { check5_1 = it }
+                    ThreeStateRow("5.1 הלחץ נשמר ללא ירידה", check5_1, isCritical = true) { check5_1 = it }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = borderColor)
 
-                    Text("5.2 בדיקת וסת הלחץ (⊕)", fontWeight = FontWeight.Bold, color = textWhite, fontSize = 13.sp)
+                    Text("5.2 (⊕) בדיקת וסת הלחץ...", fontWeight = FontWeight.Bold, color = textWhite, fontSize = 13.sp)
                     Text("משך 5 דק'. הלחץ אינו חורג מ-30% מעל הנומינלי.", color = textGray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    ThreeStateRow("הלחץ לא חרג מהמותר", check5_2, isCritical = true) { check5_2 = it }
+                    ThreeStateRow("5.2 הלחץ לא חרג מהמותר", check5_2, isCritical = true) { check5_2 = it }
                 }
 
                 FormCard("6. סיכום מבצע הבדיקה", cardBg, borderColor, primaryColor) {
@@ -527,16 +590,27 @@ fun PeriodicFormEditScreenD4(
                     OutlinedTextField(value = clientNameConfirm, onValueChange = { clientNameConfirm = it ; saveToDatabase() }, label = { Text("שם החותם / ת.ז") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors)
                 }
 
-                // החלפת הכפתור הזמני ב-4 כפתורי הפעולה
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
-                            onClick = { saveToDatabase(); viewModel.previewPdfD4(context, buildCurrentForm()) },
+                            onClick = {
+                                val error = validateForm()
+                                if (error != null) {
+                                    Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                } else {
+                                    saveToDatabase()
+                                    viewModel.previewPdfD4(context, buildCurrentForm())
+                                }
+                            },
                             modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor), shape = RoundedCornerShape(10.dp)
                         ) { Text("תצוגה מקדימה", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
 
                         Button(
-                            onClick = { saveToDatabase(); Toast.makeText(context, "נשמר כטיוטה", Toast.LENGTH_SHORT).show(); onNavigateBack() },
+                            onClick = {
+                                saveToDatabase()
+                                Toast.makeText(context, "נשמר כטיוטה", Toast.LENGTH_SHORT).show()
+                                onNavigateBack()
+                            },
                             modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = successGreen), shape = RoundedCornerShape(10.dp)
                         ) { Text("שמור כטיוטה", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                     }
@@ -551,8 +625,13 @@ fun PeriodicFormEditScreenD4(
 
                         Button(
                             onClick = {
-                                saveToDatabase()
-                                viewModel.sharePdfD4(context, buildCurrentForm()) { onNavigateBack() }
+                                val error = validateForm()
+                                if (error != null) {
+                                    Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                } else {
+                                    saveToDatabase()
+                                    viewModel.sharePdfD4(context, buildCurrentForm()) { onNavigateBack() }
+                                }
                             },
                             modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor), shape = RoundedCornerShape(10.dp)
                         ) { Text("שתף וסיים", fontWeight = FontWeight.Bold, fontSize = 13.sp) }

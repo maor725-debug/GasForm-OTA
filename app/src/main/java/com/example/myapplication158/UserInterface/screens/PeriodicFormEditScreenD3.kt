@@ -116,7 +116,7 @@ fun PeriodicFormEditScreenD3(
     var check1_1 by remember { mutableStateOf(initialForm?.check1_1 ?: "") }
     var check1_2 by remember { mutableStateOf(initialForm?.check1_2 ?: "") }
     var check1_3 by remember { mutableStateOf(initialForm?.check1_3 ?: "") }
-    var check1_4 by remember { mutableStateOf(initialForm?.check1_4 ?: "") }
+    // 1.4 מבוטל בהתאם לעריכה קודמת
     var check1_5 by remember { mutableStateOf(initialForm?.check1_5 ?: "") }
     var check1_6 by remember { mutableStateOf(initialForm?.check1_6 ?: "") }
     var check1_7 by remember { mutableStateOf(initialForm?.check1_7 ?: "") }
@@ -127,7 +127,7 @@ fun PeriodicFormEditScreenD3(
     var check2_1 by remember { mutableStateOf(initialForm?.check2_1 ?: "") }
     var check2_2 by remember { mutableStateOf(initialForm?.check2_2 ?: "") }
     var check2_3 by remember { mutableStateOf(initialForm?.check2_3 ?: "") }
-    var check2_4 by remember { mutableStateOf(initialForm?.check2_4 ?: "") }
+    // 2.4 מבוטל ומוזג ל-2.3
     var check2_5 by remember { mutableStateOf(initialForm?.check2_5 ?: "") }
     var check2_6_1 by remember { mutableStateOf(initialForm?.check2_6_1 ?: "") }
     var check2_6_2 by remember { mutableStateOf(initialForm?.check2_6_2 ?: "") }
@@ -186,9 +186,9 @@ fun PeriodicFormEditScreenD3(
             clientName = clientName, city = city, street = street, gasProvider = gasProvider, facilityType = facilityType,
             businessId = businessId, businessName = businessName, businessType = businessType, fireDeptFileNumber = fireDeptFileNumber,
             poBox = poBox, zip = zip, building = building, mainContactName = mainContactName, contactRole = contactRole,
-            clientPhone = clientPhone, email = email, check1_1 = check1_1, check1_2 = check1_2, check1_3 = check1_3, check1_4 = check1_4,
+            clientPhone = clientPhone, email = email, check1_1 = check1_1, check1_2 = check1_2, check1_3 = check1_3, check1_4 = "N/A",
             check1_5 = check1_5, check1_6 = check1_6, check1_7 = check1_7, check1_8 = check1_8, check1_9 = check1_9,
-            devicesList = devicesList, check2_1 = check2_1, check2_2 = check2_2, check2_3 = check2_3, check2_4 = check2_4,
+            devicesList = devicesList, check2_1 = check2_1, check2_2 = check2_2, check2_3 = check2_3, check2_4 = "N/A", // 2.4 בוטל ושומר כ-N/A
             check2_5 = check2_5, check2_6_1 = check2_6_1, check2_6_2 = check2_6_2, check2_6_3 = check2_6_3, check2_6_4 = check2_6_4,
             check2_6_5 = check2_6_5, check2_7_1 = check2_7_1, check2_7_2 = check2_7_2, check2_7_3 = check2_7_3, check2_8_1 = check2_8_1,
             check2_8_2 = check2_8_2, check2_9 = check2_9, check3_1 = check3_1, testPressure = testPressure, check3_2 = check3_2,
@@ -196,6 +196,34 @@ fun PeriodicFormEditScreenD3(
             disconnectReason = disconnectReason, additionalNotes = additionalNotes, failedReasonsJson = jsonReasons, extraImagesUris = selectedExtraUris.joinToString(",") { it.toString() },
             technicianSignatureUri = "", clientSignatureUri = clientSignatureUri
         )
+    }
+
+    // פונקציית הולידציה (בדיקת תקינות) המחמירה
+    fun validateForm(): String? {
+        if (clientName.isBlank() && businessName.isBlank()) return "חובה למלא את שם הלקוח או העסק."
+        if (clientPhone.isBlank()) return "חובה למלא טלפון של הלקוח."
+        if (city.isBlank() || street.isBlank()) return "חובה למלא את כתובת הלקוח (יישוב ורחוב)."
+        if (consumerNumber.isBlank()) return "חובה למלא מספר צרכן."
+        if (consumerMeterNumber.isBlank()) return "חובה למלא מספר מונה."
+        if (meterManufactureYear.isBlank()) return "חובה למלא את שנת ייצור המונה."
+        if (gasProvider.isBlank()) return "חובה למלא את ספק הגז."
+
+        val requiredChecks = listOf(
+            check1_1 to "1.1", check1_2 to "1.2", check1_3 to "1.3",
+            check1_5 to "1.4", check1_6 to "1.5", check1_7 to "1.6", check1_8 to "1.7", check1_9 to "1.8",
+            check2_1 to "2.1", check2_2 to "2.2", check2_3 to "2.3", check2_5 to "2.5", // סעיף 2.4 הוסר מהבדיקה
+            check2_6_1 to "2.6.1", check2_6_2 to "2.6.2", check2_6_3 to "2.6.3", check2_6_4 to "2.6.4", check2_6_5 to "2.6.5",
+            check2_7_1 to "2.7.1", check2_7_2 to "2.7.2", check2_7_3 to "2.7.3",
+            check2_8_1 to "2.8.1", check2_8_2 to "2.8.2", check2_9 to "2.9",
+            check3_1 to "3.1", check3_2 to "3.2"
+        )
+
+        val missingChecks = requiredChecks.filter { it.first.isBlank() }.map { it.second }
+        if (missingChecks.isNotEmpty()) {
+            return "חובה לסמן את כל סעיפי הבדיקה.\nחסר סימון בסעיפים: ${missingChecks.joinToString(", ")}"
+        }
+
+        return null // הכל תקין
     }
 
     val saveToDatabase = {
@@ -217,7 +245,7 @@ fun PeriodicFormEditScreenD3(
     }
 
     @Composable
-    fun ThreeStateRow(title: String, currentState: String, isCritical: Boolean = false, isSubItem: Boolean = false, onStateChange: (String) -> Unit) {
+    fun ThreeStateRow(title: String, currentState: String, isCritical: Boolean = false, isSubItem: Boolean = false, customFontSize: Int? = null, onStateChange: (String) -> Unit) {
         val rowModifier = if (isSubItem) {
             Modifier.fillMaxWidth().padding(start = 16.dp, top = 6.dp, bottom = 6.dp).background(if (isDark) Color(0xFF1E1E1E) else Color(0xFFFAFAFA), RoundedCornerShape(10.dp)).border(1.dp, borderColor, RoundedCornerShape(10.dp)).padding(12.dp)
         } else {
@@ -225,7 +253,7 @@ fun PeriodicFormEditScreenD3(
         }
 
         Column(modifier = rowModifier) {
-            Text(title, color = textWhite, fontSize = 13.sp, fontWeight = if(isSubItem) FontWeight.Normal else FontWeight.Bold, lineHeight = 18.sp)
+            Text(title, color = textWhite, fontSize = customFontSize?.sp ?: 13.sp, fontWeight = if(isSubItem) FontWeight.Normal else FontWeight.Bold, lineHeight = 18.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(onClick = {
@@ -328,45 +356,45 @@ fun PeriodicFormEditScreenD3(
                 }
 
                 FormCard("1. קווי צינורות", cardBg, borderColor, primaryColor) {
-                    ThreeStateRow("1.1 ליחידת הצריכה (דירה או בית עסק) קיים ברז ניתוק נגיש", check1_1) { check1_1 = it }
+                    ThreeStateRow("1.1 קיים ברז ניתוק נגיש ליחידת הצריכה (דירה או בית עסק) מזוהה בשם הצרכן או במספר הדירה", check1_1) { check1_1 = it }
                     ThreeStateRow("1.2 המונה מקובע", check1_2) { check1_2 = it }
-                    ThreeStateRow("1.3 פרק הזמן ממועד ייצור המונה אינו גדול מ-18 שנה", check1_3) { check1_3 = it }
-                    ThreeStateRow("1.4 סך הנפח המצטבר אינו גדול מ-2000 ק\"מ...", check1_4) { check1_4 = it }
-                    ThreeStateRow("1.5 בשסתומי פריקה (בתוך בניין)... מוצא השסתום מחובר אל אוויר החוץ", check1_5) { check1_5 = it }
-                    ThreeStateRow("1.6 בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ", check1_6, isCritical = true) { check1_6 = it }
-                    ThreeStateRow("1.7 יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", check1_7) { check1_7 = it }
-                    ThreeStateRow("1.8 הצנרת ומרכיביה מקובעים", check1_8) { check1_8 = it }
-                    ThreeStateRow("1.9 (⊕) כל מוצא של מתקן, שאינו מחובר למכשיר, סגור בפקק...", check1_9, isCritical = true) { check1_9 = it }
+                    ThreeStateRow("1.3 פרק הזמן ממועד ייצור המונה אינו גדול מ-18 שנה, ובהתקנה במגורים - סך הנפח המצטבר אינו גדול מ-2000 מ\"ק (מונה שאינו עומד בתנאים יוחלף)", check1_3, customFontSize = 11) { check1_3 = it }
+                    ThreeStateRow("1.4 בשסתומי פריקה המורכבים בווסת או לאחריו, והנמצאים בתוך הבניין, מוצא שסתום הפריקה מחובר אל אוויר החוץ, וקצה הצינור מרוחק 1 מ' מכל פתח בבניין שמתחתיו", check1_5, customFontSize = 11) { check1_5 = it }
+                    ThreeStateRow("1.5 (⊕) בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן, ואם הם מותקנים בתוך מבנה- יש אמצעים המגבילים את פתח האוויר", check1_6, isCritical = true, customFontSize = 11) { check1_6 = it }
+                    ThreeStateRow("1.6 יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", check1_7) { check1_7 = it }
+                    ThreeStateRow("1.7 הצנרת ומרכיביה מקובעים", check1_8) { check1_8 = it }
+                    ThreeStateRow("1.8 (⊕) כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", check1_9, isCritical = true, customFontSize = 11) { check1_9 = it }
                 }
 
                 FormCard("2. חיבור המכשירים", cardBg, borderColor, primaryColor) {
                     OutlinedTextField(value = devicesList, onValueChange = { devicesList = it; saveToDatabase() }, label = { Text("2.1 פרט את המכשירים המחוברים למִתקן") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors, minLines = 2)
+                    ThreeStateRow("2.1 שלמות המכשירים בבחינה חזותית", check2_1, isSubItem = false) { check2_1 = it }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("שלמות המכשירים בבחינה חזותית:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
                     ThreeStateRow("2.2 מכשירים קבועים מחוברים בצינור קשיח", check2_2, isSubItem = true) { check2_2 = it }
-                    ThreeStateRow("2.3 צינור אלסטומרי... הוחלף בעקבות הבחינה החזותית", check2_3, isSubItem = true) { check2_3 = it }
-                    ThreeStateRow("2.4 קצוות הזרנוק המחוברים לניפלים מחוזקים בחבקים", check2_4, isSubItem = true) { check2_4 = it }
-                    ThreeStateRow("2.5 אורך הצינורות האלסטומריים אינו גדול מ-3 מ'", check2_5, isSubItem = true) { check2_5 = it }
+                    // סעיף 2.3 ו-2.4 אוחדו
+                    ThreeStateRow("2.3 צינור אלסטומרי לחיבור מכשיר בצינור תקני... הוחלף בעקבות הבחינה החזותית. קצוות הזרנוק המחוברים לניפלים מחוזקים בחבקים", check2_3, isSubItem = true, customFontSize = 11) { check2_3 = it }
+                    ThreeStateRow("2.4 אורך הצינורות האלסטומריים אינו גדול מ-3 מ'", check2_5, isSubItem = true) { check2_5 = it }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("2.6.1 יש תווית אישור בדיקה שנתית תקפה (ד-5)", check2_6_1, isSubItem = true) { check2_6_1 = it }
-                    ThreeStateRow("2.6.2 מכשיר חימום מים להסקה אינו מותקן בחדרי שינה/רחצה", check2_6_2, isSubItem = true) { check2_6_2 = it }
-                    ThreeStateRow("2.6.3 עברו פחות מ-3 שנים מתיקון 1 לת\"י 158...", check2_6_3, isSubItem = true) { check2_6_3 = it }
-                    ThreeStateRow("2.6.4 מכשיר חימום לצריכה (>0.5 ק\"ג/ש) יש תווית ד-5", check2_6_4, isSubItem = true) { check2_6_4 = it }
-                    ThreeStateRow("2.6.5 מכשיר ללא ארובה אינו באמבטיה/שירותים/שינה", check2_6_5, isSubItem = true) { check2_6_5 = it }
+                    ThreeStateRow("2.5.1 (⊕) יש תווית אישור בדיקה שנתית תקפה (ד-5)", check2_6_1, isCritical = true, isSubItem = true) { check2_6_1 = it }
+                    ThreeStateRow("2.5.2 (⊕) מכשיר חימום מים להסקה אינו מותקן בחדרי שינה/רחצה", check2_6_2, isCritical = true, isSubItem = true) { check2_6_2 = it }
+                    ThreeStateRow("2.5.3 (⊕) עברו פחות מ-3 שנים מתיקון 1 לת\"י 158...", check2_6_3, isCritical = true, isSubItem = true) { check2_6_3 = it }
+                    ThreeStateRow("2.5.4 (⊕) מכשיר חימום לצריכה (>0.5 ק\"ג/ש) יש תווית ד-5", check2_6_4, isCritical = true, isSubItem = true) { check2_6_4 = it }
+                    ThreeStateRow("2.5.5 (⊕) מכשיר ללא ארובה אינו באמבטיה/שירותים/שינה", check2_6_5, isCritical = true, isSubItem = true) { check2_6_5 = it }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("תקינות ארובות למכשירים צורכי גפ\"מ:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("2.7.1 הארובה שלמה ומחוזקת באופן המונע שינוי", check2_7_1, isSubItem = true) { check2_7_1 = it }
-                    ThreeStateRow("2.7.2 מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח", check2_7_2, isSubItem = true) { check2_7_2 = it }
-                    ThreeStateRow("2.7.3 מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח", check2_7_3, isSubItem = true) { check2_7_3 = it }
+                    ThreeStateRow("2.6.1 הארובה שלמה ומחוזקת באופן המונע שינוי", check2_7_1, isSubItem = true) { check2_7_1 = it }
+                    ThreeStateRow("2.6.2 מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח", check2_7_2, isSubItem = true) { check2_7_2 = it }
+                    ThreeStateRow("2.6.3 מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח", check2_7_3, isSubItem = true) { check2_7_3 = it }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("מכשירים ציבורי / מסחרי / חקלאי / תעשייתי:", fontWeight = FontWeight.Bold, color = primaryColor, fontSize = 13.sp)
-                    ThreeStateRow("2.8.1 מכשירים לחימום חלל ציבורי מצוידים בהתקן סגירת גז", check2_8_1, isSubItem = true) { check2_8_1 = it }
-                    ThreeStateRow("2.8.2 יש פתח אוורור קבוע במטבחים של מבני ציבור", check2_8_2, isSubItem = true) { check2_8_2 = it }
-                    ThreeStateRow("2.9 למכשירים במקום נמוך יש תווית אישור בדיקה ד-6", check2_9) { check2_9 = it }
+                    ThreeStateRow("2.7.1 מכשירים לחימום חלל ציבורי מצוידים בהתקן סגירת גז", check2_8_1, isSubItem = true) { check2_8_1 = it }
+                    ThreeStateRow("2.7.2 יש פתח אוורור קבוע במטבחים של מבני ציבור", check2_8_2, isSubItem = true) { check2_8_2 = it }
+                    ThreeStateRow("2.8 למכשירים במקום נמוך יש תווית אישור בדיקה ד-6", check2_9) { check2_9 = it }
                 }
 
                 FormCard("3. בדיקת אטימות", cardBg, borderColor, primaryColor) {
@@ -465,16 +493,24 @@ fun PeriodicFormEditScreenD3(
                     )
                 }
 
-                // 4 כפתורי הפעולה המבצעיים כמו בטופס ד-1
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
-                            onClick = { viewModel.previewPdfD3(context, buildCurrentForm()) },
+                            onClick = {
+                                val error = validateForm()
+                                if (error != null) {
+                                    Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                } else {
+                                    viewModel.previewPdfD3(context, buildCurrentForm())
+                                }
+                            },
                             modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor), shape = RoundedCornerShape(10.dp)
                         ) { Text("תצוגה מקדימה", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
 
                         Button(
-                            onClick = { viewModel.saveCurrentFormD3(buildCurrentForm()) { Toast.makeText(context, "נשמר כטיוטה", Toast.LENGTH_SHORT).show(); onNavigateBack() } },
+                            onClick = {
+                                viewModel.saveCurrentFormD3(buildCurrentForm()) { Toast.makeText(context, "נשמר כטיוטה", Toast.LENGTH_SHORT).show(); onNavigateBack() }
+                            },
                             modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = successGreen), shape = RoundedCornerShape(10.dp)
                         ) { Text("שמור כטיוטה", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                     }
@@ -489,7 +525,12 @@ fun PeriodicFormEditScreenD3(
 
                         Button(
                             onClick = {
-                                viewModel.sharePdfD3(context, buildCurrentForm()) { onNavigateBack() }
+                                val error = validateForm()
+                                if (error != null) {
+                                    Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                } else {
+                                    viewModel.sharePdfD3(context, buildCurrentForm()) { onNavigateBack() }
+                                }
                             },
                             modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor), shape = RoundedCornerShape(10.dp)
                         ) { Text("שתף וסיים", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
