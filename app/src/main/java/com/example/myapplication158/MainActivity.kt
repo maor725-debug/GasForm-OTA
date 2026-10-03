@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AvTimer
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.PropaneTank
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,6 +39,7 @@ import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.data.GasFormD3
 import com.example.myapplication158.data.GasFormD4
+import com.example.myapplication158.data.WaiverForm
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.screens.FormEditScreen
 import com.example.myapplication158.UserInterface.screens.FormListScreen
@@ -48,6 +50,7 @@ import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreen
 import com.example.myapplication158.UserInterface.screens.PeriodicFormEditScreenD4
 import com.example.myapplication158.UserInterface.screens.LoginScreen
 import com.example.myapplication158.UserInterface.screens.SettingsDialog
+import com.example.myapplication158.UserInterface.screens.WaiverFormEditScreen
 import com.example.myapplication158.UserInterface.screens.WelcomeScreen
 import com.example.myapplication158.util.AppLogger
 import com.example.myapplication158.util.OtaUpdateManager
@@ -174,6 +177,7 @@ sealed class Screen {
     data class EditD2(val form: GasFormD2) : Screen()
     data class EditD3(val form: GasFormD3) : Screen()
     data class EditD4(val form: GasFormD4) : Screen()
+    data class EditWaiver(val form: WaiverForm) : Screen() // נתיב חדש לטופס הויתור
 }
 
 @Composable
@@ -298,7 +302,8 @@ fun MainNavigation() {
                         onEditPeriodicForm = { form -> currentScreen = Screen.EditPeriodic(form) },
                         onEditD2Form = { form -> currentScreen = Screen.EditD2(form) },
                         onEditD3Form = { form -> currentScreen = Screen.EditD3(form) },
-                        onEditD4Form = { form -> currentScreen = Screen.EditD4(form) }
+                        onEditD4Form = { form -> currentScreen = Screen.EditD4(form) },
+                        onEditWaiverForm = { form -> currentScreen = Screen.EditWaiver(form) } // קריאה למסך הוויתור
                     )
                 }
                 is Screen.Edit -> { FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
@@ -306,6 +311,7 @@ fun MainNavigation() {
                 is Screen.EditD2 -> { PeriodicFormEditScreenD2(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
                 is Screen.EditD3 -> { PeriodicFormEditScreenD3(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
                 is Screen.EditD4 -> { PeriodicFormEditScreenD4(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
+                is Screen.EditWaiver -> { WaiverFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) } // הצגת מסך הוויתור
             }
         }
     }
@@ -349,6 +355,18 @@ fun MainNavigation() {
                                 Icon(Icons.Default.PropaneTank, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Icon(Icons.Default.PropaneTank, contentDescription = null, modifier = Modifier.size(16.dp))
                             }
+                        }
+                    }
+
+                    // כפתור חדש לטופס הסרת אחריות
+                    Button(
+                        onClick = { showFormTypeDialog = false; handleNewFormAttempt { currentScreen = Screen.EditWaiver(WaiverForm()) } },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)), modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Text("טופס הסרת אחריות ואישור חציבה", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.Default.Gavel, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                     }
                 }

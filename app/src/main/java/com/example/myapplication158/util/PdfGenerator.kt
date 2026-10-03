@@ -11,6 +11,7 @@ import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.data.GasFormD3
 import com.example.myapplication158.data.GasFormD4
+import com.example.myapplication158.data.WaiverForm
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -71,6 +72,174 @@ object PdfGenerator {
                 rotated
             } else { bitmap }
         } catch (e: Throwable) { e.printStackTrace(); null }
+    }
+
+    fun generateWaiverFormPdf(context: Context, form: WaiverForm): File? {
+        val settingsManager = SettingsManager(context)
+        val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "מאור מנחם - קבלן עבודות גז" else settingsManager.contractorHeader
+        val headerPhone = "טלפון: " + if (settingsManager.contractorPhone.isNullOrBlank()) "054-6096487" else settingsManager.contractorPhone
+
+        val pdfDocument = PdfDocument()
+        try {
+            var page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
+            var canvas = page.canvas
+
+            val textPaint = Paint().apply { color = Color.BLACK; textSize = 11f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
+            val boldPaint = Paint().apply { color = Color.BLACK; textSize = 11f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.RIGHT }
+            val titlePaint = Paint().apply { color = Color.BLACK; textSize = 16f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+            val legalTextPaint = Paint().apply { color = Color.DKGRAY; textSize = 11f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
+            val borderPaint = Paint().apply { color = Color.BLACK; strokeWidth = 2f; style = Paint.Style.STROKE }
+
+            canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
+
+            canvas.drawRect(20f, 20f, 575f, 90f, Paint().apply { color = Color.parseColor("#E65100"); style = Paint.Style.FILL })
+            canvas.drawText(headerTitle, 297f, 50f, Paint(titlePaint).apply { color = Color.WHITE; textSize = 20f })
+            canvas.drawText(headerPhone, 297f, 75f, Paint(titlePaint).apply { color = Color.WHITE; textSize = 14f })
+
+            var y = 120f
+            canvas.drawText("כתב הסכמה והסרת אחריות לנזקי תשתית סמויה", 297f, y, titlePaint)
+            y += 30f
+
+            canvas.drawText("תאריך: ${form.date}", 550f, y, boldPaint)
+            y += 20f
+            canvas.drawText("שם הלקוח / עסק: ${form.clientName}", 550f, y, textPaint)
+            y += 20f
+            canvas.drawText("תעודת זהות / ח.פ: ${form.clientId}", 550f, y, textPaint)
+            y += 20f
+            canvas.drawText("כתובת העבודה: ${form.address}", 550f, y, textPaint)
+            y += 20f
+            canvas.drawText("טלפון: ${form.phone}", 550f, y, textPaint)
+            y += 30f
+
+            canvas.drawText("תיאור מפורט של העבודה והסיכונים (קידוח / חציבה / הלחמה):", 550f, y, boldPaint)
+            y += 20f
+
+            val descWords = form.workDescription.split(" ")
+            var currentLine = ""
+            for (word in descWords) {
+                val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+                if (textPaint.measureText(testLine) > 500f) {
+                    canvas.drawText(currentLine, 550f, y, textPaint)
+                    y += 15f
+                    currentLine = word
+                } else { currentLine = testLine }
+            }
+            if (currentLine.isNotEmpty()) { canvas.drawText(currentLine, 550f, y, textPaint); y += 20f }
+
+            y += 10f
+            canvas.drawLine(40f, y, 550f, y, borderPaint)
+            y += 25f
+
+            val legalText = """
+                1. מהות העבודה והסיכונים
+                אני החתום מטה מאשר בזאת כי הזמנתי מאת הטכנאי עבודות תשתית/גז הדורשות חציבה, קידוח, הלחמה או חדירה לקירות, רצפות או תקרות. מובן לי כי בעבודות מסוג זה קיים סיכון ממשי ובלתי נמנע לפגיעה בתשתיות סמויות שאינן גלויות לעין (כגון: צנרת מים, קווי חשמל, כבלי תקשורת, ביוב או תשתיות גז אחרות).
+
+                2. גילוי נאות ומגבלות השטח
+                אני מצהיר כי מסרתי לטכנאי את כל המידע שברשותי אודות מיקום תשתיות אלו. עם זאת, ידוע לי כי ללא תוכניות בנייה מדויקות, אין לטכנאי דרך טכנית לדעת בוודאות מוחלטת היכן עוברות התשתיות בתוך יצוקות המבנה.
+
+                3. פטור מלא מאחריות
+                לאור האמור לעיל, אני פוטר בזאת את הטכנאי המבצע, מנהליו או מי מטעמו, מכל אחריות משפטית או כספית בגין נזק ישיר או עקיף שייגרם לתשתיות הסמויות כתוצאה מביצוע העבודה שהזמנתי.
+
+                4. נשיאה בהוצאות
+                במידה וייגרם נזק לתשתית כלשהי במהלך העבודה, אני מתחייב לשאת באחריות המלאה ולכסות את כל העלויות הנדרשות לתיקון הנזק מול בעלי המקצוע הרלוונטיים (אינסטלטור, חשמלאי וכד'), ללא כל דרישה, תלונה או תביעה כלפי טכנאי הגז המבצע.
+            """.trimIndent()
+
+            val legalLines = legalText.split("\n")
+            for (line in legalLines) {
+                if (line.trim().isEmpty()) { y += 10f; continue }
+                if (line.startsWith("1.") || line.startsWith("2.") || line.startsWith("3.") || line.startsWith("4.")) {
+                    canvas.drawText(line.trim(), 550f, y, boldPaint)
+                    y += 18f
+                } else {
+                    val words = line.split(" ")
+                    var currLine = ""
+                    for (word in words) {
+                        val tLine = if (currLine.isEmpty()) word else "$currLine $word"
+                        if (legalTextPaint.measureText(tLine) > 500f) {
+                            canvas.drawText(currLine, 550f, y, legalTextPaint)
+                            y += 15f
+                            currLine = word
+                        } else { currLine = tLine }
+                    }
+                    if (currLine.isNotEmpty()) { canvas.drawText(currLine, 550f, y, legalTextPaint); y += 15f }
+                }
+            }
+
+            y += 20f
+            canvas.drawLine(40f, y, 550f, y, borderPaint)
+            y += 30f
+
+            canvas.drawText("חתימת הלקוח המאשר:", 500f, y, boldPaint)
+            canvas.drawText("חתימת הטכנאי המבצע:", 200f, y, boldPaint)
+            y += 15f
+
+            if (!form.clientSignatureUri.isNullOrEmpty()) {
+                try {
+                    decodeBitmapWithExifRotation(context, Uri.parse(form.clientSignatureUri))?.let { bitmap ->
+                        canvas.drawBitmap(bitmap, null, RectF(350f, y, 500f, y + 80f), Paint().apply { isFilterBitmap = true })
+                        bitmap.recycle()
+                    }
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+
+            val savedSig = settingsManager.savedSignatureUri
+            val settingsSigUri = if (!savedSig.isNullOrEmpty()) savedSig else settingsManager.technicianLicenseUri
+            if (!settingsSigUri.isNullOrEmpty()) {
+                try {
+                    decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
+                        val boxWidth = 150f; val boxHeight = 80f
+                        val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                        val boxRatio = boxWidth / boxHeight
+                        var drawWidth = boxWidth; var drawHeight = boxHeight
+                        if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
+                        canvas.drawBitmap(bitmap, null, RectF(50f, y, 50f + drawWidth, y + drawHeight), Paint().apply { isFilterBitmap = true; isAntiAlias = true })
+                        bitmap.recycle()
+                    }
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+
+            pdfDocument.finishPage(page)
+
+            val extraUris = listOfNotNull(form.image1Uri, form.image2Uri, form.image3Uri)
+            if (extraUris.isNotEmpty()) {
+                var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, 2).create())
+                var appendixCanvas = appendixPage.canvas
+                appendixCanvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
+
+                var imgYPosition = 80f
+                appendixCanvas.drawText("נספח - תיעוד שטח לפני עבודה", 297f, 50f, titlePaint)
+
+                for (uriStr in extraUris) {
+                    if (imgYPosition > 600f) {
+                        pdfDocument.finishPage(appendixPage)
+                        appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, 3).create())
+                        appendixCanvas = appendixPage.canvas
+                        appendixCanvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
+                        imgYPosition = 80f
+                    }
+                    try {
+                        decodeBitmapWithExifRotation(context, Uri.parse(uriStr))?.let { bitmap ->
+                            val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                            val targetWidth = 350
+                            val targetHeight = (targetWidth / aspectRatio).toInt()
+                            val xPos = (595f - targetWidth) / 2f
+                            appendixCanvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
+                            bitmap.recycle()
+                            imgYPosition += targetHeight + 20f
+                        }
+                    } catch (e: Exception) { e.printStackTrace() }
+                }
+                pdfDocument.finishPage(appendixPage)
+            }
+
+            val dir = File(context.filesDir, "pdfs").apply { if (!exists()) mkdirs() }
+            val file = File(dir, "WaiverForm_${System.currentTimeMillis()}.pdf")
+            pdfDocument.writeTo(FileOutputStream(file))
+            return file
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        } finally { pdfDocument.close() }
     }
 
     fun generateFinancialReportPdf(context: Context, forms: List<GasForm>): File? {
@@ -2078,7 +2247,7 @@ object PdfGenerator {
             yPosition = 140f
         }
 
-        canvas.drawText("5. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
+        canvas.drawText("6. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
         val statusMessage = when {
@@ -2195,6 +2364,58 @@ object PdfGenerator {
             e.printStackTrace()
             pdfDocument.close()
             null
+        }
+    }
+
+    // הפונקציה החדשה למיזוג מספר קובצי PDF לקובץ אחד
+    fun mergePdfFiles(context: Context, pdfFiles: List<File>): File? {
+        val mergedPdf = PdfDocument()
+        var totalPages = 0
+
+        try {
+            for (file in pdfFiles) {
+                if (!file.exists()) continue
+                val fileDescriptor = android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+                val renderer = android.graphics.pdf.PdfRenderer(fileDescriptor)
+
+                for (i in 0 until renderer.pageCount) {
+                    val page = renderer.openPage(i)
+                    val width = page.width * 2
+                    val height = page.height * 2
+                    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(bitmap)
+                    canvas.drawColor(Color.WHITE)
+                    page.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
+                    page.close()
+
+                    totalPages++
+                    val pageInfo = PdfDocument.PageInfo.Builder(page.width, page.height, totalPages).create()
+                    val pdfPage = mergedPdf.startPage(pageInfo)
+
+                    val destRect = RectF(0f, 0f, page.width.toFloat(), page.height.toFloat())
+                    val paint = Paint().apply {
+                        isFilterBitmap = true
+                        isAntiAlias = true
+                    }
+                    pdfPage.canvas.drawBitmap(bitmap, null, destRect, paint)
+                    mergedPdf.finishPage(pdfPage)
+                    bitmap.recycle()
+                }
+                renderer.close()
+                fileDescriptor.close()
+            }
+
+            if (totalPages == 0) return null
+
+            val outputDir = File(context.cacheDir, "merged_pdfs").apply { if (!exists()) mkdirs() }
+            val outputFile = File(outputDir, "Merged_Forms_${System.currentTimeMillis()}.pdf")
+            FileOutputStream(outputFile).use { out -> mergedPdf.writeTo(out) }
+            return outputFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        } finally {
+            mergedPdf.close()
         }
     }
 }

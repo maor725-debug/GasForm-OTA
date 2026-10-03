@@ -39,6 +39,7 @@ import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.data.GasFormD3
 import com.example.myapplication158.data.GasFormD4
 import com.example.myapplication158.data.WorkOrder
+import com.example.myapplication158.data.WaiverForm
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.FinancialReportDialog
 import com.example.myapplication158.UserInterface.components.FormListItemAiStyle
@@ -76,6 +77,7 @@ fun FormListScreen(
     onEditD2Form: (GasFormD2) -> Unit = {},
     onEditD3Form: (GasFormD3) -> Unit = {},
     onEditD4Form: (GasFormD4) -> Unit = {},
+    onEditWaiverForm: (WaiverForm) -> Unit = {}, // הוספת נתיב העריכה לטופס הויתור
     modifier: Modifier = Modifier
 ) {
     val forms by viewModel.allForms.collectAsState()
@@ -83,14 +85,16 @@ fun FormListScreen(
     val d2Forms by viewModel.allD2Forms.collectAsState()
     val d3Forms by viewModel.allD3Forms.collectAsState()
     val d4Forms by viewModel.allD4Forms.collectAsState()
+    val waiverForms by viewModel.allWaiverForms.collectAsState() // משיכת טפסי הויתור
 
-    val combinedForms = remember(forms, periodicForms, d2Forms, d3Forms, d4Forms) {
+    val combinedForms = remember(forms, periodicForms, d2Forms, d3Forms, d4Forms, waiverForms) {
         val list = mutableListOf<Any>()
         list.addAll(forms)
         list.addAll(periodicForms)
         list.addAll(d2Forms)
         list.addAll(d3Forms)
         list.addAll(d4Forms)
+        list.addAll(waiverForms)
         list.sortedByDescending {
             when (it) {
                 is GasForm -> it.createdAt
@@ -98,6 +102,7 @@ fun FormListScreen(
                 is GasFormD2 -> it.createdAt
                 is GasFormD3 -> it.createdAt
                 is GasFormD4 -> it.createdAt
+                is WaiverForm -> it.id.toLong() // מיון זמני לטופס הויתור
                 else -> 0L
             }
         }
@@ -114,6 +119,10 @@ fun FormListScreen(
     var showWorkOrdersListDialog by remember { mutableStateOf(false) }
     var showWorkOrderCreateDialog by remember { mutableStateOf(false) }
     var editingWorkOrder by remember { mutableStateOf<WorkOrder?>(null) }
+
+    // מצב בחירת טפסים מרובה למיזוג (Merge PDFs)
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedForms by remember { mutableStateOf(setOf<Any>()) }
 
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
@@ -169,6 +178,7 @@ fun FormListScreen(
     val d2PrimaryColor = Color(0xFF2196F3)
     val d3PrimaryColor = Color(0xFFFF9800)
     val d4PrimaryColor = Color(0xFF673AB7)
+    val waiverPrimaryColor = Color(0xFFE65100) // כתום לטופס הויתור
 
     val aiBgColor = if (isDark) Color(0xFF0D0D0D) else Color(0xFFF4F6F8)
     val aiHeaderBg = if (isDark) {
@@ -198,6 +208,7 @@ fun FormListScreen(
             is GasFormD2 -> it.date.contains(currentMonth)
             is GasFormD3 -> it.date.contains(currentMonth)
             is GasFormD4 -> it.date.contains(currentMonth)
+            is WaiverForm -> it.date.contains(currentMonth)
             else -> false
         }
     }
@@ -238,7 +249,22 @@ fun FormListScreen(
                         item.date.contains(searchQuery, ignoreCase = true) ||
                         item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
             }
+            is WaiverForm -> {
+                item.clientName.contains(searchQuery, ignoreCase = true) ||
+                        item.address.contains(searchQuery, ignoreCase = true) ||
+                        item.date.contains(searchQuery, ignoreCase = true)
+            }
             else -> false
+        }
+    }
+
+    // פונקציה לטיפול בלחיצה על כרטיסייה (מצב בחירה או עריכה רגילה)
+    val handleItemClick: (Any, () -> Unit) -> Unit = { item, defaultAction ->
+        if (isSelectionMode) {
+            selectedForms = if (selectedForms.contains(item)) selectedForms - item else selectedForms + item
+            if (selectedForms.isEmpty()) isSelectionMode = false // יציאה אוטומטית אם בוטלו כל הבחירות
+        } else {
+            defaultAction()
         }
     }
 
@@ -246,54 +272,84 @@ fun FormListScreen(
         Scaffold(
             containerColor = aiBgColor,
             topBar = {
-                Surface(color = aiHeaderBg, modifier = Modifier.fillMaxWidth(), shadowElevation = 4.dp) {
-                    Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.clickable { settingsInitialTab = 0; showSettingsDialog = true }.size(24.dp))
-                            Icon(if (isDark) Icons.Default.Brightness7 else Icons.Default.Brightness4, "מצב לילה/יום", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { settingsManager.isDarkMode = !isDark; activity?.recreate() })
-                            Icon(Icons.Default.BarChart, "דוחות", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { showReportDialog = true })
-
-                            // הנה התיקון: כפתור התמיכה עכשיו ירוק
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.clickable { showSupportDialog = true }
-                            ) {
-                                Icon(Icons.Default.SupportAgent, "תמיכה", tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
-                                Text("תמיכה טכנית", color = Color(0xFF4CAF50), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                if (isSelectionMode) {
+                    // סרגל כלים מיוחד למצב בחירה (מיזוג PDF)
+                    Surface(color = primaryColor, modifier = Modifier.fillMaxWidth(), shadowElevation = 4.dp) {
+                        Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { isSelectionMode = false; selectedForms = emptySet() }) {
+                                Icon(Icons.Default.Close, "בטל", tint = Color.White)
+                            }
+                            Text("${selectedForms.size} טפסים נבחרו", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            TextButton(onClick = {
+                                if (selectedForms.size < 2) {
+                                    Toast.makeText(context, "יש לבחור לפחות 2 טפסים למיזוג", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "מעולה! נבחרו ${selectedForms.size} טפסים למיזוג. מנוע ה-PDF יתווסף בשלב הבא.", Toast.LENGTH_LONG).show()
+                                    isSelectionMode = false
+                                    selectedForms = emptySet()
+                                }
+                            }) {
+                                Text("מזג ל-PDF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("מערכת מילוי טפסים", fontWeight = FontWeight.ExtraBold, color = aiHeaderTextColor, fontSize = 15.sp, maxLines = 1)
-                            Text("מאור מנחם - קבלן עבודות גז", color = primaryColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                } else {
+                    // הסרגל העליון הרגיל (כאן הוחזר כפתור הדוחות BarChart!)
+                    Surface(color = aiHeaderBg, modifier = Modifier.fillMaxWidth(), shadowElevation = 4.dp) {
+                        Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.clickable { settingsInitialTab = 0; showSettingsDialog = true }.size(24.dp))
+                                Icon(if (isDark) Icons.Default.Brightness7 else Icons.Default.Brightness4, "מצב לילה/יום", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { settingsManager.isDarkMode = !isDark; activity?.recreate() })
+
+                                // כפתור הדוחות הפיננסיים שהיה חסר הוחזר
+                                Icon(Icons.Default.BarChart, "דוחות", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { showReportDialog = true })
+
+                                // כפתור בחירה למיזוג
+                                Icon(Icons.Default.LibraryAddCheck, "בחירה למיזוג", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { isSelectionMode = true })
+
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.clickable { showSupportDialog = true }
+                                ) {
+                                    Icon(Icons.Default.SupportAgent, "תמיכה", tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
+                                    Text("תמיכה טכנית", color = Color(0xFF4CAF50), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("מערכת מילוי טפסים", fontWeight = FontWeight.ExtraBold, color = aiHeaderTextColor, fontSize = 15.sp, maxLines = 1)
+                                Text("מאור מנחם - קבלן עבודות גז", color = primaryColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            }
                         }
                     }
                 }
             },
             floatingActionButton = {
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ExtendedFloatingActionButton(
-                        onClick = { onAddOtherForms() },
-                        containerColor = aiCardBg,
-                        contentColor = primaryColor,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(40.dp),
-                        elevation = FloatingActionButtonDefaults.elevation(2.dp)
-                    ) {
-                        Icon(Icons.Default.ListAlt, "טפסים נוספים", modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("טפסים נוספים", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
+                if (!isSelectionMode) {
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ExtendedFloatingActionButton(
+                            onClick = { onAddOtherForms() },
+                            containerColor = aiCardBg,
+                            contentColor = primaryColor,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(40.dp),
+                            elevation = FloatingActionButtonDefaults.elevation(2.dp)
+                        ) {
+                            Icon(Icons.Default.ListAlt, "טפסים נוספים", modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("טפסים נוספים", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
 
-                    ExtendedFloatingActionButton(
-                        onClick = { onAddNormativeForm() },
-                        containerColor = primaryColor,
-                        contentColor = Color.White,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(48.dp)
-                    ) {
-                        Icon(Icons.Default.Add, "הוסף", modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("טופס נורמטיבי", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        ExtendedFloatingActionButton(
+                            onClick = { onAddNormativeForm() },
+                            containerColor = primaryColor,
+                            contentColor = Color.White,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Icon(Icons.Default.Add, "הוסף", modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("טופס נורמטיבי", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
                     }
                 }
             },
@@ -340,31 +396,38 @@ fun FormListScreen(
                                 Text("אין טפסים להצגה", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = aiTextColor)
                             }
                         }
-                        Text(
-                            text = "פותח ע\"י מאור מנחם ©",
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-                            textAlign = TextAlign.Center,
-                            fontSize = 11.sp,
-                            color = aiTextGray
-                        )
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(bottom = 80.dp, top = 4.dp)) {
                             items(filteredForms) { form ->
-                                when (form) {
-                                    is GasForm -> {
-                                        FormListItemAiStyle(form = form, onEdit = { onEditForm(form) }, onPreview = { viewModel.previewPdf(context, form) }, onShare = { viewModel.sharePdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, onPricingClick = { showPricingDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = primaryColor, aiBorderColor = aiBorderColor)
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = if (isSelectionMode) 16.dp else 0.dp)) {
+                                    if (isSelectionMode) {
+                                        Checkbox(
+                                            checked = selectedForms.contains(form),
+                                            onCheckedChange = { checked -> selectedForms = if (checked) selectedForms + form else selectedForms - form },
+                                            colors = CheckboxDefaults.colors(checkedColor = primaryColor)
+                                        )
                                     }
-                                    is PeriodicGasForm -> {
-                                        PeriodicFormListItemAiStyle(form = form, onEdit = { onEditPeriodicForm(form) }, onPreview = { viewModel.previewPeriodicPdf(context, form) }, onShare = { viewModel.sharePeriodicPdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = Color(0xFF4CAF50), aiBorderColor = aiBorderColor)
-                                    }
-                                    is GasFormD2 -> {
-                                        D2FormListItemAiStyle(form = form, onEdit = { onEditD2Form(form) }, onPreview = { viewModel.previewPdfD2(context, form) }, onShare = { viewModel.sharePdfD2(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d2PrimaryColor, aiBorderColor = aiBorderColor)
-                                    }
-                                    is GasFormD3 -> {
-                                        D3FormListItemAiStyle(form = form, onEdit = { onEditD3Form(form) }, onPreview = { viewModel.previewPdfD3(context, form) }, onShare = { viewModel.sharePdfD3(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d3PrimaryColor, aiBorderColor = aiBorderColor)
-                                    }
-                                    is GasFormD4 -> {
-                                        D4FormListItemAiStyle(form = form, onEdit = { onEditD4Form(form) }, onPreview = { viewModel.previewPdfD4(context, form) }, onShare = { viewModel.sharePdfD4(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d4PrimaryColor, aiBorderColor = aiBorderColor)
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        when (form) {
+                                            is GasForm -> {
+                                                FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditForm(form) } }, onPreview = { viewModel.previewPdf(context, form) }, onShare = { viewModel.sharePdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, onPricingClick = { showPricingDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = primaryColor, aiBorderColor = aiBorderColor)
+                                            }
+                                            is PeriodicGasForm -> {
+                                                PeriodicFormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditPeriodicForm(form) } }, onPreview = { viewModel.previewPeriodicPdf(context, form) }, onShare = { viewModel.sharePeriodicPdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = Color(0xFF4CAF50), aiBorderColor = aiBorderColor)
+                                            }
+                                            is GasFormD2 -> {
+                                                D2FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD2Form(form) } }, onPreview = { viewModel.previewPdfD2(context, form) }, onShare = { viewModel.sharePdfD2(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d2PrimaryColor, aiBorderColor = aiBorderColor)
+                                            }
+                                            is GasFormD3 -> {
+                                                D3FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD3Form(form) } }, onPreview = { viewModel.previewPdfD3(context, form) }, onShare = { viewModel.sharePdfD3(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d3PrimaryColor, aiBorderColor = aiBorderColor)
+                                            }
+                                            is GasFormD4 -> {
+                                                D4FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD4Form(form) } }, onPreview = { viewModel.previewPdfD4(context, form) }, onShare = { viewModel.sharePdfD4(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d4PrimaryColor, aiBorderColor = aiBorderColor)
+                                            }
+                                            is WaiverForm -> {
+                                                WaiverFormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditWaiverForm(form) } }, onPreview = { viewModel.previewWaiverPdf(context, form) }, onShare = { viewModel.shareWaiverPdf(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = waiverPrimaryColor, aiBorderColor = aiBorderColor)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -384,20 +447,22 @@ fun FormListScreen(
                     }
                 }
 
-                FloatingActionButton(
-                    onClick = { showWorkOrdersListDialog = true },
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    contentColor = Color.White,
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 16.dp, bottom = 24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.EditCalendar,
-                        contentDescription = "יומן עבודה",
-                        modifier = Modifier.size(26.dp)
-                    )
+                if (!isSelectionMode) {
+                    FloatingActionButton(
+                        onClick = { showWorkOrdersListDialog = true },
+                        containerColor = MaterialTheme.colorScheme.secondary,
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 16.dp, bottom = 24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EditCalendar,
+                            contentDescription = "יומן עבודה",
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
 
@@ -549,6 +614,7 @@ fun FormListScreen(
                                 is GasFormD2 -> viewModel.deleteFormD2(form)
                                 is GasFormD3 -> viewModel.deleteFormD3(form)
                                 is GasFormD4 -> viewModel.deleteFormD4(form)
+                                is WaiverForm -> viewModel.deleteWaiverForm(form) // מחיקת טופס הויתור
                             }
                             showDeleteConfirmDialog = null
                         }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252))) { Text("מחק") }
@@ -602,6 +668,47 @@ fun FormListScreen(
                         }
                     }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaiverFormListItemAiStyle(
+    form: WaiverForm,
+    onEdit: () -> Unit,
+    onPreview: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+    aiCardBg: Color,
+    aiTextColor: Color,
+    aiTextGray: Color,
+    primaryColor: Color,
+    aiBorderColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() },
+        colors = CardDefaults.cardColors(containerColor = aiCardBg),
+        border = BorderStroke(1.dp, aiBorderColor),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Gavel, contentDescription = null, tint = primaryColor)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                val title = form.clientName.takeIf { it.isNotBlank() } ?: "הסרת אחריות חדשה"
+                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                Spacer(modifier = Modifier.height(2.dp))
+                val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
+                val draftText = if (isDraft) " • טיוטה" else ""
+                Text("הסרת אחריות וחציבה$draftText | ${form.date}", color = aiTextGray, fontSize = 12.sp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                IconButton(onClick = onShare, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Share, null, tint = primaryColor, modifier = Modifier.size(18.dp)) }
+                IconButton(onClick = onPreview, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Visibility, null, tint = primaryColor, modifier = Modifier.size(18.dp)) }
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Delete, null, tint = Color.Red.copy(alpha=0.7f), modifier = Modifier.size(18.dp)) }
             }
         }
     }

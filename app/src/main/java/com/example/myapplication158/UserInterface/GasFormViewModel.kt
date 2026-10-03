@@ -15,6 +15,7 @@ import com.example.myapplication158.data.PeriodicGasForm
 import com.example.myapplication158.data.GasFormD2
 import com.example.myapplication158.data.GasFormD3
 import com.example.myapplication158.data.GasFormD4
+import com.example.myapplication158.data.WaiverForm
 import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.data.isNotEmptyOrBlank
 import com.example.myapplication158.util.PdfGenerator
@@ -37,6 +38,7 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     private val gasFormD3Dao = AppDatabase.getDatabase(application).gasFormD3Dao()
     private val gasFormD4Dao = AppDatabase.getDatabase(application).gasFormD4Dao()
     private val workOrderDao = AppDatabase.getDatabase(application).workOrderDao()
+    private val waiverFormDao = AppDatabase.getDatabase(application).waiverFormDao()
     private val workOrderReminderManager = WorkOrderReminderManager(application)
 
     val allForms: StateFlow<List<GasForm>> = gasFormDao.getAllForms().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -50,6 +52,7 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     val allD4Forms: StateFlow<List<GasFormD4>> = gasFormD4Dao.getAllForms().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allWorkOrders: StateFlow<List<WorkOrder>> = workOrderDao.getAllWorkOrders().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allWaiverForms: StateFlow<List<WaiverForm>> = waiverFormDao.getAllForms().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -79,9 +82,13 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
                 }.forEach { gasFormD4Dao.deleteForm(it) }
             }
         }
+        viewModelScope.launch(Dispatchers.IO) {
+            allWaiverForms.collect { forms ->
+                forms.filter { !it.isNotEmptyOrBlank() }.forEach { waiverFormDao.deleteForm(it) }
+            }
+        }
     }
 
-    // --- Work Orders ---
     fun saveWorkOrder(workOrder: WorkOrder, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             val id = if (workOrder.id == 0) workOrderDao.insertWorkOrder(workOrder).toInt() else { workOrderDao.updateWorkOrder(workOrder); workOrder.id }
@@ -95,12 +102,81 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     fun toggleMuteWorkOrder(workOrder: WorkOrder) { updateWorkOrder(workOrder.copy(isMuted = !workOrder.isMuted)) }
     fun addToNativeCalendar(workOrder: WorkOrder) { workOrderReminderManager.addToNativeCalendar(workOrder) }
 
+    fun autoSaveWaiverForm(form: WaiverForm, onIdAssigned: ((Int) -> Unit)? = null) {
+        if (!form.isNotEmptyOrBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (form.id == 0) {
+                    val newId = waiverFormDao.insertForm(form)
+                    withContext(Dispatchers.Main) { onIdAssigned?.invoke(newId.toInt()) }
+                } else {
+                    waiverFormDao.updateForm(form)
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun saveCurrentWaiverForm(form: WaiverForm, onComplete: () -> Unit) {
+        if (!form.isNotEmptyOrBlank()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                if (form.id != 0) waiverFormDao.deleteForm(form)
+                withContext(Dispatchers.Main) { onComplete() }
+            }
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (form.id == 0) waiverFormDao.insertForm(form) else waiverFormDao.updateForm(form)
+            } catch (e: Exception) { e.printStackTrace() }
+            finally { withContext(Dispatchers.Main) { onComplete() } }
+        }
+    }
+
+    fun deleteWaiverForm(form: WaiverForm) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (form.id != 0) waiverFormDao.deleteForm(form)
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun previewWaiverPdf(context: Context, form: WaiverForm) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val pdfFile = PdfGenerator.generateWaiverFormPdf(context, form)
+            if (pdfFile != null && pdfFile.exists()) {
+                withContext(Dispatchers.Main) {
+                    try {
+                        val contentUri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", pdfFile)
+                        context.startActivity(Intent(Intent.ACTION_VIEW).apply { setDataAndType(contentUri, "application/pdf"); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+                    } catch (e: Exception) {}
+                }
+            }
+        }
+    }
+
+    fun shareWaiverPdf(context: Context, form: WaiverForm, onComplete: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val pdfFile = PdfGenerator.generateWaiverFormPdf(context, form)
+            if (pdfFile != null && pdfFile.exists()) {
+                val updatedForm = form.copy(isSavedToTarget = true, savedTargetLocation = "Shared")
+                val savedId = if (form.id == 0) waiverFormDao.insertForm(updatedForm).toInt() else { waiverFormDao.updateForm(updatedForm); form.id }
+                withContext(Dispatchers.Main) {
+                    try {
+                        val contentUri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", pdfFile)
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply { type = "application/pdf"; putExtra(Intent.EXTRA_STREAM, contentUri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                        context.startActivity(Intent.createChooser(shareIntent, "שתף").apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+                        onComplete()
+                    } catch (e: Exception) {}
+                }
+            }
+        }
+    }
+
     fun getNextPartnerNumber(): String {
         val maxNum = allForms.value.mapNotNull { it.partnerNumber.toIntOrNull() }.maxOrNull()
         return if (maxNum != null) (maxNum + 1).toString() else "1"
     }
 
-    // --- Form D1 (Standard) ---
     fun selectForm(form: GasForm?) { currentForm.value = form }
     fun saveCurrentForm(form: GasForm, onComplete: () -> Unit) {
         if (!form.isNotEmptyOrBlank()) { viewModelScope.launch(Dispatchers.IO) { if (form.id != 0) gasFormDao.deleteForm(form); withContext(Dispatchers.Main) { onComplete() } }; return }
@@ -152,7 +228,6 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // --- Periodic Form ---
     fun selectPeriodicForm(form: PeriodicGasForm?) { currentPeriodicForm.value = form }
     fun saveCurrentPeriodicForm(form: PeriodicGasForm, onComplete: () -> Unit) {
         if (!form.isNotEmptyOrBlank()) { viewModelScope.launch(Dispatchers.IO) { if (form.id != 0) periodicGasFormDao.deleteForm(form); withContext(Dispatchers.Main) { onComplete() } }; return }
@@ -204,12 +279,10 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
 
     fun scanAndRestoreFromPdfFolder(context: Context, onResult: (Int) -> Unit) { onResult(0) }
 
-    // --- גיבוי ושחזור אמיתי של מסד הנתונים ---
     fun exportBackup(context: Context, uri: Uri, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(context)
-                // מכריח את מסד הנתונים לשמור את כל הפעולות שבאוויר לתוך הקובץ הראשי (WAL Checkpoint)
                 db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
 
                 val dbFile = context.getDatabasePath("gas_forms_database")
@@ -218,7 +291,6 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
 
-                // העתקת מסד הנתונים ליעד שהמשתמש בחר
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                     dbFile.inputStream().use { inputStream ->
                         inputStream.copyTo(outputStream)
@@ -239,17 +311,14 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
                 val walFile = File(dbFile.path + "-wal")
                 val shmFile = File(dbFile.path + "-shm")
 
-                // חובה לסגור את החיבור למסד הנתונים לפני שדורסים אותו
                 AppDatabase.getDatabase(context).close()
 
-                // דריסת מסד הנתונים הקיים בקובץ הגיבוי
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     dbFile.outputStream().use { outputStream ->
                         inputStream.copyTo(outputStream)
                     }
                 }
 
-                // מחיקת קובצי מטמון זמניים של מסד הנתונים הישן כדי למנוע השחתה
                 if (walFile.exists()) walFile.delete()
                 if (shmFile.exists()) shmFile.delete()
 
@@ -261,7 +330,6 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // --- D2 Form ---
     fun autoSaveFormD2(form: GasFormD2, onIdAssigned: ((Int) -> Unit)? = null) {
         val isBlank = form.businessName.isBlank() && form.clientName.isBlank() && form.clientPhone.isBlank()
         if (isBlank) return
@@ -304,7 +372,6 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // --- D3 Form ---
     fun autoSaveFormD3(form: GasFormD3, onIdAssigned: ((Int) -> Unit)? = null) {
         val isBlank = form.businessName.isBlank() && form.clientName.isBlank() && form.clientPhone.isBlank()
         if (isBlank) return
@@ -347,7 +414,6 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // --- D4 Form ---
     fun autoSaveFormD4(form: GasFormD4, onIdAssigned: ((Int) -> Unit)? = null) {
         val isBlank = form.businessName.isBlank() && form.clientName.isBlank() && form.clientPhone.isBlank()
         if (isBlank) return
@@ -386,6 +452,52 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
                         onComplete()
                     } catch (e: Exception) {}
                 }
+            }
+        }
+    }
+
+    fun mergeAndSharePdfs(context: Context, forms: List<Any>, onComplete: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val pdfFiles = mutableListOf<File>()
+            for (form in forms) {
+                val file = when(form) {
+                    is GasForm -> PdfGenerator.generateFormPdf(context, form)
+                    is PeriodicGasForm -> PdfGenerator.generatePeriodicFormPdf(context, form)
+                    is GasFormD2 -> PdfGenerator.generateFormD2Pdf(context, form)
+                    is GasFormD3 -> PdfGenerator.generateFormD3Pdf(context, form)
+                    is GasFormD4 -> PdfGenerator.generateFormD4Pdf(context, form)
+                    is WaiverForm -> PdfGenerator.generateWaiverFormPdf(context, form)
+                    else -> null
+                }
+                if (file != null && file.exists()) {
+                    pdfFiles.add(file)
+                }
+            }
+
+            if (pdfFiles.isNotEmpty()) {
+                val mergedFile = PdfGenerator.mergePdfFiles(context, pdfFiles)
+                if (mergedFile != null) {
+                    withContext(Dispatchers.Main) {
+                        try {
+                            val contentUri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", mergedFile)
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/pdf"
+                                putExtra(Intent.EXTRA_STREAM, contentUri)
+                                putExtra(Intent.EXTRA_SUBJECT, "מסמכים ממוזגים - קבלן גז")
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "שתף מסמך ממוזג").apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+                            onComplete()
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "שגיאה בשיתוף המסמך הממוזג", Toast.LENGTH_SHORT).show()
+                            onComplete()
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) { Toast.makeText(context, "שגיאה במיזוג הקבצים", Toast.LENGTH_SHORT).show(); onComplete() }
+                }
+            } else {
+                withContext(Dispatchers.Main) { Toast.makeText(context, "לא נוצרו קבצים למיזוג", Toast.LENGTH_SHORT).show(); onComplete() }
             }
         }
     }

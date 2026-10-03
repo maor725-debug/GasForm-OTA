@@ -7,7 +7,19 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [GasForm::class, PeriodicGasForm::class, GasFormD2::class, GasFormD3::class, GasFormD4::class, WorkOrder::class], version = 23, exportSchema = false)
+@Database(
+    entities = [
+        GasForm::class,
+        PeriodicGasForm::class,
+        GasFormD2::class,
+        GasFormD3::class,
+        GasFormD4::class,
+        WorkOrder::class,
+        WaiverForm::class // התווספה הטבלה החדשה של טופס ויתור סודיות/אחריות
+    ],
+    version = 24, // הועלה לגרסה 24
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gasFormDao(): GasFormDao
     abstract fun periodicGasFormDao(): PeriodicGasFormDao
@@ -15,6 +27,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun gasFormD3Dao(): GasFormD3Dao
     abstract fun gasFormD4Dao(): GasFormD4Dao
     abstract fun workOrderDao(): WorkOrderDao
+    abstract fun waiverFormDao(): WaiverFormDao // התווסף ה-DAO החדש
 
     companion object {
         @Volatile
@@ -367,6 +380,32 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // המיגרציה החדשה לטבלת ויתור האחריות
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `waiver_forms` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `clientName` TEXT NOT NULL,
+                        `clientId` TEXT NOT NULL,
+                        `address` TEXT NOT NULL,
+                        `phone` TEXT NOT NULL,
+                        `workDescription` TEXT NOT NULL,
+                        `image1Uri` TEXT,
+                        `image2Uri` TEXT,
+                        `image3Uri` TEXT,
+                        `clientPhotoUri` TEXT,
+                        `clientSignatureUri` TEXT,
+                        `technicianSignatureUri` TEXT,
+                        `savedPdfFilePath` TEXT,
+                        `isSavedToTarget` INTEGER NOT NULL,
+                        `savedTargetLocation` TEXT
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -376,9 +415,9 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
-                        MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23
+                        MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
+                        MIGRATION_22_23, MIGRATION_23_24 // הוספנו את המיגרציה החדשה לרשימה
                     )
-                    // REMOVED: .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
