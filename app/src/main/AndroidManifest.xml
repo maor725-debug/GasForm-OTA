@@ -19,7 +19,7 @@
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="נורמטיבי"
+        android:label="${appLabel}"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
@@ -27,7 +27,7 @@
         <activity
             android:name="com.example.myapplication158.MainActivity"
             android:exported="true"
-            android:label="נורמטיבי"
+            android:label="${appLabel}"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -22,10 +22,16 @@ android {
         versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // הגדרת השם הרשמי לגרסת העבודה (Release)
+        manifestPlaceholders["appLabel"] = "נורמטיבי"
     }
 
     buildTypes {
         release {
+            // ---> הנה השורה שהוספתי: מאפשרת התקנת Release ישירות למכשיר דרך כפתור ה-Play <---
+            signingConfig = signingConfigs.getByName("debug")
+
             isCrunchPngs = false
             isMinifyEnabled = true // הופעל ProGuard/R8!
             isShrinkResources = true // הופעל כיווץ משאבים
@@ -35,6 +41,9 @@ android {
             // הגדרות "ארגז החול" - מאפשר התקנת אפליקציה שנייה במקביל
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-DEV"
+
+            // הגדרת שם שונה לגרסת הפיתוח כדי שלא תתבלבל במסך הבית
+            manifestPlaceholders["appLabel"] = "נורמטיבי פיתוח"
         }
     }
 
