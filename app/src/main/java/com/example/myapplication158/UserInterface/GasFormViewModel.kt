@@ -203,8 +203,63 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun scanAndRestoreFromPdfFolder(context: Context, onResult: (Int) -> Unit) { onResult(0) }
-    fun exportBackup(context: Context, uri: Uri, onResult: (Boolean, String) -> Unit) { onResult(false, "ייצוא יופעל בעדכון הבא") }
-    fun importBackup(context: Context, uri: Uri, onResult: (Boolean, String) -> Unit) { onResult(false, "שחזור יופעל בעדכון הבא") }
+
+    // --- גיבוי ושחזור אמיתי של מסד הנתונים ---
+    fun exportBackup(context: Context, uri: Uri, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(context)
+                // מכריח את מסד הנתונים לשמור את כל הפעולות שבאוויר לתוך הקובץ הראשי (WAL Checkpoint)
+                db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
+
+                val dbFile = context.getDatabasePath("gas_forms_database")
+                if (!dbFile.exists()) {
+                    withContext(Dispatchers.Main) { onResult(false, "שגיאה: קובץ מסד הנתונים לא קיים במכשיר.") }
+                    return@launch
+                }
+
+                // העתקת מסד הנתונים ליעד שהמשתמש בחר
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    dbFile.inputStream().use { inputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+                withContext(Dispatchers.Main) { onResult(true, "הגיבוי נשמר בהצלחה! שמור עליו במקום בטוח.") }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) { onResult(false, "שגיאה בביצוע הגיבוי: ${e.message}") }
+            }
+        }
+    }
+
+    fun importBackup(context: Context, uri: Uri, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val dbFile = context.getDatabasePath("gas_forms_database")
+                val walFile = File(dbFile.path + "-wal")
+                val shmFile = File(dbFile.path + "-shm")
+
+                // חובה לסגור את החיבור למסד הנתונים לפני שדורסים אותו
+                AppDatabase.getDatabase(context).close()
+
+                // דריסת מסד הנתונים הקיים בקובץ הגיבוי
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    dbFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+
+                // מחיקת קובצי מטמון זמניים של מסד הנתונים הישן כדי למנוע השחתה
+                if (walFile.exists()) walFile.delete()
+                if (shmFile.exists()) shmFile.delete()
+
+                withContext(Dispatchers.Main) { onResult(true, "הנתונים שוחזרו בהצלחה! סגור את האפליקציה לחלוטין ופתח אותה מחדש.") }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) { onResult(false, "שגיאה בשחזור: ${e.message}") }
+            }
+        }
+    }
 
     // --- D2 Form ---
     fun autoSaveFormD2(form: GasFormD2, onIdAssigned: ((Int) -> Unit)? = null) {

@@ -151,7 +151,14 @@ fun AppRoot() {
             onDismissRequest = { updateAvailable = null },
             title = { Text("עדכון גרסה זמין (${update.versionName})", textAlign = TextAlign.Right) },
             text = { Text(update.releaseNotes, textAlign = TextAlign.Right) },
-            confirmButton = { Button(onClick = { otaManager.downloadAndInstallApk(update.apkUrl); updateAvailable = null }) { Text("הורד ועדכן") } },
+            confirmButton = {
+                Button(onClick = {
+                    otaManager.openPlayStoreForUpdate()
+                    updateAvailable = null
+                }) {
+                    Text("עדכן מ-Google Play")
+                }
+            },
             dismissButton = { TextButton(onClick = { updateAvailable = null }) { Text("מאוחר יותר") } }
         )
     }

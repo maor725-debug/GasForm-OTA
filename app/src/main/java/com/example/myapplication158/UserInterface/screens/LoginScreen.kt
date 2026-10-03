@@ -21,6 +21,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.launch
 import com.example.myapplication158.util.SupabaseManager
 import com.example.myapplication158.util.UserProfile
@@ -33,15 +35,32 @@ import io.github.jan.supabase.postgrest.postgrest
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("login_prefs", Context.MODE_PRIVATE) }
+
+    // יצירת מפתח אבטחה ל-EncryptedSharedPreferences
+    val masterKey = remember {
+        MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+    }
+
+    // הפעלת EncryptedSharedPreferences במקום ה-SharedPreferences הרגיל
+    val encryptedPrefs = remember {
+        EncryptedSharedPreferences.create(
+            context,
+            "secret_login_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
     var isSignUpMode by remember { mutableStateOf(false) } // שולט אם אנחנו בהתחברות או הרשמה
 
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf(prefs.getString("email", "") ?: "") }
-    var password by remember { mutableStateOf(prefs.getString("password", "") ?: "") }
-    var rememberMe by remember { mutableStateOf(prefs.getBoolean("remember_me", false)) }
+    var email by remember { mutableStateOf(encryptedPrefs.getString("email", "") ?: "") }
+    var password by remember { mutableStateOf(encryptedPrefs.getString("password", "") ?: "") }
+    var rememberMe by remember { mutableStateOf(encryptedPrefs.getBoolean("remember_me", false)) }
 
     var passwordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
@@ -79,13 +98,13 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
                             if (profile?.status == "active") {
                                 if (rememberMe) {
-                                    prefs.edit()
+                                    encryptedPrefs.edit()
                                         .putBoolean("remember_me", true)
                                         .putString("email", email.trim())
                                         .putString("password", password)
                                         .apply()
                                 } else {
-                                    prefs.edit().clear().apply()
+                                    encryptedPrefs.edit().clear().apply()
                                 }
                                 onLoginSuccess()
                             } else {
@@ -109,13 +128,13 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
                             if (profile?.status == "active") {
                                 if (rememberMe) {
-                                    prefs.edit()
+                                    encryptedPrefs.edit()
                                         .putBoolean("remember_me", true)
                                         .putString("email", email.trim())
                                         .putString("password", password)
                                         .apply()
                                 } else {
-                                    prefs.edit().clear().apply()
+                                    encryptedPrefs.edit().clear().apply()
                                 }
                                 onLoginSuccess()
                             } else {

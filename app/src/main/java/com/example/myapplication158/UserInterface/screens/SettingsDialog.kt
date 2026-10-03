@@ -159,6 +159,22 @@ fun SettingsDialog(
         }
     }
 
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        uri?.let {
+            viewModel?.exportBackup(context, it) { success, msg ->
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            viewModel?.importBackup(context, it) { success, msg ->
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Dialog(onDismissRequest = { onDismissRequest(); onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Card(modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.92f).padding(8.dp).border(1.dp, borderColor, RoundedCornerShape(20.dp)), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = darkBg)) {
@@ -281,9 +297,49 @@ fun SettingsDialog(
                                         }
                                         if (isAutoSaveEnabled) {
                                             Spacer(modifier = Modifier.height(16.dp))
-                                            OutlinedButton(onClick = { folderPickerLauncher.launch(null) }, modifier = Modifier.fillMaxWidth().height(54.dp), border = BorderStroke(1.dp, primaryColor)) {
+                                            OutlinedButton(onClick = { folderPickerLauncher.launch(null) }, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), border = BorderStroke(1.dp, primaryColor)) {
                                                 Icon(Icons.Default.FolderOpen, null, tint = primaryColor); Spacer(modifier = Modifier.width(8.dp))
                                                 Text(text = if (customStorageFolderName.isEmpty()) "לחץ לבחירת תיקיית שמירה" else "תיקייה: $customStorageFolderName", color = primaryColor, fontWeight = FontWeight.Bold, maxLines = 1)
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(24.dp))
+                                        HorizontalDivider(color = borderColor)
+                                        Spacer(modifier = Modifier.height(16.dp))
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Backup, null, tint = primaryColor, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("גיבוי ושחזור נתונים", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("גיבוי מלא של כל הדוחות והנתונים השמורים במכשיר. מומלץ לבצע גיבוי תקופתי ולשמור בטוח (למשל ב-Google Drive).", fontSize = 12.sp, color = textGray)
+                                        Spacer(modifier = Modifier.height(16.dp))
+
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                            Button(
+                                                onClick = {
+                                                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                                    val fileName = "Normativi_Backup_${dateFormat.format(Date())}.db"
+                                                    exportLauncher.launch(fileName)
+                                                },
+                                                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                                            ) {
+                                                Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("גבה עכשיו", fontWeight = FontWeight.Bold)
+                                            }
+                                            Button(
+                                                onClick = {
+                                                    importLauncher.launch(arrayOf("application/octet-stream", "application/x-sqlite3", "*/*"))
+                                                },
+                                                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                                            ) {
+                                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("שחזר מגיבוי", fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -454,7 +510,7 @@ fun SettingsDialog(
                                                     }
                                                 }
                                             },
-                                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                                            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                                             colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
                                             enabled = !isSyncing
                                         ) {
@@ -505,7 +561,7 @@ fun SettingsDialog(
 
                                             Button(
                                                 onClick = { showRegistrationDialog = true },
-                                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                                                 colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)
                                             ) {
                                                 Text("התחבר / הרשם להסרת הגבלות", fontWeight = FontWeight.Bold)
@@ -556,7 +612,7 @@ fun SettingsDialog(
                                 onDismiss()
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)
                     ) {
                         Icon(Icons.Default.Save, contentDescription = "שמור", modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))

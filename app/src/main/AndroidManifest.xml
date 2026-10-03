@@ -5,8 +5,7 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- הרשאה להתקנת עדכונים (OTA) בצורה אוטומטית -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- הוסרה הרשאת REQUEST_INSTALL_PACKAGES כדי לעמוד בתקנון Google Play -->
 
     <!-- הרשאות מיקום נדרשות לדגימת נ.צ לאתרים ללא כתובת -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />

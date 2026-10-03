@@ -1,21 +1,16 @@
 package com.example.myapplication158.util
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
-import androidx.core.content.ContextCompat
-import android.os.Environment
-import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class UpdateInfo(val versionCode: Int, val versionName: String, val apkUrl: String, val releaseNotes: String)
+data class UpdateInfo(val versionCode: Int, val versionName: String, val releaseNotes: String)
 
 class OtaUpdateManager(private val context: Context) {
 
@@ -30,13 +25,11 @@ class OtaUpdateManager(private val context: Context) {
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(response)
 
-                // התיקון כאן: התאמנו את השמות בדיוק למה שכתוב ב-JSON בגיטהאב
                 val latestVersionCode = json.getInt("versionCode")
                 if (latestVersionCode > currentVersionCode) {
                     return@withContext UpdateInfo(
                         versionCode = latestVersionCode,
                         versionName = json.getString("versionName"),
-                        apkUrl = json.getString("apkUrl"),
                         releaseNotes = json.getString("releaseNotes")
                     )
                 }
@@ -47,52 +40,19 @@ class OtaUpdateManager(private val context: Context) {
         return@withContext null
     }
 
-    fun downloadAndInstallApk(apkUrl: String) {
-        val appContext = context.applicationContext
-
+    // פונקציה חדשה וחוקית לחנות: מפנה את המשתמש לעדכן דרך גוגל פליי
+    fun openPlayStoreForUpdate() {
+        val appPackageName = context.packageName
         try {
-            val request = DownloadManager.Request(Uri.parse(apkUrl))
-                .setTitle("עדכון אפליקציה 158")
-                .setDescription("מוריד ומכין להתקנה...")
-                .setMimeType("application/vnd.android.package-archive")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "update_158_${System.currentTimeMillis()}.apk")
-
-            val downloadManager = appContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val downloadId = downloadManager.enqueue(request)
-
-            Toast.makeText(appContext, "ההורדה החלה... ההתקנה תחל אוטומטית בסיום.", Toast.LENGTH_LONG).show()
-
-            val onComplete = object : BroadcastReceiver() {
-                override fun onReceive(ctxt: Context, intent: Intent) {
-                    val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                    if (id == downloadId) {
-                        try {
-                            val uri = downloadManager.getUriForDownloadedFile(downloadId)
-                            if (uri != null) {
-                                val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                                    setDataAndType(uri, "application/vnd.android.package-archive")
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                }
-                                appContext.startActivity(installIntent)
-                            }
-                        } catch (e: Exception) {
-                            Toast.makeText(appContext, "לחץ על ההתראה שהסתיימה כדי להתקין", Toast.LENGTH_LONG).show()
-                        }
-                        appContext.unregisterReceiver(this)
-                    }
-                }
-            }
-
-            ContextCompat.registerReceiver(
-                appContext, 
-                onComplete, 
-                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), 
-                ContextCompat.RECEIVER_EXPORTED
-            )
-
-        } catch (e: Exception) {
-            Toast.makeText(appContext, "שגיאה בהורדה: ${e.message}", Toast.LENGTH_LONG).show()
+            // מנסה לפתוח את אפליקציית Google Play במכשיר
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$appPackageName"))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            // אם אין גוגל פליי מותקן, פותח בדפדפן
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$appPackageName"))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
         }
     }
 }

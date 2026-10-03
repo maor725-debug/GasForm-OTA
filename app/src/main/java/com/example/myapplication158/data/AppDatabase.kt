@@ -359,7 +359,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // הגירה לגרסה 23: הוספת שדות חסרים לד-4 (שאלות 2.1, 2.2 ותמונת מתקן)
         private val MIGRATION_22_23 = object : Migration(22, 23) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE GasFormD4 ADD COLUMN check2_1 TEXT NOT NULL DEFAULT ''")
@@ -379,7 +378,7 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
                         MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23
                     )
-                    .fallbackToDestructiveMigration()
+                    // REMOVED: .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
