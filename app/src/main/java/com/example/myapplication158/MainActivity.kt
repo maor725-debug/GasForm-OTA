@@ -358,13 +358,17 @@ fun MainNavigation() {
                         }
                     }
 
-                    // כפתור חדש לטופס הסרת אחריות
+                    // כפתור חדש לטופס הסרת אחריות - שונה לשחור לבן לפי הבקשה!
                     Button(
                         onClick = { showFormTypeDialog = false; handleNewFormAttempt { currentScreen = Screen.EditWaiver(WaiverForm()) } },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)), modifier = Modifier.fillMaxWidth()
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Black,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                            Text("טופס הסרת אחריות ואישור חציבה", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
+                            Text("טופס הסרת אחריות טכנאי", textAlign = TextAlign.Center, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
                             Spacer(Modifier.width(6.dp))
                             Icon(Icons.Default.Gavel, contentDescription = null, modifier = Modifier.size(18.dp))
                         }

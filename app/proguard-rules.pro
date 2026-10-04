@@ -8,5 +8,7 @@
 -keep class kotlinx.serialization.** { *; }
 -keepattributes *Annotation*, InnerClasses
 
-# --- Rules for AndroidX Security Crypto ---
+# --- Rules for AndroidX Security Crypto & Google Tink ---
 -keep class androidx.security.crypto.** { *; }
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn com.google.crypto.tink.**

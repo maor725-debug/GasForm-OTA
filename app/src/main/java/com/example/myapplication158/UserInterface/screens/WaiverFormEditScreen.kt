@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplication158.UserInterface.GasFormViewModel
-import com.example.myapplication158.UserInterface.components.SignaturePad
+import com.example.myapplication158.UserInterface.components.ClientSignaturePad
 import com.example.myapplication158.data.WaiverForm
 import java.text.SimpleDateFormat
 import java.util.*
@@ -117,7 +117,6 @@ fun WaiverFormEditScreen(
 
                         OutlinedTextField(value = date, onValueChange = { date = it; saveForm() }, label = { Text("תאריך") }, modifier = Modifier.fillMaxWidth(), readOnly = true)
                         OutlinedTextField(value = clientName, onValueChange = { clientName = it; saveForm() }, label = { Text("שם הלקוח / חברה (חובה)") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = clientId, onValueChange = { clientId = it; saveForm() }, label = { Text("תעודת זהות / ח.פ (חובה לאימות משפטי)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                         OutlinedTextField(value = address, onValueChange = { address = it; saveForm() }, label = { Text("כתובת העבודה") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(value = phone, onValueChange = { phone = it; saveForm() }, label = { Text("טלפון") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
                         OutlinedTextField(value = workDescription, onValueChange = { workDescription = it; saveForm() }, label = { Text("תיאור מפורט של העבודה והסיכונים") }, modifier = Modifier.fillMaxWidth().height(100.dp), maxLines = 4, placeholder = { Text("לדוגמה: קידוח קיר בטון במטבח להעברת צנרת. הלקוח מודע שייתכן ועובר שם צינור מים...") })
@@ -172,7 +171,16 @@ fun WaiverFormEditScreen(
 
                         Text("בקש מהלקוח לחתום על המסך לאישור. חתימתך כטכנאי תצורף למסמך באופן אוטומטי בהתאם להגדרות המערכת.", fontSize = 12.sp, color = Color.Gray)
 
-                        SignaturePad(title = "חתימת הלקוח (חובה)", initialSignatureUri = clientSignatureUri ?: "", onSignatureSaved = { clientSignatureUri = it; saveForm() })
+                        // קריאה לרכיב הציור במקום הרכיב הישן שפותח את הגלריה!
+                        ClientSignaturePad(
+                            initialSignatureUri = clientSignatureUri ?: "",
+                            clientId = clientId,
+                            onClientIdChanged = { clientId = it; saveForm() },
+                            onSignatureSaved = { sigUri, _ ->
+                                clientSignatureUri = sigUri
+                                saveForm()
+                            }
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(24.dp))

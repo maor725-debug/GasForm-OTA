@@ -39,6 +39,7 @@ import java.io.File
 import android.widget.Toast
 import java.io.FileOutputStream
 
+// הפונקציה המקורית: חתימת טכנאי (העלאת תמונה מהגלריה)
 @Composable
 fun SignaturePad(
     modifier: Modifier = Modifier,
@@ -188,6 +189,7 @@ fun SignaturePad(
     }
 }
 
+// הפונקציה החדשה: חתימת לקוח (ציור באצבע) - הוספנו תעודת זהות בתוכה
 @Composable
 fun ClientSignaturePad(
     modifier: Modifier = Modifier,
