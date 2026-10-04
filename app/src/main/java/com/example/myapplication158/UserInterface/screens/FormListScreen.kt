@@ -21,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -77,7 +78,7 @@ fun FormListScreen(
     onEditD2Form: (GasFormD2) -> Unit = {},
     onEditD3Form: (GasFormD3) -> Unit = {},
     onEditD4Form: (GasFormD4) -> Unit = {},
-    onEditWaiverForm: (WaiverForm) -> Unit = {}, // הוספת נתיב העריכה לטופס הויתור
+    onEditWaiverForm: (WaiverForm) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val forms by viewModel.allForms.collectAsState()
@@ -85,7 +86,7 @@ fun FormListScreen(
     val d2Forms by viewModel.allD2Forms.collectAsState()
     val d3Forms by viewModel.allD3Forms.collectAsState()
     val d4Forms by viewModel.allD4Forms.collectAsState()
-    val waiverForms by viewModel.allWaiverForms.collectAsState() // משיכת טפסי הויתור
+    val waiverForms by viewModel.allWaiverForms.collectAsState()
 
     val combinedForms = remember(forms, periodicForms, d2Forms, d3Forms, d4Forms, waiverForms) {
         val list = mutableListOf<Any>()
@@ -102,7 +103,7 @@ fun FormListScreen(
                 is GasFormD2 -> it.createdAt
                 is GasFormD3 -> it.createdAt
                 is GasFormD4 -> it.createdAt
-                is WaiverForm -> it.id.toLong() // מיון זמני לטופס הויתור
+                is WaiverForm -> it.id.toLong()
                 else -> 0L
             }
         }
@@ -120,7 +121,6 @@ fun FormListScreen(
     var showWorkOrderCreateDialog by remember { mutableStateOf(false) }
     var editingWorkOrder by remember { mutableStateOf<WorkOrder?>(null) }
 
-    // מצב בחירת טפסים מרובה למיזוג (Merge PDFs)
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedForms by remember { mutableStateOf(setOf<Any>()) }
 
@@ -178,91 +178,46 @@ fun FormListScreen(
     val d2PrimaryColor = Color(0xFF2196F3)
     val d3PrimaryColor = Color(0xFFFF9800)
     val d4PrimaryColor = Color(0xFF673AB7)
-    val waiverPrimaryColor = Color(0xFFE65100) // כתום לטופס הויתור
+    val waiverPrimaryColor = Color(0xFFE65100)
 
-    val aiBgColor = if (isDark) Color(0xFF0D0D0D) else Color(0xFFF4F6F8)
-    val aiHeaderBg = if (isDark) {
-        when (settingsManager.appTheme) {
-            SettingsManager.THEME_BLUE -> Color(0xFF04132B)
-            SettingsManager.THEME_GREEN -> Color(0xFF0A2711)
-            SettingsManager.THEME_YELLOW -> Color(0xFF332B00)
-            else -> Color(0xFF381504)
-        }
-    } else Color.White
-
-    val aiHeaderTextColor = if (isDark) Color.White else Color(0xFF212121)
-    val aiCardBg = if (isDark) Color(0xFF1A1A1A) else Color(0xFFFFFFFF)
-    val aiBorderColor = if (isDark) Color(0xFF2A2A2A) else Color(0xFFE0E0E0)
-    val aiStatTotalBg = if (isDark) primaryColor.copy(alpha = 0.15f) else primaryColor.copy(alpha = 0.1f)
-    val aiStatMonthBg = if (isDark) primaryColor.copy(alpha = 0.25f) else primaryColor.copy(alpha = 0.2f)
+    val aiBgColor = if (isDark) Color(0xFF121212) else Color(0xFFFAFAFA)
+    val aiHeaderBg = if (isDark) Color(0xFF1E1E1E) else Color.White
+    val aiHeaderTextColor = if (isDark) Color.White else Color(0xFF1E1E1E)
+    val aiCardBg = if (isDark) Color(0xFF242424) else Color.White
+    val aiBorderColor = if (isDark) Color(0xFF333333) else Color(0xFFE0E0E0)
     val aiTextColor = if (isDark) Color.White else Color(0xFF212121)
     val aiTextGray = if (isDark) Color(0xFFAAAAAA) else Color(0xFF757575)
-    val statLabelColor = if (isDark) Color.LightGray else Color.DarkGray
 
-    val currentMonth = SimpleDateFormat("-MM-yyyy", Locale.getDefault()).format(Date())
-
-    val totalThisMonth = combinedForms.count {
-        when (it) {
-            is GasForm -> it.date.contains(currentMonth)
-            is PeriodicGasForm -> it.date.contains(currentMonth)
-            is GasFormD2 -> it.date.contains(currentMonth)
-            is GasFormD3 -> it.date.contains(currentMonth)
-            is GasFormD4 -> it.date.contains(currentMonth)
-            is WaiverForm -> it.date.contains(currentMonth)
+    // חישוב טפסים
+    val approvedForms = combinedForms.count {
+        when(it) {
+            is GasForm -> it.isSavedToTarget
+            is PeriodicGasForm -> it.isSavedToTarget
+            is GasFormD2 -> it.isSavedToTarget
+            is GasFormD3 -> it.isSavedToTarget
+            is GasFormD4 -> it.isSavedToTarget
+            is WaiverForm -> it.isSavedToTarget
             else -> false
         }
     }
+    val pendingForms = combinedForms.size - approvedForms
 
     val filteredForms = combinedForms.filter { item ->
         when (item) {
-            is GasForm -> {
-                item.clientName.contains(searchQuery, ignoreCase = true) ||
-                        item.clientCity.contains(searchQuery, ignoreCase = true) ||
-                        item.date.contains(searchQuery, ignoreCase = true) ||
-                        item.partnerNumber.contains(searchQuery, ignoreCase = true)
-            }
-            is PeriodicGasForm -> {
-                item.businessName.contains(searchQuery, ignoreCase = true) ||
-                        item.clientName.contains(searchQuery, ignoreCase = true) ||
-                        item.city.contains(searchQuery, ignoreCase = true) ||
-                        item.date.contains(searchQuery, ignoreCase = true) ||
-                        item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
-            }
-            is GasFormD2 -> {
-                item.businessName.contains(searchQuery, ignoreCase = true) ||
-                        item.clientName.contains(searchQuery, ignoreCase = true) ||
-                        item.city.contains(searchQuery, ignoreCase = true) ||
-                        item.date.contains(searchQuery, ignoreCase = true) ||
-                        item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
-            }
-            is GasFormD3 -> {
-                item.businessName.contains(searchQuery, ignoreCase = true) ||
-                        item.clientName.contains(searchQuery, ignoreCase = true) ||
-                        item.city.contains(searchQuery, ignoreCase = true) ||
-                        item.date.contains(searchQuery, ignoreCase = true) ||
-                        item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
-            }
-            is GasFormD4 -> {
-                item.businessName.contains(searchQuery, ignoreCase = true) ||
-                        item.clientName.contains(searchQuery, ignoreCase = true) ||
-                        item.city.contains(searchQuery, ignoreCase = true) ||
-                        item.date.contains(searchQuery, ignoreCase = true) ||
-                        item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
-            }
-            is WaiverForm -> {
-                item.clientName.contains(searchQuery, ignoreCase = true) ||
-                        item.address.contains(searchQuery, ignoreCase = true) ||
-                        item.date.contains(searchQuery, ignoreCase = true)
-            }
+            is GasForm -> item.clientName.contains(searchQuery, ignoreCase = true) || item.clientCity.contains(searchQuery, ignoreCase = true) || item.date.contains(searchQuery, ignoreCase = true) || item.partnerNumber.contains(searchQuery, ignoreCase = true)
+            is PeriodicGasForm -> item.businessName.contains(searchQuery, ignoreCase = true) || item.clientName.contains(searchQuery, ignoreCase = true) || item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
+            is GasFormD2 -> item.businessName.contains(searchQuery, ignoreCase = true) || item.clientName.contains(searchQuery, ignoreCase = true) || item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
+            is GasFormD3 -> item.businessName.contains(searchQuery, ignoreCase = true) || item.clientName.contains(searchQuery, ignoreCase = true) || item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
+            is GasFormD4 -> item.businessName.contains(searchQuery, ignoreCase = true) || item.clientName.contains(searchQuery, ignoreCase = true) || item.sequentialNumber.toString().contains(searchQuery, ignoreCase = true)
+            is WaiverForm -> item.clientName.contains(searchQuery, ignoreCase = true) || item.address.contains(searchQuery, ignoreCase = true)
             else -> false
         }
     }
 
-    // פונקציה לטיפול בלחיצה על כרטיסייה (מצב בחירה או עריכה רגילה)
     val handleItemClick: (Any, () -> Unit) -> Unit = { item, defaultAction ->
         if (isSelectionMode) {
             selectedForms = if (selectedForms.contains(item)) selectedForms - item else selectedForms + item
-            if (selectedForms.isEmpty()) isSelectionMode = false // יציאה אוטומטית אם בוטלו כל הבחירות
+            if (selectedForms.isEmpty()) isSelectionMode = false
         } else {
             defaultAction()
         }
@@ -273,7 +228,6 @@ fun FormListScreen(
             containerColor = aiBgColor,
             topBar = {
                 if (isSelectionMode) {
-                    // סרגל כלים מיוחד למצב בחירה (מיזוג PDF)
                     Surface(color = primaryColor, modifier = Modifier.fillMaxWidth(), shadowElevation = 4.dp) {
                         Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = { isSelectionMode = false; selectedForms = emptySet() }) {
@@ -284,71 +238,36 @@ fun FormListScreen(
                                 if (selectedForms.size < 2) {
                                     Toast.makeText(context, "יש לבחור לפחות 2 טפסים למיזוג", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "מעולה! נבחרו ${selectedForms.size} טפסים למיזוג. מנוע ה-PDF יתווסף בשלב הבא.", Toast.LENGTH_LONG).show()
-                                    isSelectionMode = false
-                                    selectedForms = emptySet()
+                                    Toast.makeText(context, "ממזג ${selectedForms.size} טפסים, אנא המתן...", Toast.LENGTH_LONG).show()
+                                    viewModel.mergeAndSharePdfs(context, selectedForms.toList()) {
+                                        isSelectionMode = false
+                                        selectedForms = emptySet()
+                                    }
                                 }
-                            }) {
-                                Text("מזג ל-PDF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            }
+                            }) { Text("מזג ל-PDF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp) }
                         }
                     }
                 } else {
-                    // הסרגל העליון הרגיל (כאן הוחזר כפתור הדוחות BarChart!)
-                    Surface(color = aiHeaderBg, modifier = Modifier.fillMaxWidth(), shadowElevation = 4.dp) {
-                        Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.clickable { settingsInitialTab = 0; showSettingsDialog = true }.size(24.dp))
-                                Icon(if (isDark) Icons.Default.Brightness7 else Icons.Default.Brightness4, "מצב לילה/יום", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { settingsManager.isDarkMode = !isDark; activity?.recreate() })
-
-                                // כפתור הדוחות הפיננסיים שהיה חסר הוחזר
-                                Icon(Icons.Default.BarChart, "דוחות", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { showReportDialog = true })
-
-                                // כפתור בחירה למיזוג
+                    Surface(color = aiHeaderBg, modifier = Modifier.fillMaxWidth(), shadowElevation = 2.dp) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { settingsInitialTab = 0; showSettingsDialog = true })
                                 Icon(Icons.Default.LibraryAddCheck, "בחירה למיזוג", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { isSelectionMode = true })
 
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.clickable { showSupportDialog = true }
-                                ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { showSupportDialog = true }) {
                                     Icon(Icons.Default.SupportAgent, "תמיכה", tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
                                     Text("תמיכה טכנית", color = Color(0xFF4CAF50), fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("מערכת מילוי טפסים", fontWeight = FontWeight.ExtraBold, color = aiHeaderTextColor, fontSize = 15.sp, maxLines = 1)
-                                Text("מאור מנחם - קבלן עבודות גז", color = primaryColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                            }
-                        }
-                    }
-                }
-            },
-            floatingActionButton = {
-                if (!isSelectionMode) {
-                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ExtendedFloatingActionButton(
-                            onClick = { onAddOtherForms() },
-                            containerColor = aiCardBg,
-                            contentColor = primaryColor,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(40.dp),
-                            elevation = FloatingActionButtonDefaults.elevation(2.dp)
-                        ) {
-                            Icon(Icons.Default.ListAlt, "טפסים נוספים", modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("טפסים נוספים", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
 
-                        ExtendedFloatingActionButton(
-                            onClick = { onAddNormativeForm() },
-                            containerColor = primaryColor,
-                            contentColor = Color.White,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.height(48.dp)
-                        ) {
-                            Icon(Icons.Default.Add, "הוסף", modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("טופס נורמטיבי", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("מערכת מילוי טפסים", fontWeight = FontWeight.ExtraBold, color = aiHeaderTextColor, fontSize = 16.sp)
+                                Text("מאור מנחם - קבלן גז", color = primaryColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -356,116 +275,218 @@ fun FormListScreen(
             modifier = modifier.fillMaxSize()
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
-                Column(modifier = Modifier.fillMaxSize().padding(innerPadding).background(aiBgColor)) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = searchQuery, onValueChange = { searchQuery = it },
-                        placeholder = { Text("חפש לפי שם לקוח, ישוב, מס' טופס...", textAlign = TextAlign.Right, fontSize = 12.sp) },
-                        leadingIcon = { Icon(Icons.Default.Search, null, tint = aiTextGray, modifier = Modifier.size(20.dp)) },
-                        trailingIcon = { if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, null, tint = aiTextGray, modifier = Modifier.size(20.dp)) } },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(24.dp), singleLine = true, textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = aiCardBg, unfocusedContainerColor = aiCardBg, focusedBorderColor = primaryColor, unfocusedBorderColor = aiBorderColor, focusedTextColor = aiTextColor, unfocusedTextColor = aiTextColor, cursorColor = primaryColor)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = aiStatTotalBg), shape = RoundedCornerShape(10.dp)) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-                                Text("סה\"כ טפסים", color = statLabelColor, fontSize = 11.sp); Spacer(Modifier.height(2.dp))
-                                Text(combinedForms.size.toString(), color = aiTextColor, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = aiStatMonthBg), shape = RoundedCornerShape(10.dp)) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-                                Text("טפסים החודש", color = statLabelColor, fontSize = 11.sp); Spacer(Modifier.height(2.dp))
-                                Text(totalThisMonth.toString(), color = aiTextColor, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                        Text("מסמכים שמורים (${filteredForms.size})", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(Icons.Default.Description, null, tint = primaryColor, modifier = Modifier.size(14.dp))
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding).background(aiBgColor),
+                    contentPadding = PaddingValues(bottom = 120.dp)
+                ) {
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = searchQuery, onValueChange = { searchQuery = it },
+                            placeholder = { Text("חפש לפי שם לקוח, ישוב, מס' טופס...", textAlign = TextAlign.Right, fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Search, null, tint = aiTextGray, modifier = Modifier.size(20.dp)) },
+                            trailingIcon = { if (searchQuery.isNotEmpty()) IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, null, tint = aiTextGray, modifier = Modifier.size(20.dp)) } },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 50.dp),
+                            shape = RoundedCornerShape(24.dp), singleLine = true, textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                            colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = aiCardBg, unfocusedContainerColor = aiCardBg, focusedBorderColor = primaryColor, unfocusedBorderColor = aiBorderColor, focusedTextColor = aiTextColor, unfocusedTextColor = aiTextColor, cursorColor = primaryColor)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
-                    if (filteredForms.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Default.Description, null, tint = aiBorderColor, modifier = Modifier.size(48.dp)); Spacer(Modifier.height(12.dp))
-                                Text("אין טפסים להצגה", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = aiTextColor)
+                    item {
+                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = if(isDark) Color(0xFF3E2723) else Color(0xFFFFF3E0)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, Color(0xFFFFB74D).copy(alpha=0.5f))
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+                                    Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(24.dp))
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("טפסים בהמתנה", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    Text(pendingForms.toString(), color = Color(0xFFE65100), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = if(isDark) Color(0xFF1B5E20) else Color(0xFFE8F5E9)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, Color(0xFF81C784).copy(alpha=0.5f))
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+                                    Icon(Icons.Default.CheckCircleOutline, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(24.dp))
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("טפסים מאושרים", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    Text(approvedForms.toString(), color = Color(0xFF2E7D32), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                                }
                             }
                         }
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(bottom = 80.dp, top = 4.dp)) {
-                            items(filteredForms) { form ->
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = if (isSelectionMode) 16.dp else 0.dp)) {
-                                    if (isSelectionMode) {
-                                        Checkbox(
-                                            checked = selectedForms.contains(form),
-                                            onCheckedChange = { checked -> selectedForms = if (checked) selectedForms + form else selectedForms - form },
-                                            colors = CheckboxDefaults.colors(checkedColor = primaryColor)
-                                        )
-                                    }
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        when (form) {
-                                            is GasForm -> {
-                                                FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditForm(form) } }, onPreview = { viewModel.previewPdf(context, form) }, onShare = { viewModel.sharePdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, onPricingClick = { showPricingDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = primaryColor, aiBorderColor = aiBorderColor)
-                                            }
-                                            is PeriodicGasForm -> {
-                                                PeriodicFormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditPeriodicForm(form) } }, onPreview = { viewModel.previewPeriodicPdf(context, form) }, onShare = { viewModel.sharePeriodicPdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = Color(0xFF4CAF50), aiBorderColor = aiBorderColor)
-                                            }
-                                            is GasFormD2 -> {
-                                                D2FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD2Form(form) } }, onPreview = { viewModel.previewPdfD2(context, form) }, onShare = { viewModel.sharePdfD2(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d2PrimaryColor, aiBorderColor = aiBorderColor)
-                                            }
-                                            is GasFormD3 -> {
-                                                D3FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD3Form(form) } }, onPreview = { viewModel.previewPdfD3(context, form) }, onShare = { viewModel.sharePdfD3(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d3PrimaryColor, aiBorderColor = aiBorderColor)
-                                            }
-                                            is GasFormD4 -> {
-                                                D4FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD4Form(form) } }, onPreview = { viewModel.previewPdfD4(context, form) }, onShare = { viewModel.sharePdfD4(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d4PrimaryColor, aiBorderColor = aiBorderColor)
-                                            }
-                                            is WaiverForm -> {
-                                                WaiverFormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditWaiverForm(form) } }, onPreview = { viewModel.previewWaiverPdf(context, form) }, onShare = { viewModel.shareWaiverPdf(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = waiverPrimaryColor, aiBorderColor = aiBorderColor)
-                                            }
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).clickable { onAddNormativeForm() },
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().background(Brush.horizontalGradient(colors = listOf(Color(0xFF0D47A1), Color(0xFF1976D2)))).padding(24.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.NoteAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("טופס חדש", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                                         }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("התחל למלא טופס בדיקה נורמטיבי\n(ת\"י 158)", color = Color.White.copy(alpha=0.9f), fontSize = 14.sp, lineHeight = 20.sp)
+                                    }
+
+                                    Button(
+                                        onClick = { onAddNormativeForm() },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1976D2)),
+                                        shape = RoundedCornerShape(24.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Text("התחל", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(Icons.Default.ArrowBackIosNew, contentDescription = null, modifier = Modifier.size(12.dp))
                                     }
                                 }
                             }
-                            item {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "פותח ע\"י מאור מנחם ©",
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center,
-                                    fontSize = 11.sp,
-                                    color = aiTextGray,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(modifier = Modifier.height(24.dp))
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.History, null, tint = aiTextColor, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("טפסים אחרונים", color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    if (filteredForms.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF2A2A2A) else Color(0xFFF5F7F9)),
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, aiBorderColor)
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.Description, tint = Color.LightGray, modifier = Modifier.size(56.dp), contentDescription = null)
+                                    Spacer(Modifier.height(16.dp))
+                                    Text("אין טפסים להצגה", fontWeight = FontWeight.Bold, color = aiHeaderTextColor, fontSize = 18.sp)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("טפסים שיופיעו כאן לאחר מילוי", color = aiTextGray, fontSize = 14.sp)
+                                }
                             }
                         }
+                    } else {
+                        items(filteredForms) { form ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = if (isSelectionMode) 16.dp else 0.dp)) {
+                                if (isSelectionMode) {
+                                    Checkbox(
+                                        checked = selectedForms.contains(form),
+                                        onCheckedChange = { checked -> selectedForms = if (checked) selectedForms + form else selectedForms - form },
+                                        colors = CheckboxDefaults.colors(checkedColor = primaryColor)
+                                    )
+                                }
+                                Box(modifier = Modifier.weight(1f)) {
+                                    when (form) {
+                                        is GasForm -> FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditForm(form) } }, onPreview = { viewModel.previewPdf(context, form) }, onShare = { viewModel.sharePdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, onPricingClick = { showPricingDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = primaryColor, aiBorderColor = aiBorderColor)
+                                        is PeriodicGasForm -> PeriodicFormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditPeriodicForm(form) } }, onPreview = { viewModel.previewPeriodicPdf(context, form) }, onShare = { viewModel.sharePeriodicPdf(context, form) }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = Color(0xFF4CAF50), aiBorderColor = aiBorderColor)
+                                        is GasFormD2 -> D2FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD2Form(form) } }, onPreview = { viewModel.previewPdfD2(context, form) }, onShare = { viewModel.sharePdfD2(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d2PrimaryColor, aiBorderColor = aiBorderColor)
+                                        is GasFormD3 -> D3FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD3Form(form) } }, onPreview = { viewModel.previewPdfD3(context, form) }, onShare = { viewModel.sharePdfD3(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d3PrimaryColor, aiBorderColor = aiBorderColor)
+                                        is GasFormD4 -> D4FormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditD4Form(form) } }, onPreview = { viewModel.previewPdfD4(context, form) }, onShare = { viewModel.sharePdfD4(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = d4PrimaryColor, aiBorderColor = aiBorderColor)
+                                        is WaiverForm -> WaiverFormListItemAiStyle(form = form, onEdit = { handleItemClick(form) { onEditWaiverForm(form) } }, onPreview = { viewModel.previewWaiverPdf(context, form) }, onShare = { viewModel.shareWaiverPdf(context, form) {} }, onDelete = { showDeleteConfirmDialog = form }, aiCardBg = aiCardBg, aiTextColor = aiTextColor, aiTextGray = aiTextGray, primaryColor = waiverPrimaryColor, aiBorderColor = aiBorderColor)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "פותח ע\"י", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "A.S.I", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
 
                 if (!isSelectionMode) {
-                    FloatingActionButton(
-                        onClick = { showWorkOrdersListDialog = true },
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = Color.White,
-                        shape = CircleShape,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 16.dp, bottom = 24.dp)
+                    Column(
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(
+                            Brush.verticalGradient(colors = listOf(Color.Transparent, aiBgColor.copy(alpha = 0.9f), aiBgColor))
+                        ).padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.EditCalendar,
-                            contentDescription = "יומן עבודה",
-                            modifier = Modifier.size(26.dp)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = { onAddOtherForms() },
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            ) {
+                                Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("טפסים נוספים", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Icon(Icons.Default.ArrowBackIosNew, contentDescription = null, modifier = Modifier.size(12.dp))
+                            }
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                FloatingActionButton(
+                                    onClick = { showReportDialog = true },
+                                    containerColor = Color.White,
+                                    contentColor = primaryColor,
+                                    shape = CircleShape,
+                                    modifier = Modifier.size(48.dp),
+                                    elevation = FloatingActionButtonDefaults.elevation(4.dp)
+                                ) {
+                                    Icon(Icons.Default.BarChart, "הפקת דוח", modifier = Modifier.size(24.dp))
+                                }
+
+                                FloatingActionButton(
+                                    onClick = { showWorkOrdersListDialog = true },
+                                    containerColor = primaryColor,
+                                    contentColor = Color.White,
+                                    shape = CircleShape,
+                                    modifier = Modifier.size(56.dp),
+                                    elevation = FloatingActionButtonDefaults.elevation(4.dp)
+                                ) {
+                                    Icon(Icons.Default.EditCalendar, "יומן עבודה", modifier = Modifier.size(28.dp))
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "פותח ע\"י", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "A.S.I", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
 
+            // Dialogs
             if (showSupportDialog) {
                 AlertDialog(
                     onDismissRequest = { if (!isSubmittingSupport) showSupportDialog = false },
@@ -489,113 +510,54 @@ fun FormListScreen(
                                 ) {
                                     Text(cat, color = aiTextColor)
                                     Spacer(Modifier.width(8.dp))
-                                    RadioButton(
-                                        selected = supportCategory == cat,
-                                        onClick = { supportCategory = cat },
-                                        colors = RadioButtonDefaults.colors(selectedColor = primaryColor)
-                                    )
+                                    RadioButton(selected = supportCategory == cat, onClick = { supportCategory = cat }, colors = RadioButtonDefaults.colors(selectedColor = primaryColor))
                                 }
                             }
                             Spacer(Modifier.height(16.dp))
                             OutlinedTextField(
-                                value = supportMessage,
-                                onValueChange = { supportMessage = it },
+                                value = supportMessage, onValueChange = { supportMessage = it },
                                 label = { Text("פרט ככל הניתן את פנייתך כאן...", textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = primaryColor, unfocusedBorderColor = aiBorderColor,
-                                    focusedTextColor = aiTextColor, unfocusedTextColor = aiTextColor
-                                ),
-                                maxLines = 5,
-                                textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Right)
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = primaryColor, unfocusedBorderColor = aiBorderColor, focusedTextColor = aiTextColor, unfocusedTextColor = aiTextColor),
+                                maxLines = 5, textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Right)
                             )
                         }
                     },
                     confirmButton = {
                         Button(
                             onClick = {
-                                if (supportMessage.isBlank()) {
-                                    Toast.makeText(context, "אנא הזן את תוכן הפנייה", Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
+                                if (supportMessage.isBlank()) { Toast.makeText(context, "אנא הזן את תוכן הפנייה", Toast.LENGTH_SHORT).show(); return@Button }
                                 isSubmittingSupport = true
                                 coroutineScope.launch(Dispatchers.IO) {
                                     try {
-                                        val logsToAttach = if (supportCategory == "דיווח על באג / תקלה") {
-                                            AppLogger.getLogsForLastWeek(context)
-                                        } else null
-
-                                        val ticket = SupportTicket(
-                                            device_id = androidId,
-                                            category = supportCategory,
-                                            message = supportMessage,
-                                            system_logs = logsToAttach
-                                        )
+                                        val logsToAttach = if (supportCategory == "דיווח על באג / תקלה") AppLogger.getLogsForLastWeek(context) else null
+                                        val ticket = SupportTicket(device_id = androidId, category = supportCategory, message = supportMessage, system_logs = logsToAttach)
                                         SupabaseManager.client.postgrest["support_tickets"].insert(ticket)
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "הפנייה נשלחה בהצלחה! נטפל בה בהקדם.", Toast.LENGTH_LONG).show()
-                                            showSupportDialog = false
-                                            supportMessage = ""
-                                            isSubmittingSupport = false
-                                        }
+                                        withContext(Dispatchers.Main) { Toast.makeText(context, "הפנייה נשלחה בהצלחה!", Toast.LENGTH_LONG).show(); showSupportDialog = false; supportMessage = ""; isSubmittingSupport = false }
                                     } catch (e: Exception) {
                                         e.printStackTrace()
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "שגיאה בשליחת הפנייה. נסה שוב.", Toast.LENGTH_SHORT).show()
-                                            isSubmittingSupport = false
-                                        }
+                                        withContext(Dispatchers.Main) { Toast.makeText(context, "שגיאה בשליחת הפנייה. נסה שוב.", Toast.LENGTH_SHORT).show(); isSubmittingSupport = false }
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-                            enabled = !isSubmittingSupport
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor), enabled = !isSubmittingSupport
                         ) {
-                            if (isSubmittingSupport) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("שלח פנייה", fontWeight = FontWeight.Bold)
-                                    Spacer(Modifier.width(4.dp))
-                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
-                            }
+                            if (isSubmittingSupport) { CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp) }
+                            else { Row(verticalAlignment = Alignment.CenterVertically) { Text("שלח פנייה", fontWeight = FontWeight.Bold); Spacer(Modifier.width(4.dp)); Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp)) } }
                         }
                     },
-                    dismissButton = {
-                        TextButton(onClick = { showSupportDialog = false }, enabled = !isSubmittingSupport) {
-                            Text("ביטול", color = aiTextGray)
-                        }
-                    }
+                    dismissButton = { TextButton(onClick = { showSupportDialog = false }, enabled = !isSubmittingSupport) { Text("ביטול", color = aiTextGray) } }
                 )
             }
 
             if (!isSetupComplete && !suppressOnboarding) {
                 AlertDialog(
-                    onDismissRequest = { },
-                    properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+                    onDismissRequest = { }, properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
                     containerColor = aiCardBg, titleContentColor = primaryColor, textContentColor = aiTextColor,
                     icon = { Icon(Icons.Default.Warning, null, tint = primaryColor, modifier = Modifier.size(36.dp)) },
                     title = { Text("הגדרות חובה חסרות", fontWeight = FontWeight.Bold, fontSize = 18.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-                    text = {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                            Text("כדי להתחיל לעבוד עם המערכת עליך להגדיר:", textAlign = TextAlign.Center, fontSize = 14.sp)
-                            Spacer(Modifier.height(12.dp))
-                            Text(missingFieldsText, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF5252), textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                suppressOnboarding = true
-                                settingsInitialTab = 2
-                                showSettingsDialog = true
-                            },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
-                        ) {
-                            Text("הגדר עכשיו", fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
+                    text = { Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) { Text("כדי להתחיל לעבוד עם המערכת עליך להגדיר:", textAlign = TextAlign.Center, fontSize = 14.sp); Spacer(Modifier.height(12.dp)); Text(missingFieldsText, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFF5252), textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth()) } },
+                    confirmButton = { Button(onClick = { suppressOnboarding = true; settingsInitialTab = 2; showSettingsDialog = true }, modifier = Modifier.fillMaxWidth().height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor)) { Text("הגדר עכשיו", fontWeight = FontWeight.Bold, color = Color.White) } }
                 )
             }
 
@@ -604,21 +566,8 @@ fun FormListScreen(
 
             showDeleteConfirmDialog?.let { form ->
                 AlertDialog(
-                    onDismissRequest = { showDeleteConfirmDialog = null },
-                    containerColor = aiCardBg,
-                    confirmButton = {
-                        Button(onClick = {
-                            when (form) {
-                                is GasForm -> viewModel.deleteForm(form)
-                                is PeriodicGasForm -> viewModel.deletePeriodicForm(form)
-                                is GasFormD2 -> viewModel.deleteFormD2(form)
-                                is GasFormD3 -> viewModel.deleteFormD3(form)
-                                is GasFormD4 -> viewModel.deleteFormD4(form)
-                                is WaiverForm -> viewModel.deleteWaiverForm(form) // מחיקת טופס הויתור
-                            }
-                            showDeleteConfirmDialog = null
-                        }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252))) { Text("מחק") }
-                    },
+                    onDismissRequest = { showDeleteConfirmDialog = null }, containerColor = aiCardBg,
+                    confirmButton = { Button(onClick = { when (form) { is GasForm -> viewModel.deleteForm(form); is PeriodicGasForm -> viewModel.deletePeriodicForm(form); is GasFormD2 -> viewModel.deleteFormD2(form); is GasFormD3 -> viewModel.deleteFormD3(form); is GasFormD4 -> viewModel.deleteFormD4(form); is WaiverForm -> viewModel.deleteWaiverForm(form) }; showDeleteConfirmDialog = null }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252))) { Text("מחק") } },
                     dismissButton = { TextButton(onClick = { showDeleteConfirmDialog = null }) { Text("ביטול", color = aiTextGray) } },
                     title = { Text("מחיקה", color = aiTextColor, fontWeight = FontWeight.Bold) },
                     text = { Text("האם אתה בטוח שברצונך למחוק את הטופס?", color = aiTextColor) }
@@ -632,42 +581,16 @@ fun FormListScreen(
 
             if (showWorkOrdersListDialog) {
                 WorkOrdersListDialog(
-                    viewModel = viewModel,
-                    onDismiss = { showWorkOrdersListDialog = false },
-                    onAddNewWorkOrder = {
-                        editingWorkOrder = null
-                        showWorkOrderCreateDialog = true
-                    },
-                    onEditWorkOrder = { item ->
-                        editingWorkOrder = item
-                        showWorkOrderCreateDialog = true
-                    },
-                    onGenerateNormativeForm = { prefilledForm ->
-                        showWorkOrdersListDialog = false
-                        onEditForm(prefilledForm)
-                    },
-                    onGeneratePeriodicForm = { prefilledPeriodic ->
-                        showWorkOrdersListDialog = false
-                        onEditPeriodicForm(prefilledPeriodic)
-                    }
+                    viewModel = viewModel, onDismiss = { showWorkOrdersListDialog = false },
+                    onAddNewWorkOrder = { editingWorkOrder = null; showWorkOrderCreateDialog = true },
+                    onEditWorkOrder = { item -> editingWorkOrder = item; showWorkOrderCreateDialog = true },
+                    onGenerateNormativeForm = { prefilledForm -> showWorkOrdersListDialog = false; onEditForm(prefilledForm) },
+                    onGeneratePeriodicForm = { prefilledPeriodic -> showWorkOrdersListDialog = false; onEditPeriodicForm(prefilledPeriodic) }
                 )
             }
 
             if (showWorkOrderCreateDialog) {
-                WorkOrderDialog(
-                    initialWorkOrder = editingWorkOrder,
-                    onDismiss = {
-                        showWorkOrderCreateDialog = false
-                        editingWorkOrder = null
-                    },
-                    onSave = { order ->
-                        viewModel.saveWorkOrder(order) {
-                            showWorkOrderCreateDialog = false
-                            editingWorkOrder = null
-                            Toast.makeText(context, "העבודה נשמרה בהצלחה ביומן", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                )
+                WorkOrderDialog(initialWorkOrder = editingWorkOrder, onDismiss = { showWorkOrderCreateDialog = false; editingWorkOrder = null }, onSave = { order -> viewModel.saveWorkOrder(order) { showWorkOrderCreateDialog = false; editingWorkOrder = null; Toast.makeText(context, "העבודה נשמרה בהצלחה ביומן", Toast.LENGTH_SHORT).show() } })
             }
         }
     }
@@ -675,34 +598,19 @@ fun FormListScreen(
 
 @Composable
 private fun WaiverFormListItemAiStyle(
-    form: WaiverForm,
-    onEdit: () -> Unit,
-    onPreview: () -> Unit,
-    onShare: () -> Unit,
-    onDelete: () -> Unit,
-    aiCardBg: Color,
-    aiTextColor: Color,
-    aiTextGray: Color,
-    primaryColor: Color,
-    aiBorderColor: Color
+    form: WaiverForm, onEdit: () -> Unit, onPreview: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit, aiCardBg: Color, aiTextColor: Color, aiTextGray: Color, primaryColor: Color, aiBorderColor: Color
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() },
-        colors = CardDefaults.cardColors(containerColor = aiCardBg),
-        border = BorderStroke(1.dp, aiBorderColor),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() }, colors = CardDefaults.cardColors(containerColor = aiCardBg), border = BorderStroke(1.dp, aiBorderColor), shape = RoundedCornerShape(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Gavel, contentDescription = null, tint = primaryColor)
-            }
+            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Gavel, contentDescription = null, tint = primaryColor) }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.clientName.takeIf { it.isNotBlank() } ?: "הסרת אחריות חדשה"
                 Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Spacer(modifier = Modifier.height(2.dp))
-                val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
-                val draftText = if (isDraft) " • טיוטה" else ""
+                val draftText = if (!form.isSavedToTarget) " • טיוטה" else ""
                 Text("הסרת אחריות וחציבה$draftText | ${form.date}", color = aiTextGray, fontSize = 12.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -716,38 +624,20 @@ private fun WaiverFormListItemAiStyle(
 
 @Composable
 private fun PeriodicFormListItemAiStyle(
-    form: PeriodicGasForm,
-    onEdit: () -> Unit,
-    onPreview: () -> Unit,
-    onShare: () -> Unit,
-    onDelete: () -> Unit,
-    aiCardBg: Color,
-    aiTextColor: Color,
-    aiTextGray: Color,
-    primaryColor: Color,
-    aiBorderColor: Color
+    form: PeriodicGasForm, onEdit: () -> Unit, onPreview: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit, aiCardBg: Color, aiTextColor: Color, aiTextGray: Color, primaryColor: Color, aiBorderColor: Color
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() },
-        colors = CardDefaults.cardColors(containerColor = aiCardBg),
-        border = BorderStroke(1.dp, aiBorderColor),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() }, colors = CardDefaults.cardColors(containerColor = aiCardBg), border = BorderStroke(1.dp, aiBorderColor), shape = RoundedCornerShape(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null, tint = primaryColor)
-            }
+            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null, tint = primaryColor) }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "טופס תקופתי חדש"
                 Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Spacer(modifier = Modifier.height(2.dp))
-                val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
-                val now = System.currentTimeMillis()
-                val createdAt = if (form.createdAt > 0) form.createdAt else now
-                val elapsedDays = ((now - createdAt) / (1000 * 60 * 60 * 24)).toInt()
-                val remainingDays = (60 - elapsedDays).coerceAtLeast(0)
-                val draftText = if (isDraft) " • ⏳ נותרו $remainingDays ימים" else ""
+                val isDraft = !form.isSavedToTarget
+                val draftText = if (isDraft) " • טיוטה" else ""
                 Text("ד-1 | מרכזיה$draftText | מס' ${form.sequentialNumber} | ${form.date}", color = aiTextGray, fontSize = 12.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -761,38 +651,20 @@ private fun PeriodicFormListItemAiStyle(
 
 @Composable
 private fun D2FormListItemAiStyle(
-    form: GasFormD2,
-    onEdit: () -> Unit,
-    onPreview: () -> Unit,
-    onShare: () -> Unit,
-    onDelete: () -> Unit,
-    aiCardBg: Color,
-    aiTextColor: Color,
-    aiTextGray: Color,
-    primaryColor: Color,
-    aiBorderColor: Color
+    form: GasFormD2, onEdit: () -> Unit, onPreview: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit, aiCardBg: Color, aiTextColor: Color, aiTextGray: Color, primaryColor: Color, aiBorderColor: Color
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() },
-        colors = CardDefaults.cardColors(containerColor = aiCardBg),
-        border = BorderStroke(1.dp, aiBorderColor),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() }, colors = CardDefaults.cardColors(containerColor = aiCardBg), border = BorderStroke(1.dp, aiBorderColor), shape = RoundedCornerShape(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.PropaneTank, contentDescription = null, tint = primaryColor)
-            }
+            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Default.PropaneTank, contentDescription = null, tint = primaryColor) }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "דוח ד-2 חדש"
                 Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Spacer(modifier = Modifier.height(2.dp))
-                val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
-                val now = System.currentTimeMillis()
-                val createdAt = if (form.createdAt > 0) form.createdAt else now
-                val elapsedDays = ((now - createdAt) / (1000 * 60 * 60 * 24)).toInt()
-                val remainingDays = (60 - elapsedDays).coerceAtLeast(0)
-                val draftText = if (isDraft) " • ⏳ נותרו $remainingDays ימים" else ""
+                val isDraft = !form.isSavedToTarget
+                val draftText = if (isDraft) " • טיוטה" else ""
                 Text("ד-2 | מכלים נייחים$draftText | מס' ${form.sequentialNumber} | ${form.date}", color = aiTextGray, fontSize = 12.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -806,38 +678,20 @@ private fun D2FormListItemAiStyle(
 
 @Composable
 private fun D3FormListItemAiStyle(
-    form: GasFormD3,
-    onEdit: () -> Unit,
-    onPreview: () -> Unit,
-    onShare: () -> Unit,
-    onDelete: () -> Unit,
-    aiCardBg: Color,
-    aiTextColor: Color,
-    aiTextGray: Color,
-    primaryColor: Color,
-    aiBorderColor: Color
+    form: GasFormD3, onEdit: () -> Unit, onPreview: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit, aiCardBg: Color, aiTextColor: Color, aiTextGray: Color, primaryColor: Color, aiBorderColor: Color
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() },
-        colors = CardDefaults.cardColors(containerColor = aiCardBg),
-        border = BorderStroke(1.dp, aiBorderColor),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() }, colors = CardDefaults.cardColors(containerColor = aiCardBg), border = BorderStroke(1.dp, aiBorderColor), shape = RoundedCornerShape(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Domain, contentDescription = null, tint = primaryColor)
-            }
+            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Domain, contentDescription = null, tint = primaryColor) }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "דוח ד-3 חדש"
                 Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Spacer(modifier = Modifier.height(2.dp))
-                val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
-                val now = System.currentTimeMillis()
-                val createdAt = if (form.createdAt > 0) form.createdAt else now
-                val elapsedDays = ((now - createdAt) / (1000 * 60 * 60 * 24)).toInt()
-                val remainingDays = (60 - elapsedDays).coerceAtLeast(0)
-                val draftText = if (isDraft) " • ⏳ נותרו $remainingDays ימים" else ""
+                val isDraft = !form.isSavedToTarget
+                val draftText = if (isDraft) " • טיוטה" else ""
                 Text("ד-3 | מאגר משותף$draftText | מס' ${form.sequentialNumber} | ${form.date}", color = aiTextGray, fontSize = 12.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -851,38 +705,20 @@ private fun D3FormListItemAiStyle(
 
 @Composable
 private fun D4FormListItemAiStyle(
-    form: GasFormD4,
-    onEdit: () -> Unit,
-    onPreview: () -> Unit,
-    onShare: () -> Unit,
-    onDelete: () -> Unit,
-    aiCardBg: Color,
-    aiTextColor: Color,
-    aiTextGray: Color,
-    primaryColor: Color,
-    aiBorderColor: Color
+    form: GasFormD4, onEdit: () -> Unit, onPreview: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit, aiCardBg: Color, aiTextColor: Color, aiTextGray: Color, primaryColor: Color, aiBorderColor: Color
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() },
-        colors = CardDefaults.cardColors(containerColor = aiCardBg),
-        border = BorderStroke(1.dp, aiBorderColor),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clickable { onEdit() }, colors = CardDefaults.cardColors(containerColor = aiCardBg), border = BorderStroke(1.dp, aiBorderColor), shape = RoundedCornerShape(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Storage, contentDescription = null, tint = primaryColor)
-            }
+            Box(modifier = Modifier.size(40.dp).background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Storage, contentDescription = null, tint = primaryColor) }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "דוח ד-4 חדש"
                 Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Spacer(modifier = Modifier.height(2.dp))
-                val isDraft = !form.isSavedToTarget || form.savedTargetLocation == "מכשיר" || form.savedTargetLocation.isNullOrEmpty()
-                val now = System.currentTimeMillis()
-                val createdAt = if (form.createdAt > 0) form.createdAt else now
-                val elapsedDays = ((now - createdAt) / (1000 * 60 * 60 * 24)).toInt()
-                val remainingDays = (60 - elapsedDays).coerceAtLeast(0)
-                val draftText = if (isDraft) " • ⏳ נותרו $remainingDays ימים" else ""
+                val isDraft = !form.isSavedToTarget
+                val draftText = if (isDraft) " • טיוטה" else ""
                 Text("ד-4 | מאגר נפרד$draftText | מס' ${form.sequentialNumber} | ${form.date}", color = aiTextGray, fontSize = 12.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
