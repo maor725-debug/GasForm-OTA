@@ -3,10 +3,47 @@ package com.example.myapplication158.util
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Environment
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import java.io.File
 
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
+    private var securePrefs: SharedPreferences
+
+    init {
+        var tempSecurePrefs: SharedPreferences? = null
+        try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+
+            tempSecurePrefs = EncryptedSharedPreferences.create(
+                context,
+                "secure_app_prefs",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            try {
+                context.getSharedPreferences("secure_app_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+                tempSecurePrefs = context.getSharedPreferences("fallback_secure_prefs", Context.MODE_PRIVATE)
+            } catch (fallbackEx: Exception) {
+                fallbackEx.printStackTrace()
+                tempSecurePrefs = context.getSharedPreferences("fallback_secure_prefs", Context.MODE_PRIVATE)
+            }
+        }
+
+        securePrefs = tempSecurePrefs!!
+
+        val oldPin = prefs.getString(KEY_PIN_CODE, null)
+        if (oldPin != null) {
+            securePrefs.edit().putString(KEY_PIN_CODE, oldPin).apply()
+            prefs.edit().remove(KEY_PIN_CODE).apply()
+        }
+    }
 
     var appTheme: String
         get() = prefs.getString(KEY_APP_THEME, THEME_ORANGE) ?: THEME_ORANGE
@@ -21,8 +58,8 @@ class SettingsManager(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_IS_DARK_MODE, value).apply()
 
     var pinCode: String?
-        get() = prefs.getString(KEY_PIN_CODE, null)
-        set(value) = prefs.edit().putString(KEY_PIN_CODE, value).apply()
+        get() = securePrefs.getString(KEY_PIN_CODE, null)
+        set(value) = securePrefs.edit().putString(KEY_PIN_CODE, value).apply()
 
     var isPinEnabled: Boolean
         get() = prefs.getBoolean(KEY_IS_PIN_ENABLED, false) && !pinCode.isNullOrEmpty()
@@ -45,7 +82,7 @@ class SettingsManager(context: Context) {
         set(value) = prefs.edit().putString(KEY_GOOGLE_DRIVE_FOLDER, value).apply()
 
     var googleDriveAccount: String
-        get() = prefs.getString(KEY_GOOGLE_DRIVE_ACCOUNT, "maor725@gmail.com") ?: "maor725@gmail.com"
+        get() = prefs.getString(KEY_GOOGLE_DRIVE_ACCOUNT, "") ?: ""
         set(value) = prefs.edit().putString(KEY_GOOGLE_DRIVE_ACCOUNT, value).apply()
 
     var savedSignatureUri: String?
@@ -56,7 +93,6 @@ class SettingsManager(context: Context) {
         get() = prefs.getString(KEY_TECHNICIAN_LICENSE_URI, null)
         set(value) = prefs.edit().putString(KEY_TECHNICIAN_LICENSE_URI, value).apply()
 
-    // --- שדות רישיון טכנאי ידניים ---
     var technicianLicenseNumber: String
         get() = prefs.getString(KEY_TECHNICIAN_LICENSE_NUMBER, "") ?: ""
         set(value) = prefs.edit().putString(KEY_TECHNICIAN_LICENSE_NUMBER, value).apply()
@@ -68,18 +104,17 @@ class SettingsManager(context: Context) {
     var technicianLevel: String
         get() = prefs.getString(KEY_TECHNICIAN_LEVEL, "רמה 2") ?: "רמה 2"
         set(value) = prefs.edit().putString(KEY_TECHNICIAN_LEVEL, value).apply()
-    // ----------------------------------
 
     var contractorHeader: String
-        get() = prefs.getString(KEY_CONTRACTOR_HEADER, "מ.מ מערכות גז") ?: "מ.מ מערכות גז"
+        get() = prefs.getString(KEY_CONTRACTOR_HEADER, "") ?: ""
         set(value) = prefs.edit().putString(KEY_CONTRACTOR_HEADER, value).apply()
 
     var contractorPhone: String
-        get() = prefs.getString(KEY_CONTRACTOR_PHONE, "054-6096487") ?: "054-6096487"
+        get() = prefs.getString(KEY_CONTRACTOR_PHONE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_CONTRACTOR_PHONE, value).apply()
 
     var defaultTechnicianName: String
-        get() = prefs.getString(KEY_DEFAULT_TECHNICIAN_NAME, "מאור מנחם") ?: "מאור מנחם"
+        get() = prefs.getString(KEY_DEFAULT_TECHNICIAN_NAME, "") ?: ""
         set(value) = prefs.edit().putString(KEY_DEFAULT_TECHNICIAN_NAME, value).apply()
 
     var customStorageTreeUri: String?
@@ -98,7 +133,6 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_CURRENT_FORM_NUMBER, 0)
         set(value) = prefs.edit().putInt(KEY_CURRENT_FORM_NUMBER, value).apply()
 
-    // --- בחירת עיצוב לטופס ---
     var pdfTemplateStyle: String
         get() = prefs.getString(KEY_PDF_TEMPLATE, TEMPLATE_MODERN) ?: TEMPLATE_MODERN
         set(value) = prefs.edit().putString(KEY_PDF_TEMPLATE, value).apply()

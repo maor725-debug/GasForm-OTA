@@ -11,6 +11,10 @@ object AppLogger {
     private const val LOG_DIR_NAME = "app_logs"
     private const val MAX_LOG_AGE_MS = 7L * 24 * 60 * 60 * 1000 // 7 ימים
 
+    fun d(tag: String, message: String) {
+        android.util.Log.d(tag, message)
+    }
+
     // פונקציה לרשום תקלה חדשה
     fun logError(context: Context, tag: String, message: String, throwable: Throwable? = null) {
         try {

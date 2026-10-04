@@ -2,6 +2,7 @@ package com.example.myapplication158.UserInterface.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,20 +48,14 @@ fun OnboardingScreen(
 
     var currentStep by remember { mutableIntStateOf(1) }
 
-    // Profile State Variables
-    var contractorHeader by remember { mutableStateOf(settingsManager.contractorHeader.ifEmpty { "מ.מ מערכות גז" }) }
-    var contractorPhone by remember { mutableStateOf(settingsManager.contractorPhone.ifEmpty { "054-6096487" }) }
-
-    // Form Number State - Starts empty to force user input
+    var contractorHeader by remember { mutableStateOf(settingsManager.contractorHeader) }
+    var contractorPhone by remember { mutableStateOf(settingsManager.contractorPhone) }
     var startingFormNumberStr by remember { mutableStateOf(if (settingsManager.currentFormNumber > 0) settingsManager.currentFormNumber.toString() else "") }
-
-    // License State Variables
-    var technicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName.ifEmpty { "מאור מנחם" }) }
+    var technicianName by remember { mutableStateOf(settingsManager.defaultTechnicianName) }
     var technicianLicenseNumber by remember { mutableStateOf(settingsManager.technicianLicenseNumber) }
     var technicianLicenseExpiry by remember { mutableStateOf(settingsManager.technicianLicenseExpiry) }
     var technicianLevel by remember { mutableStateOf(settingsManager.technicianLevel.ifEmpty { "רמה 1" }) }
 
-    // Date Picker State
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
 
@@ -69,54 +64,48 @@ fun OnboardingScreen(
         showDatePicker = true
     }
 
-    // Permission check
     var locationGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+
+    // בדיקת הרשאת התראות לאנדרואיד 13+
+    var notificationsGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true // באנדרואיד ישן יותר אין צורך לבקש
+            }
+        )
     }
 
     val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: locationGranted
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationsGranted = permissions[Manifest.permission.POST_NOTIFICATIONS] ?: notificationsGranted
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "הגדרות ראשוניות למערכת",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                title = { Text("הגדרות ראשוניות למערכת", fontWeight = FontWeight.Bold, fontSize = 18.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer, titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer)
             )
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).background(MaterialTheme.colorScheme.background).padding(16.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Step Progress Indicator Bar (Updated to 3 steps)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                StepBadge(stepNumber = 1, title = "הרשאות", isActive = currentStep == 1, isDone = currentStep > 1)
+                StepBadge(stepNumber = 1, title = "פרטיות והרשאות", isActive = currentStep == 1, isDone = currentStep > 1)
                 HorizontalDivider(modifier = Modifier.weight(1f).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 StepBadge(stepNumber = 2, title = "פרופיל ורישיון", isActive = currentStep == 2, isDone = currentStep > 2)
                 HorizontalDivider(modifier = Modifier.weight(1f).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
@@ -126,235 +115,119 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             when (currentStep) {
-                // STEP 1: PERMISSIONS & WELCOME
                 1 -> {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                     ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Security,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(48.dp)
-                            )
-
-                            Text(
-                                text = "ברוך הבא למערכת הוצאת דוחות בדיקה לפי תקן 158 חלק 4!",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                textAlign = TextAlign.Center
-                            )
-
-                            Text(
-                                text = "לפני שנתחיל, האפליקציה זקוקה לאישור הרשאה קריטית:",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
+                        Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Icon(imageVector = Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
+                            Text(text = "ברוך הבא למערכת הוצאת דוחות בדיקה (ת\"י 158)", fontWeight = FontWeight.Bold, fontSize = 18.sp, textAlign = TextAlign.Center)
+                            Text(text = "לפני שנתחיל, אנא אשר את הגישה למיקום והתראות ועיין בהצהרת הפרטיות:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
 
                             PermissionItem(
-                                icon = Icons.Default.LocationOn,
-                                title = "גישה למיקום (GPS)",
-                                description = "לדגימת קואורדינטות מדויקות לאתרי בנייה וללא כתובת",
+                                icon = Icons.Default.LocationOn, title = "גישה למיקום (GPS)",
+                                description = "נדרש לדגימת קואורדינטות מדויקות בטפסים עבור אתרי בנייה וללא כתובת מסודרת.",
                                 isGranted = locationGranted
                             )
 
+                            PermissionItem(
+                                icon = Icons.Default.NotificationsActive, title = "קבלת התראות",
+                                description = "נדרש כדי שנוכל לשלוח לך תזכורות על עבודות שקבעת ביומן העבודה.",
+                                isGranted = notificationsGranted
+                            )
+
+                            Surface(
+                                color = Color.Transparent, shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(imageVector = Icons.Default.PrivacyTip, contentDescription = null, tint = Color(0xFF1976D2), modifier = Modifier.size(24.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = "אבטחת נתונים ופרטיות", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text(text = "כלל הטפסים, החתימות ופרטי הלקוחות נשמרים באופן מקומי ומאובטח במכשירך בלבד. מידע טכני בלבד (כגון מזהה מכשיר ויומן קריסות) עשוי להיות מועלה לענן אך ורק במקרה של פתיחת פניית תמיכה טכנית מיוזמתך.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
+
+                            val allGranted = locationGranted && notificationsGranted
                             Button(
                                 onClick = {
-                                    permissionsLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.ACCESS_FINE_LOCATION,
-                                            Manifest.permission.ACCESS_COARSE_LOCATION
-                                        )
-                                    )
+                                    if (!allGranted) {
+                                        val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            perms.add(Manifest.permission.POST_NOTIFICATIONS)
+                                        }
+                                        permissionsLauncher.launch(perms.toTypedArray())
+                                    } else {
+                                        Toast.makeText(context, "ההרשאות אושרו, לחץ על המשך", Toast.LENGTH_SHORT).show()
+                                    }
                                 },
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = RoundedCornerShape(12.dp)
+                                modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = if (allGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary)
                             ) {
-                                Icon(Icons.Default.CheckCircle, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("אשר הרשאת גישה כעת", fontWeight = FontWeight.Bold)
+                                if (allGranted) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("ההרשאות אושרו", fontWeight = FontWeight.Bold, color = Color.White)
+                                } else {
+                                    Icon(Icons.Default.Security, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("אשר הרשאות נדרשות", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
                 }
 
-                // STEP 2: PROFILE & LICENSE DETAILS
                 2 -> {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                     ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = "פרטי הקבלן / העסק",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            OutlinedTextField(
-                                value = contractorHeader,
-                                onValueChange = { contractorHeader = it },
-                                label = { Text("שם הקבלן / כותרת העסק בטופס") },
-                                leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = contractorPhone,
-                                onValueChange = { contractorPhone = it },
-                                label = { Text("מספר טלפון ליצירת קשר") },
-                                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = startingFormNumberStr,
-                                onValueChange = { newValue ->
-                                    if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
-                                        startingFormNumberStr = newValue
-                                    }
-                                },
-                                label = { Text("מספר טופס התחלתי (לדוגמה: 1)") },
-                                leadingIcon = { Icon(Icons.Default.Numbers, contentDescription = null) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
+                        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(text = "פרטי הקבלן / העסק", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(value = contractorHeader, onValueChange = { contractorHeader = it }, label = { Text("שם הקבלן / חברה (יופיע בראש הטופס)") }, leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            OutlinedTextField(value = contractorPhone, onValueChange = { contractorPhone = it }, label = { Text("מספר טלפון ליצירת קשר") }, leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            OutlinedTextField(value = startingFormNumberStr, onValueChange = { newValue -> if (newValue.isEmpty() || newValue.all { it.isDigit() }) { startingFormNumberStr = newValue } }, label = { Text("מספר טופס התחלתי (לדוגמה: 1)") }, leadingIcon = { Icon(Icons.Default.Numbers, contentDescription = null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                     ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = "פרטי טכנאי ורישיון גפ\"מ",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            OutlinedTextField(
-                                value = technicianName,
-                                onValueChange = { technicianName = it },
-                                label = { Text("שם מלא של הטכנאי") },
-                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = technicianLicenseNumber,
-                                onValueChange = { technicianLicenseNumber = it },
-                                label = { Text("מספר רישיון טכנאי גז") },
-                                leadingIcon = { Icon(Icons.Default.CreditCard, contentDescription = null) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = technicianLicenseExpiry,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("תוקף הרישיון (לחץ לבחירה)") },
-                                leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
-                                interactionSource = dateInteractionSource,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(text = "פרטי טכנאי ורישיון גפ\"מ", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(value = technicianName, onValueChange = { technicianName = it }, label = { Text("שם מלא של הטכנאי") }, leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            OutlinedTextField(value = technicianLicenseNumber, onValueChange = { technicianLicenseNumber = it }, label = { Text("מספר רישיון טכנאי גז") }, leadingIcon = { Icon(Icons.Default.CreditCard, contentDescription = null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            OutlinedTextField(value = technicianLicenseExpiry, onValueChange = {}, readOnly = true, label = { Text("תוקף הרישיון (לחץ לבחירה)") }, leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) }, interactionSource = dateInteractionSource, modifier = Modifier.fillMaxWidth())
 
                             Text("רמת טכנאי:", fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(
-                                        selected = technicianLevel == "רמה 1",
-                                        onClick = { technicianLevel = "רמה 1" }
-                                    )
-                                    Text("רמה 1", fontSize = 14.sp)
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(
-                                        selected = technicianLevel == "רמה 2",
-                                        onClick = { technicianLevel = "רמה 2" }
-                                    )
-                                    Text("רמה 2", fontSize = 14.sp)
-                                }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = technicianLevel == "רמה 1", onClick = { technicianLevel = "רמה 1" }); Text("רמה 1", fontSize = 14.sp) }
+                                Row(verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = technicianLevel == "רמה 2", onClick = { technicianLevel = "רמה 2" }); Text("רמה 2", fontSize = 14.sp) }
                             }
                         }
                     }
                 }
 
-                // STEP 3: SUMMARY & START WORK
                 3 -> {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
                     ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Color(0xFF2E7D32),
-                                modifier = Modifier.size(56.dp)
-                            )
-
-                            Text(
-                                text = "הגדרת הפרופיל הושלמה בהצלחה!",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
-                                color = Color(0xFF1B5E20)
-                            )
-
-                            Text(
-                                text = "האפליקציה מוכנה לפעולה. כל הפרטים נשמרו וישולבו אוטומטית בדוחות שתפיק.",
-                                fontSize = 13.sp,
-                                textAlign = TextAlign.Center,
-                                color = Color(0xFF2E7D32)
-                            )
-
+                        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(56.dp))
+                            Text(text = "הגדרת הפרופיל הושלמה בהצלחה!", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color(0xFF1B5E20))
+                            Text(text = "האפליקציה מוכנה לפעולה. כל הפרטים נשמרו וישולבו אוטומטית בדוחות שתפיק.", fontSize = 13.sp, textAlign = TextAlign.Center, color = Color(0xFF2E7D32))
                             Button(
-                                onClick = {
-                                    onCompleteOnboarding()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("התחל לעבוד במערכת 🚀", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            }
+                                onClick = { onCompleteOnboarding() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp)
+                            ) { Text("התחל לעבוד במערכת 🚀", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
                         }
                     }
                 }
@@ -362,25 +235,15 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Navigation Buttons (Next / Back)
             if (currentStep < 3) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     if (currentStep > 1) {
-                        OutlinedButton(
-                            onClick = { currentStep-- },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
+                        OutlinedButton(onClick = { currentStep-- }, shape = RoundedCornerShape(12.dp)) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("הקודם")
                         }
-                    } else {
-                        Spacer(modifier = Modifier.width(1.dp))
-                    }
+                    } else { Spacer(modifier = Modifier.width(1.dp)) }
 
                     Button(
                         onClick = {
@@ -400,9 +263,7 @@ fun OnboardingScreen(
                                     settingsManager.currentFormNumber = formNum
                                     currentStep++
                                 }
-                            } else {
-                                currentStep++
-                            }
+                            } else { currentStep++ }
                         },
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -418,59 +279,21 @@ fun OnboardingScreen(
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDatePicker = false
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                        technicianLicenseExpiry = sdf.format(Date(millis))
-                    }
-                }) {
-                    Text("אישור")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("ביטול")
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+            confirmButton = { TextButton(onClick = { showDatePicker = false; datePickerState.selectedDateMillis?.let { millis -> val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()); technicianLicenseExpiry = sdf.format(Date(millis)) } }) { Text("אישור") } },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("ביטול") } }
+        ) { DatePicker(state = datePickerState) }
     }
 }
 
 @Composable
-private fun StepBadge(
-    stepNumber: Int,
-    title: String,
-    isActive: Boolean,
-    isDone: Boolean
-) {
-    val bg = when {
-        isDone -> Color(0xFF2E7D32)
-        isActive -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
-
-    val contentColor = when {
-        isDone || isActive -> Color.White
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
+private fun StepBadge(stepNumber: Int, title: String, isActive: Boolean, isDone: Boolean) {
+    val bg = when { isDone -> Color(0xFF2E7D32); isActive -> MaterialTheme.colorScheme.primary; else -> MaterialTheme.colorScheme.surfaceVariant }
+    val contentColor = when { isDone || isActive -> Color.White; else -> MaterialTheme.colorScheme.onSurfaceVariant }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(bg),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isDone) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            } else {
-                Text(text = stepNumber.toString(), color = contentColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            }
+        Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
+            if (isDone) { Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp)) }
+            else { Text(text = stepNumber.toString(), color = contentColor, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(text = title, fontSize = 11.sp, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal)
@@ -478,41 +301,21 @@ private fun StepBadge(
 }
 
 @Composable
-private fun PermissionItem(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    isGranted: Boolean
-) {
+private fun PermissionItem(icon: ImageVector, title: String, description: String, isGranted: Boolean) {
     Surface(
         color = if (isGranted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(10.dp),
         border = BorderStroke(1.dp, if (isGranted) Color(0xFF81C784) else MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(imageVector = icon, contentDescription = null, tint = if (isGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text(text = description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (isGranted) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = Color(0xFF2E7D32),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            if (isGranted) { Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(20.dp)) }
         }
     }
 }

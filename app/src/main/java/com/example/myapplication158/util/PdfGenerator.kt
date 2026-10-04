@@ -76,8 +76,8 @@ object PdfGenerator {
 
     fun generateWaiverFormPdf(context: Context, form: WaiverForm): File? {
         val settingsManager = SettingsManager(context)
-        val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "מאור מנחם - קבלן עבודות גז" else settingsManager.contractorHeader
-        val headerPhone = "טלפון: " + if (settingsManager.contractorPhone.isNullOrBlank()) "054-6096487" else settingsManager.contractorPhone
+        val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "שם קבלן / חברה" else settingsManager.contractorHeader
+        val headerPhone = "טלפון: " + if (settingsManager.contractorPhone.isNullOrBlank()) "לא הוגדר טלפון" else settingsManager.contractorPhone
 
         val pdfDocument = PdfDocument()
         try {
@@ -244,7 +244,7 @@ object PdfGenerator {
 
     fun generateFinancialReportPdf(context: Context, forms: List<GasForm>): File? {
         val settingsManager = SettingsManager(context)
-        val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "מאור מנחם - קבלן עבודות גז" else settingsManager.contractorHeader
+        val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "שם קבלן / חברה" else settingsManager.contractorHeader
         val pdfDocument = PdfDocument()
         try {
             var currentPageNum = 1
@@ -348,8 +348,8 @@ object PdfGenerator {
 
     fun generateFormPdf(context: Context, form: GasForm): File? {
         val settingsManager = SettingsManager(context)
-        val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "מאור מנחם - קבלן עבודות גז" else settingsManager.contractorHeader
-        val headerPhone = "טלפון: " + if (settingsManager.contractorPhone.isNullOrBlank()) "054-6096487" else settingsManager.contractorPhone
+        val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "שם קבלן / חברה" else settingsManager.contractorHeader
+        val headerPhone = "טלפון: " + if (settingsManager.contractorPhone.isNullOrBlank()) "לא הוגדר טלפון" else settingsManager.contractorPhone
 
         val pdfDocument = PdfDocument()
         try {
@@ -799,8 +799,8 @@ object PdfGenerator {
             canvas.drawRect(0f, 0f, 595f, 90f, headerBgPaint)
 
             val settingsManager = SettingsManager(context)
-            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "מאור מנחם - קבלן עבודות גז"
-            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "054-6096487"
+            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "שם קבלן / חברה"
+            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "לא הוגדר טלפון"
             val headerTextPaint = Paint().apply { color = Color.WHITE; textSize = 20f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
             val headerPhonePaint = Paint().apply { color = Color.WHITE; textSize = 14f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.CENTER }
 
@@ -1191,8 +1191,8 @@ object PdfGenerator {
             canvas.drawRect(0f, 0f, 595f, 90f, headerBgPaint)
 
             val settingsManager = SettingsManager(context)
-            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "מאור מנחם - קבלן עבודות גז"
-            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "054-6096487"
+            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "שם קבלן / חברה"
+            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "לא הוגדר טלפון"
             val headerTextPaint = Paint().apply { color = Color.WHITE; textSize = 20f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
             val headerPhonePaint = Paint().apply { color = Color.WHITE; textSize = 14f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.CENTER }
 
@@ -1579,8 +1579,8 @@ object PdfGenerator {
             canvas.drawRect(0f, 0f, 595f, 90f, headerBgPaint)
 
             val settingsManager = SettingsManager(context)
-            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "מאור מנחם - קבלן עבודות גז"
-            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "054-6096487"
+            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "שם קבלן / חברה"
+            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "לא הוגדר טלפון"
             val headerTextPaint = Paint().apply { color = Color.WHITE; textSize = 20f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
             val headerPhonePaint = Paint().apply { color = Color.WHITE; textSize = 14f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.CENTER }
 
@@ -1972,8 +1972,8 @@ object PdfGenerator {
             canvas.drawRect(0f, 0f, 595f, 90f, headerBgPaint)
 
             val settingsManager = SettingsManager(context)
-            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "מאור מנחם - קבלן עבודות גז"
-            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "054-6096487"
+            val contractorHeader = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "שם קבלן / חברה"
+            val defaultPhone = settingsManager.contractorPhone.takeIf { !it.isNullOrBlank() } ?: "לא הוגדר טלפון"
             val headerTextPaint = Paint().apply { color = Color.WHITE; textSize = 20f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
             val headerPhonePaint = Paint().apply { color = Color.WHITE; textSize = 14f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL); textAlign = Paint.Align.CENTER }
 

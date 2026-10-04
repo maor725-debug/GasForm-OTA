@@ -7,3 +7,6 @@
 -keep class io.ktor.** { *; }
 -keep class kotlinx.serialization.** { *; }
 -keepattributes *Annotation*, InnerClasses
+
+# --- Rules for AndroidX Security Crypto ---
+-keep class androidx.security.crypto.** { *; }

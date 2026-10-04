@@ -1,21 +1,21 @@
-import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.devtools.ksp)
     alias(libs.plugins.roborazzi)
     alias(libs.plugins.secrets)
-    alias(libs.plugins.google.services)
     alias(libs.plugins.kotlin.serialization)
+    // הוסר פלאגין google-services המיותר שגרם לאזהרות
 }
 
 android {
+    // נשאר com.example כדי לא לשבור את כל קבצי הקוד (גוגל פליי לא רואה את זה, רק את ה-applicationId)
     namespace = "com.example"
     compileSdk { version = release(36) { minorApiLevel = 1 } }
 
     defaultConfig {
-        applicationId = "com.aistudio.gasform158.mnxbqy"
+        // שונה לשם רשמי ומקצועי עבור גוגל פליי!
+        applicationId = "com.asi.gasforms"
         minSdk = 24
         targetSdk = 36
         versionCode = 10
@@ -29,9 +29,7 @@ android {
 
     buildTypes {
         release {
-            // ---> הנה השורה שהוספתי: מאפשרת התקנת Release ישירות למכשיר דרך כפתור ה-Play <---
-            signingConfig = signingConfigs.getByName("debug")
-
+            // הוסרה חתימת ה-debug כדי שתוכל לייצר מפתח Release אמיתי לגוגל פליי
             isCrunchPngs = false
             isMinifyEnabled = true // הופעל ProGuard/R8!
             isShrinkResources = true // הופעל כיווץ משאבים
@@ -66,9 +64,7 @@ secrets {
     defaultPropertiesFileName = ".env.example"
 }
 
-googleServices {
-    missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN
-}
+// הוסר בלוק googleServices שאין בו צורך יותר
 
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
@@ -87,7 +83,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.navigation.compose)
+    // הוסרה ספריית navigation.compose שלא הייתה בשימוש
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
     implementation(libs.coil.compose)
@@ -132,7 +128,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
-    // ספריה להצפנת נתונים (עבור ה-LoginScreen)
+    // ספריה להצפנת נתונים (עבור ה-LoginScreen ו-SettingsManager)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }
 

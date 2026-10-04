@@ -18,6 +18,7 @@ import com.example.myapplication158.data.GasFormD4
 import com.example.myapplication158.data.WaiverForm
 import com.example.myapplication158.data.WorkOrder
 import com.example.myapplication158.data.isNotEmptyOrBlank
+import com.example.myapplication158.util.AppLogger
 import com.example.myapplication158.util.PdfGenerator
 import com.example.myapplication158.util.SupabaseManager
 import com.example.myapplication158.util.WorkOrderReminderManager
@@ -279,11 +280,17 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
 
     fun scanAndRestoreFromPdfFolder(context: Context, onResult: (Int) -> Unit) { onResult(0) }
 
+    // --- גיבוי ושחזור אמיתי של מסד הנתונים ---
     fun exportBackup(context: Context, uri: Uri, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(context)
-                db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
+                // התיקון של קלוד: שימוש ב-use וקריאה ממשית כדי להכריח את ה-Checkpoint לרוץ!
+                db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        AppLogger.d("Backup", "WAL Checkpoint executed successfully")
+                    }
+                }
 
                 val dbFile = context.getDatabasePath("gas_forms_database")
                 if (!dbFile.exists()) {
@@ -291,6 +298,7 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
 
+                // העתקת מסד הנתונים ליעד שהמשתמש בחר
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                     dbFile.inputStream().use { inputStream ->
                         inputStream.copyTo(outputStream)
@@ -311,18 +319,26 @@ class GasFormViewModel(application: Application) : AndroidViewModel(application)
                 val walFile = File(dbFile.path + "-wal")
                 val shmFile = File(dbFile.path + "-shm")
 
+                // חובה לסגור את החיבור למסד הנתונים לפני שדורסים אותו
                 AppDatabase.getDatabase(context).close()
 
+                // דריסת מסד הנתונים הקיים בקובץ הגיבוי
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     dbFile.outputStream().use { outputStream ->
                         inputStream.copyTo(outputStream)
                     }
                 }
 
+                // מחיקת קובצי מטמון זמניים של מסד הנתונים הישן כדי למנוע השחתה (Corruption)
                 if (walFile.exists()) walFile.delete()
                 if (shmFile.exists()) shmFile.delete()
 
-                withContext(Dispatchers.Main) { onResult(true, "הנתונים שוחזרו בהצלחה! סגור את האפליקציה לחלוטין ופתח אותה מחדש.") }
+                withContext(Dispatchers.Main) {
+                    onResult(true, "הנתונים שוחזרו! האפליקציה תיסגר כעת כדי להחיל את השינויים. פתח אותה מחדש.")
+                    // סגירה בטוחה של האפליקציה לאחר 2.5 שניות כדי לאפשר להודעה להופיע
+                    kotlinx.coroutines.delay(2500)
+                    android.os.Process.killProcess(android.os.Process.myPid())
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) { onResult(false, "שגיאה בשחזור: ${e.message}") }

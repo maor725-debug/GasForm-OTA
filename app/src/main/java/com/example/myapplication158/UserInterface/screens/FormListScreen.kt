@@ -1,6 +1,5 @@
 package com.example.myapplication158.UserInterface.screens
 
-import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.widget.Toast
@@ -15,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -67,7 +67,6 @@ data class SupportTicket(
     val system_logs: String? = null
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormListScreen(
     viewModel: GasFormViewModel,
@@ -126,7 +125,6 @@ fun FormListScreen(
 
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
-    val activity = LocalActivity.current
     val coroutineScope = rememberCoroutineScope()
 
     val androidId = remember { Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE" }
@@ -266,13 +264,14 @@ fun FormListScreen(
 
                             Column(horizontalAlignment = Alignment.End) {
                                 Text("מערכת מילוי טפסים", fontWeight = FontWeight.ExtraBold, color = aiHeaderTextColor, fontSize = 16.sp)
-                                Text("מאור מנחם - קבלן גז", color = primaryColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("שם קבלן / חברה", color = primaryColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             },
-            modifier = modifier.fillMaxSize()
+            // ---> התוספת הקריטית של קלוד להגנה על תחתית המסך! <---
+            modifier = modifier.fillMaxSize().navigationBarsPadding()
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
@@ -342,7 +341,7 @@ fun FormListScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.NoteAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                            Icon(Icons.AutoMirrored.Filled.NoteAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text("טופס חדש", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                                         }
