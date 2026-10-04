@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.roborazzi)
     alias(libs.plugins.secrets)
     alias(libs.plugins.kotlin.serialization)
-    // הוסר פלאגין google-services המיותר שגרם לאזהרות
 }
 
 android {
@@ -29,7 +28,9 @@ android {
 
     buildTypes {
         release {
-            // הוסרה חתימת ה-debug כדי שתוכל לייצר מפתח Release אמיתי לגוגל פליי
+            // ---> הוחזר זמנית כדי שתוכל להתקין את גרסת ה-Release על המכשיר שלך <---
+            signingConfig = signingConfigs.getByName("debug")
+
             isCrunchPngs = false
             isMinifyEnabled = true // הופעל ProGuard/R8!
             isShrinkResources = true // הופעל כיווץ משאבים
@@ -64,8 +65,6 @@ secrets {
     defaultPropertiesFileName = ".env.example"
 }
 
-// הוסר בלוק googleServices שאין בו צורך יותר
-
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
@@ -83,7 +82,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    // הוסרה ספריית navigation.compose שלא הייתה בשימוש
+
+    // ---> הוחזר כדי לתקן את שגיאות הקומפילציה של Compose <---
+    implementation(libs.androidx.navigation.compose)
+
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
     implementation(libs.coil.compose)
