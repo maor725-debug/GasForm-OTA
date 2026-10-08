@@ -295,30 +295,38 @@ fun FormListScreen(
                     item {
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Card(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).height(85.dp),
                                 colors = CardDefaults.cardColors(containerColor = if(isDark) Color(0xFF3E2723) else Color(0xFFFFF3E0)),
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, Color(0xFFFFB74D).copy(alpha=0.5f))
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
-                                    Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(24.dp))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("טפסים בהמתנה", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                                    Text(pendingForms.toString(), color = Color(0xFFE65100), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.fillMaxSize().padding(vertical = 4.dp)
+                                ) {
+                                    Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.height(2.dp))
+                                    Text("טפסים בהמתנה", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                    Text(pendingForms.toString(), color = Color(0xFFE65100), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
 
                             Card(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).height(85.dp),
                                 colors = CardDefaults.cardColors(containerColor = if(isDark) Color(0xFF1B5E20) else Color(0xFFE8F5E9)),
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, Color(0xFF81C784).copy(alpha=0.5f))
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
-                                    Icon(Icons.Default.CheckCircleOutline, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(24.dp))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("טפסים מאושרים", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                                    Text(approvedForms.toString(), color = Color(0xFF2E7D32), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.fillMaxSize().padding(vertical = 4.dp)
+                                ) {
+                                    Icon(Icons.Default.CheckCircleOutline, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.height(2.dp))
+                                    Text("טפסים מאושרים", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                    Text(approvedForms.toString(), color = Color(0xFF2E7D32), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
                         }
@@ -411,16 +419,6 @@ fun FormListScreen(
                                 }
                             }
                         }
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "פותח ע\"י", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "A.S.I", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
 

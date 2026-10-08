@@ -74,6 +74,10 @@ object PdfGenerator {
         } catch (e: Throwable) { e.printStackTrace(); null }
     }
 
+    private fun drawFooterLine(canvas: Canvas) {
+        canvas.drawText("מערכת נורמטיבי - פותח ע\"י A.S.I ©", 30f, 818f, Paint().apply { color = Color.GRAY; textSize = 8f; textAlign = Paint.Align.LEFT })
+    }
+
     fun generateWaiverFormPdf(context: Context, form: WaiverForm): File? {
         val settingsManager = SettingsManager(context)
         val headerTitle = if (settingsManager.contractorHeader.isNullOrBlank()) "שם קבלן / חברה" else settingsManager.contractorHeader
@@ -198,6 +202,7 @@ object PdfGenerator {
                 } catch (e: Exception) { e.printStackTrace() }
             }
 
+            drawFooterLine(canvas)
             pdfDocument.finishPage(page)
 
             val extraUris = listOfNotNull(form.image1Uri, form.image2Uri, form.image3Uri)
@@ -211,6 +216,7 @@ object PdfGenerator {
 
                 for (uriStr in extraUris) {
                     if (imgYPosition > 600f) {
+                        drawFooterLine(appendixCanvas)
                         pdfDocument.finishPage(appendixPage)
                         appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, 3).create())
                         appendixCanvas = appendixPage.canvas
@@ -229,6 +235,7 @@ object PdfGenerator {
                         }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
+                drawFooterLine(appendixCanvas)
                 pdfDocument.finishPage(appendixPage)
             }
 
@@ -288,6 +295,7 @@ object PdfGenerator {
             var totalCustomer = 0.0; var totalTech = 0.0; var totalProfit = 0.0
             forms.forEachIndexed { index, form ->
                 if (y > 780f) {
+                    drawFooterLine(canvas)
                     pdfDocument.finishPage(page)
                     currentPageNum++
                     page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
@@ -336,6 +344,8 @@ object PdfGenerator {
             canvas.drawText("₪${totalProfit.toInt()}", colCenters[5], y + 20f, Paint(profitPaint).apply { textSize = 13f })
             for (i in 3..5) canvas.drawLine(cols[i], y, cols[i], y + 30f, borderPaint)
             canvas.drawRect(cols[6], y, cols[0], y + 30f, borderPaint)
+
+            drawFooterLine(canvas)
             pdfDocument.finishPage(page)
 
             val outputDir = context.cacheDir
@@ -360,8 +370,7 @@ object PdfGenerator {
 
             fun drawFooter(c: Canvas) {
                 c.drawText(footerText, 30f, 830f, blueFooterPaint)
-                val creditPaint = Paint(blueFooterPaint).apply { color = Color.GRAY; textSize = 8f }
-                c.drawText("מערכת נורמטיבי - פותח ע\"י מאור מנחם ©", 30f, 818f, creditPaint)
+                drawFooterLine(c)
             }
 
             var currentPageNum = 1
@@ -740,7 +749,7 @@ object PdfGenerator {
                     } else {
                         drawAttachedImage(currentPair[0].first, currentPair[0].second, 172.5f, 150f, 250f, 350f)
                     }
-                    drawFooter(canvasImages)
+                    drawFooterLine(canvasImages)
                     pdfDocument.finishPage(pageImages)
                 }
             }
@@ -790,7 +799,7 @@ object PdfGenerator {
         var yPosition = 120f
         var tableRowIndex = 0
 
-        val xLines = floatArrayOf(550f, 220f, 150f, 80f, 10f)
+        val xLines = floatArrayOf(550f, 500f, 230f, 160f, 85f, 10f)
 
         fun drawPageHeader() {
             canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
@@ -817,7 +826,7 @@ object PdfGenerator {
         yPosition = 160f
 
         val rightMargin = 550f
-        val rowHeight = 22f
+        val rowHeight = 20f
 
         canvas.drawText("תאריך בדיקה: ${form.date}", rightMargin, yPosition, boldPaint)
         yPosition += 25f
@@ -828,9 +837,25 @@ object PdfGenerator {
         canvas.drawText("פרטי בית העסק והמאגר:", rightMargin - 5f, yPosition, boldPaint)
         yPosition += rowHeight
         val addressText = if (form.isUnaddressedSite) "אתר בבנייה/ללא כתובת. נ.צ: ${form.gpsCoordinates}" else "${form.street} ${form.building}, ${form.city}"
-        canvas.drawText("שם העסק: ${form.businessName}  |  ח.פ/ת.ז: ${form.businessId}  |  כתובת: $addressText", rightMargin - 5f, yPosition, paint)
+
+        canvas.drawText("שם העסק/לקוח: ${form.businessName}", rightMargin - 5f, yPosition, paint)
+        canvas.drawText("ח.פ/ת.ז: ${form.businessId}  |  ספק הגז: ${form.gasProvider}", 320f, yPosition, paint)
         yPosition += rowHeight
-        canvas.drawText("איש קשר: ${form.clientName}  |  טלפון: ${form.clientPhone}  |  ספק הגז: ${form.gasProvider}", rightMargin - 5f, yPosition, paint)
+
+        val wordsAddr = addressText.split(" ")
+        var currAddrLine = "כתובת: "
+        for (word in wordsAddr) {
+            val testLine = "$currAddrLine $word"
+            if (paint.measureText(testLine) > 520f) {
+                canvas.drawText(currAddrLine, rightMargin - 5f, yPosition, paint)
+                yPosition += 16f
+                currAddrLine = word
+            } else { currAddrLine = testLine }
+        }
+        if (currAddrLine.isNotEmpty()) { canvas.drawText(currAddrLine, rightMargin - 5f, yPosition, paint) }
+        yPosition += rowHeight
+
+        canvas.drawText("איש קשר: ${form.clientName}  |  טלפון: ${form.clientPhone}", rightMargin - 5f, yPosition, paint)
         yPosition += rowHeight
         canvas.drawText("צרכנים: ${form.consumersCount} | מכלים: ${form.cylindersCount} | מרכזייה: ${form.manifoldNumber}", rightMargin - 5f, yPosition, paint)
 
@@ -841,16 +866,17 @@ object PdfGenerator {
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
 
-            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 12f }
-            canvas.drawText("סעיף בדיקה", 385f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("מתאים", 185f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("לא מתאים", 115f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("לא ישים", 45f, yPosition + 17f, tableHeaderPaint)
+            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 11f }
+            canvas.drawText("סעיף", 525f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מהות הבדיקה", 365f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מתאים", 195f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא מתאים", 122.5f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא ישים", 47.5f, yPosition + 17f, tableHeaderPaint)
             yPosition += 25f
         }
 
-        fun drawCheckRow(text: String, state: String) {
-            val maxWidth = 330f
+        fun drawCheckRow(section: String, text: String, state: String) {
+            val maxWidth = 260f
             val words = text.split(" ")
             val lines = mutableListOf<String>()
             var currentLine = ""
@@ -869,6 +895,7 @@ object PdfGenerator {
             val h = Math.max(28f, textHeight + 10f)
 
             if (yPosition + h > 780f) {
+                drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
                 pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -879,77 +906,69 @@ object PdfGenerator {
                 drawTableHeader()
             }
 
-            if (state == "HEADER" || state == "SUBHEADER") {
-                val bgPaint = if (state == "HEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
-
-                var textY = yPosition + 19f
-                val headerTextPaint = Paint(boldPaint).apply { textSize = 12f }
-                for (line in lines) {
-                    canvas.drawText(line, 540f, textY, headerTextPaint)
-                    textY += 14f
-                }
-                yPosition += h
-                if (state == "HEADER") tableRowIndex = 0
-                return
-            }
-
             val rowColor = if (state == "FAIL") Color.parseColor("#FFEEEE") else if (tableRowIndex % 2 == 0) Color.parseColor("#F9F9F9") else Color.WHITE
-            canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = rowColor; style = Paint.Style.FILL })
-            tableRowIndex++
+            val bgPaint = if (state == "HEADER" || state == "SUBHEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = rowColor; style = Paint.Style.FILL }
 
-            canvas.drawRect(10f, yPosition, 550f, yPosition + h, linePaint)
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
+            if (state != "HEADER" && state != "SUBHEADER") tableRowIndex++
+
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + h, linePaint)
 
+            val secPaint = if (state == "HEADER" || state == "SUBHEADER") Paint(boldPaint).apply { textSize = 11f; textAlign = Paint.Align.CENTER } else Paint(paint).apply { textAlign = Paint.Align.CENTER }
+            canvas.drawText(section, 525f, yPosition + 19f, secPaint)
+
             var textY = yPosition + 19f
+            val txtPaint = if (state == "HEADER" || state == "SUBHEADER") Paint(boldPaint).apply { textSize = 11f } else paint
             for (line in lines) {
-                canvas.drawText(line, 540f, textY, paint)
+                canvas.drawText(line, 495f, textY, txtPaint)
                 textY += 14f
             }
 
-            val centerPass = 185f
-            val centerFail = 115f
-            val centerNA = 45f
-            val iconY = yPosition + (h / 2) + 5f
+            if (state != "HEADER" && state != "SUBHEADER") {
+                val centerPass = 195f
+                val centerFail = 122.5f
+                val centerNA = 47.5f
+                val iconY = yPosition + (h / 2) + 5f
 
-            when (state) {
-                "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
-                "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
-                "NA" -> canvas.drawText("-", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                when (state) {
+                    "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
+                    "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
+                    "NA" -> canvas.drawText("/", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                }
             }
             yPosition += h
         }
 
         drawTableHeader()
-        drawCheckRow("1. בחינה חזותית של המאגר", "HEADER")
-        drawCheckRow("1.1 - מיקום המכלים :", "SUBHEADER")
-        drawCheckRow("1.1.1 - במקום פתוח ומאוורר. לא במפלס נמוך, לא במקום המשמש למגורים", form.checkLocationOpen)
-        drawCheckRow("1.1.2 - מרחקים (*):", "SUBHEADER")
-        drawCheckRow("1.1.2.1 - 0.7 מ' ממקור חום וניצוצות", form.checkSafetyDistances07Heat)
-        drawCheckRow("1.1.2.2 - 1.7 מ' מאש גלויה", form.checkSafetyDistances17Fire)
-        drawCheckRow("1.1.2.3 - 0.5מ' מבורות/תאים סגורים", form.checkSafetyDistances05Pits)
-        drawCheckRow("1.1.2.4 - 3מ' מבורות ופתחי ניקוז פתוחים", form.checkSafetyDistances3Drainage)
-        drawCheckRow("1.1.2.5 - 1.2מ' מפתח בניין", form.checkSafetyDistances12Building)
-        drawCheckRow("1.1.2.6 - 3מ' מפתחי מפלס נמוך", form.checkSafetyDistances3LowLevel)
-        drawCheckRow("1.2 - הווסת והסעפת מקובעים כראוי", form.checkRegulatorSecured)
-        drawCheckRow("1.3 - יש שילוט אזהרה עם הכיתוב ''סכנה גז מתלקח! אסור לעשן!'' וסמל הדליקות, הכולל את שם ספק הגז ומספר טלפון לחירום", form.checkWarningSigns)
-        drawCheckRow("1.4 - במתקן מים, מובטחת התזה על כל המכלים", form.checkWaterSprinklers)
-        drawCheckRow("1.5.1 - אם בחדר: בחדר יש עד 20 מכלים", form.checkGasRoomMax20)
-        drawCheckRow("1.5.2 - אם בחדר: תאורה בתקרה, מפסק בחוץ", form.checkGasRoomLighting)
-        drawCheckRow("1.5.3 - אם בחדר: ללא חומרים דליקים", form.checkGasRoomNoFlammables)
-        drawCheckRow("1.6.1 - אם במכלאה: במכלאה יש עד 20 מכלים", form.checkCageMax20)
-        drawCheckRow("1.6.2 - אם במכלאה: המכלאה מגודרת ומאווררת", form.checkCageVentilated)
-        drawCheckRow("1.7 - המאספים (רמפות) יציבים ולכל אחד ברז ניתוק", form.checkRampsSecured)
+        drawCheckRow("1.", "בחינה חזותית של המאגר", "HEADER")
+        drawCheckRow("1.1", "מיקום המכלים :", "SUBHEADER")
+        drawCheckRow("1.1.1", "במקום פתוח ומאוורר. לא במפלס נמוך, לא במקום המשמש למגורים", form.checkLocationOpen)
+        drawCheckRow("1.1.2", "מרחקים (*):", "SUBHEADER")
+        drawCheckRow("1.1.2.1", "0.7 מ' ממקור חום וניצוצות", form.checkSafetyDistances07Heat)
+        drawCheckRow("1.1.2.2", "1.7 מ' מאש גלויה", form.checkSafetyDistances17Fire)
+        drawCheckRow("1.1.2.3", "0.5 מ' מבורות/תאים סגורים", form.checkSafetyDistances05Pits)
+        drawCheckRow("1.1.2.4", "3 מ' מבורות ופתחי ניקוז פתוחים", form.checkSafetyDistances3Drainage)
+        drawCheckRow("1.1.2.5", "1.2 מ' מפתח בניין", form.checkSafetyDistances12Building)
+        drawCheckRow("1.1.2.6", "3 מ' מפתחי מפלס נמוך", form.checkSafetyDistances3LowLevel)
+        drawCheckRow("1.2", "הווסת והסעפת מקובעים כראוי", form.checkRegulatorSecured)
+        drawCheckRow("1.3", "יש שילוט אזהרה עם הכיתוב ''סכנה גז מתלקח! אסור לעשן!'' וסמל הדליקות, הכולל את שם ספק הגז ומספר טלפון לחירום", form.checkWarningSigns)
+        drawCheckRow("1.4", "במתקן מים, מובטחת התזה על כל המכלים", form.checkWaterSprinklers)
+        drawCheckRow("1.5.1", "אם בחדר: בחדר יש עד 20 מכלים", form.checkGasRoomMax20)
+        drawCheckRow("1.5.2", "אם בחדר: תאורה בתקרה, מפסק בחוץ", form.checkGasRoomLighting)
+        drawCheckRow("1.5.3", "אם בחדר: ללא חומרים דליקים", form.checkGasRoomNoFlammables)
+        drawCheckRow("1.6.1", "אם במכלאה: במכלאה יש עד 20 מכלים", form.checkCageMax20)
+        drawCheckRow("1.6.2", "אם במכלאה: המכלאה מגודרת ומאווררת", form.checkCageVentilated)
+        drawCheckRow("1.7", "המאספים (רמפות) יציבים ולכל אחד ברז ניתוק", form.checkRampsSecured)
 
-        drawCheckRow("2. מערכת הצינורות המשותפת", "HEADER")
-        drawCheckRow("2.1 - שסתום לרעידת אדמה בקו לחץ ביניים", form.checkEarthquakeValve)
-        drawCheckRow("2.2 - השסתום מפולס והתקנתו תקינה", form.checkEarthquakeValveSecured)
-        drawCheckRow("2.3 - ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", form.checkMainValveAccessible)
-        drawCheckRow("2.4 - שסתומי פריקה מחוברים לאוויר חוץ כחוק", form.checkDischargeValves)
-        drawCheckRow("2.5 - לחץ הגז בפנים המבנה אינו גדול מ-1.4 בר", form.checkPressureUpTo1_4)
-        drawCheckRow("2.6 - הצנרת ומרכיביה מקובעים", form.checkPipingSecured)
-        drawCheckRow("2.7 - כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", form.checkUnusedOutletsPlugged)
+        drawCheckRow("2.", "מערכת הצינורות המשותפת", "HEADER")
+        drawCheckRow("2.1", "שסתום לרעידת אדמה בקו לחץ ביניים", form.checkEarthquakeValve)
+        drawCheckRow("2.2", "השסתום מפולס והתקנתו תקינה", form.checkEarthquakeValveSecured)
+        drawCheckRow("2.3", "ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", form.checkMainValveAccessible)
+        drawCheckRow("2.4", "שסתומי פריקה מחוברים לאוויר חוץ כחוק", form.checkDischargeValves)
+        drawCheckRow("2.5", "לחץ הגז בפנים המבנה אינו גדול מ-1.4 בר", form.checkPressureUpTo1_4)
+        drawCheckRow("2.6", "הצנרת ומרכיביה מקובעים", form.checkPipingSecured)
+        drawCheckRow("2.7", "כל מוצא של מתקן שאינו מחובר למכשיר סגור ונמנע שחרור גפ\"מ לאוויר", form.checkUnusedOutletsPlugged)
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
@@ -968,6 +987,7 @@ object PdfGenerator {
         if (form.failedReasonsJson.isNotBlank() && form.failedReasonsJson != "{}") {
             yPosition += 25f
             if (yPosition > 700f) {
+                drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
                 pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -984,9 +1004,7 @@ object PdfGenerator {
                 val json = JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
-
                     val boxTop = yPosition
-                    var boxBottom = yPosition + 50f
                     val boxRight = 550f
                     val boxLeft = 10f
 
@@ -995,41 +1013,34 @@ object PdfGenerator {
                     var currentLine = ""
                     for (word in words) {
                         val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                        if (paint.measureText(testLine) > (boxRight - boxLeft - 20f)) {
+                        if (paint.measureText(testLine) > (boxRight - boxLeft - 80f)) {
                             innerLines.add(currentLine)
                             currentLine = word
-                        } else {
-                            currentLine = testLine
-                        }
+                        } else { currentLine = testLine }
                     }
-                    if (currentLine.isNotEmpty()) {
-                        innerLines.add(currentLine)
-                    }
+                    if (currentLine.isNotEmpty()) { innerLines.add(currentLine) }
 
-                    val textHeightNeeded = innerLines.size * 18f + 35f
-                    if (textHeightNeeded > 50f) {
-                        boxBottom = yPosition + textHeightNeeded
-                    }
+                    val textHeightNeeded = innerLines.size * 18f + 25f
 
-                    if (boxBottom > 780f) {
+                    if (yPosition + textHeightNeeded > 780f) {
+                        drawFooterLine(canvas)
                         pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
-                        boxBottom = yPosition + textHeightNeeded
                     }
 
-                    val rect = RectF(boxLeft, boxTop, boxRight, boxBottom)
+                    val boxBottom = yPosition + textHeightNeeded
+                    val rect = RectF(boxLeft, yPosition, boxRight, boxBottom)
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.parseColor("#FAFAFA"); style = Paint.Style.FILL })
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.RED; style = Paint.Style.STROKE; strokeWidth = 1.5f })
 
-                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f }
-                    canvas.drawText("סעיף $key:", boxRight - 10f, boxTop + 18f, labelPaint)
+                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
+                    canvas.drawText("סעיף $key:", boxRight - 10f, yPosition + 18f, labelPaint)
 
-                    var textY = boxTop + 35f
+                    var textY = yPosition + 18f
                     for (line in innerLines) {
-                        canvas.drawText(line, boxRight - 10f, textY, paint)
+                        canvas.drawText(line, boxRight - 75f, textY, paint)
                         textY += 18f
                     }
-
                     yPosition = boxBottom + 15f
                 }
             } catch (e: Exception) { e.printStackTrace() }
@@ -1037,6 +1048,7 @@ object PdfGenerator {
 
         yPosition += 20f
         if (yPosition > 700f) {
+            drawFooterLine(canvas)
             pdfDocument.finishPage(page)
             currentPageNum++
             pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -1064,31 +1076,37 @@ object PdfGenerator {
         }
 
         yPosition += 40f
-        if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) { drawFooterLine(canvas); pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
-        canvas.drawText("חתימת מבצע הבדיקה", rightMargin, yPosition, boldPaint)
-        canvas.drawText("חתימת הלקוח", 200f, yPosition, boldPaint)
 
-        yPosition += rowHeight
+        canvas.drawText("חתימת מבצע הבדיקה", 450f, yPosition, boldPaintCenter)
+        canvas.drawText("אישור וחתימת הלקוח", 150f, yPosition, boldPaintCenter)
+        yPosition += 20f
+
         val settingsManager = SettingsManager(context)
         val techName = if (settingsManager.defaultTechnicianName.isNotEmpty()) settingsManager.defaultTechnicianName else "טכנאי גז"
-        canvas.drawText("שם: $techName", rightMargin, yPosition, paint)
+        canvas.drawText("שם: $techName", 450f, yPosition, Paint(paint).apply { textAlign = Paint.Align.CENTER })
+
+        val techLicenseNum = settingsManager.technicianLicenseNumber
+        val techLevel = settingsManager.technicianLevel
+        if (techLicenseNum.isNotEmpty()) {
+            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", 450f, yPosition + 15f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
+        }
 
         val savedSig = settingsManager.savedSignatureUri
         val settingsSigUri = if (!savedSig.isNullOrEmpty()) savedSig else settingsManager.technicianLicenseUri
         if (!settingsSigUri.isNullOrEmpty()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
-                    val boxWidth = 200f; val boxHeight = 110f
+                    val boxWidth = 160f; val boxHeight = 80f
                     val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val boxRatio = boxWidth / boxHeight
                     var drawWidth = boxWidth; var drawHeight = boxHeight
                     if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
-
-                    val left = rightMargin - drawWidth
-                    val top = yPosition + 10f
+                    val left = 450f - (drawWidth / 2f)
+                    val top = yPosition + 25f
                     val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
                     canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
                     bitmap.recycle()
@@ -1096,24 +1114,29 @@ object PdfGenerator {
             } catch (e: Exception) { e.printStackTrace() }
         }
 
-        val techLicenseNum = settingsManager.technicianLicenseNumber
-        val techLevel = settingsManager.technicianLevel
-        if (techLicenseNum.isNotEmpty()) {
-            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", rightMargin - 100f, yPosition + 130f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
-        }
+        val clientBoxRight = 280f
+        val clientBoxLeft = 20f
+        val clientBoxTop = yPosition - 10f
+        val clientBoxBottom = yPosition + 110f
+        canvas.drawRect(clientBoxLeft, clientBoxTop, clientBoxRight, clientBoxBottom, Paint().apply { color = Color.parseColor("#F5F7FA"); style = Paint.Style.FILL })
+        canvas.drawRect(clientBoxLeft, clientBoxTop, clientBoxRight, clientBoxBottom, Paint().apply { color = Color.LTGRAY; style = Paint.Style.STROKE; strokeWidth = 1f })
 
-        val clientConfirmName: String = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
-        canvas.drawText("שם החותם: $clientConfirmName", 200f, yPosition, paint)
+        val clientConfirmName = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
+        canvas.drawText("שם החותם: $clientConfirmName", clientBoxRight - 10f, clientBoxTop + 20f, paint)
+
+        val clientIdStr = form.businessId.takeIf { it.isNotEmpty() } ?: "________________"
+        canvas.drawText("ת.ז / ח.פ: $clientIdStr", clientBoxRight - 10f, clientBoxTop + 40f, paint)
 
         if (form.clientSignatureUri.isNotEmpty()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(form.clientSignatureUri))?.let { bitmap ->
-                    canvas.drawBitmap(bitmap, null, RectF(50f, yPosition + 10f, 200f, yPosition + 60f), Paint().apply { isFilterBitmap = true })
+                    canvas.drawBitmap(bitmap, null, RectF(clientBoxLeft + 10f, clientBoxTop + 45f, clientBoxRight - 10f, clientBoxBottom - 5f), Paint().apply { isFilterBitmap = true })
                     bitmap.recycle()
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
 
+        drawFooterLine(canvas)
         pdfDocument.finishPage(page)
 
         val extraUris = mutableListOf<String>()
@@ -1121,19 +1144,22 @@ object PdfGenerator {
 
         if (extraUris.isNotEmpty()) {
             currentPageNum++
-            var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-            var appendixCanvas = appendixPage.canvas
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
             drawPageHeader()
             var imgYPosition = 140f
-            appendixCanvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
+            canvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
             imgYPosition += 40f
 
             for (uriStr in extraUris) {
                 if (imgYPosition > 600f) {
-                    pdfDocument.finishPage(appendixPage)
+                    drawFooterLine(canvas)
+                    pdfDocument.finishPage(page)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-                    appendixCanvas = appendixPage.canvas
+                    pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                    page = pdfDocument.startPage(pageInfo)
+                    canvas = page.canvas
                     drawPageHeader()
                     imgYPosition = 140f
                 }
@@ -1143,13 +1169,14 @@ object PdfGenerator {
                         val targetWidth = 400
                         val targetHeight = (targetWidth / aspectRatio).toInt()
                         val xPos = (595f - targetWidth) / 2f
-                        appendixCanvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
+                        canvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
                         bitmap.recycle()
                         imgYPosition += targetHeight + 20f
                     }
                 } catch (e: Exception) { e.printStackTrace() }
             }
-            pdfDocument.finishPage(appendixPage)
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
         }
 
         return try {
@@ -1182,7 +1209,7 @@ object PdfGenerator {
         var yPosition = 120f
         var tableRowIndex = 0
 
-        val xLines = floatArrayOf(550f, 220f, 150f, 80f, 10f)
+        val xLines = floatArrayOf(550f, 500f, 230f, 160f, 85f, 10f)
 
         fun drawPageHeader() {
             canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
@@ -1209,7 +1236,7 @@ object PdfGenerator {
         yPosition = 160f
 
         val rightMargin = 550f
-        val rowHeight = 22f
+        val rowHeight = 20f
 
         canvas.drawText("תאריך בדיקה: ${form.date}", rightMargin, yPosition, boldPaint)
         yPosition += 25f
@@ -1220,10 +1247,23 @@ object PdfGenerator {
         canvas.drawText("פרטי האתר והמערכת:", rightMargin - 5f, yPosition, boldPaint)
         yPosition += rowHeight
         val addressText = if (form.isUnaddressedSite) "אתר בבנייה/ללא כתובת. נ.צ: ${form.gpsCoordinates}" else "${form.street} ${form.building}, ${form.city}"
-        canvas.drawText("שם העסק: ${form.businessName}  |  ישוב: ${form.city}  |  רחוב: ${form.street} ${form.building}", rightMargin - 5f, yPosition, paint)
+        canvas.drawText("שם העסק: ${form.businessName}", rightMargin - 5f, yPosition, paint)
+        canvas.drawText("איש קשר: ${form.clientName}  |  טלפון: ${form.clientPhone}", 300f, yPosition, paint)
         yPosition += rowHeight
-        canvas.drawText("איש קשר: ${form.clientName}  |  טלפון: ${form.clientPhone}", rightMargin - 5f, yPosition, paint)
+
+        val wordsAddr = addressText.split(" ")
+        var currAddrLine = "כתובת: "
+        for (word in wordsAddr) {
+            val testLine = "$currAddrLine $word"
+            if (paint.measureText(testLine) > 520f) {
+                canvas.drawText(currAddrLine, rightMargin - 5f, yPosition, paint)
+                yPosition += 16f
+                currAddrLine = word
+            } else { currAddrLine = testLine }
+        }
+        if (currAddrLine.isNotEmpty()) { canvas.drawText(currAddrLine, rightMargin - 5f, yPosition, paint) }
         yPosition += rowHeight
+
         canvas.drawText("סוג מכלים: ${form.tankType}  |  שימוש: ${form.usageType}  |  שנת ייצור: ${form.manufactureOrTestYear}", rightMargin - 5f, yPosition, paint)
         yPosition += rowHeight
         canvas.drawText("קיבול מכל: ${form.capacityPerTank} ק\"ג  |  סה\"כ: ${form.totalCapacity} ק\"ג  |  מרכזייה: ${form.manifoldNumber}", rightMargin - 5f, yPosition, paint)
@@ -1235,16 +1275,17 @@ object PdfGenerator {
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
 
-            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 12f }
-            canvas.drawText("סעיף בדיקה", 385f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("מתאים", 185f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("לא מתאים", 115f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("לא ישים", 45f, yPosition + 17f, tableHeaderPaint)
+            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 11f }
+            canvas.drawText("סעיף", 525f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מהות הבדיקה", 365f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מתאים", 195f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא מתאים", 122.5f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא ישים", 47.5f, yPosition + 17f, tableHeaderPaint)
             yPosition += 25f
         }
 
-        fun drawCheckRow(text: String, state: String) {
-            val maxWidth = 330f
+        fun drawCheckRow(section: String, text: String, state: String) {
+            val maxWidth = 260f
             val words = text.split(" ")
             val lines = mutableListOf<String>()
             var currentLine = ""
@@ -1263,6 +1304,7 @@ object PdfGenerator {
             val h = Math.max(28f, textHeight + 10f)
 
             if (yPosition + h > 780f) {
+                drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
                 pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -1273,71 +1315,63 @@ object PdfGenerator {
                 drawTableHeader()
             }
 
-            if (state == "HEADER" || state == "SUBHEADER") {
-                val bgPaint = if (state == "HEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
-
-                var textY = yPosition + 19f
-                val headerTextPaint = Paint(boldPaint).apply { textSize = 12f }
-                for (line in lines) {
-                    canvas.drawText(line, 540f, textY, headerTextPaint)
-                    textY += 14f
-                }
-                yPosition += h
-                if (state == "HEADER") tableRowIndex = 0
-                return
-            }
-
             val rowColor = if (state == "FAIL") Color.parseColor("#FFEEEE") else if (tableRowIndex % 2 == 0) Color.parseColor("#F9F9F9") else Color.WHITE
-            canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = rowColor; style = Paint.Style.FILL })
-            tableRowIndex++
+            val bgPaint = if (state == "HEADER" || state == "SUBHEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = rowColor; style = Paint.Style.FILL }
 
-            canvas.drawRect(10f, yPosition, 550f, yPosition + h, linePaint)
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
+            if (state != "HEADER" && state != "SUBHEADER") tableRowIndex++
+
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + h, linePaint)
 
+            val secPaint = if (state == "HEADER" || state == "SUBHEADER") Paint(boldPaint).apply { textSize = 11f; textAlign = Paint.Align.CENTER } else Paint(paint).apply { textAlign = Paint.Align.CENTER }
+            canvas.drawText(section, 525f, yPosition + 19f, secPaint)
+
             var textY = yPosition + 19f
+            val txtPaint = if (state == "HEADER" || state == "SUBHEADER") Paint(boldPaint).apply { textSize = 11f } else paint
             for (line in lines) {
-                canvas.drawText(line, 540f, textY, paint)
+                canvas.drawText(line, 495f, textY, txtPaint)
                 textY += 14f
             }
 
-            val centerPass = 185f
-            val centerFail = 115f
-            val centerNA = 45f
-            val iconY = yPosition + (h / 2) + 5f
+            if (state != "HEADER" && state != "SUBHEADER") {
+                val centerPass = 195f
+                val centerFail = 122.5f
+                val centerNA = 47.5f
+                val iconY = yPosition + (h / 2) + 5f
 
-            when (state) {
-                "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
-                "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
-                "NA" -> canvas.drawText("-", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                when (state) {
+                    "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
+                    "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
+                    "NA" -> canvas.drawText("/", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                }
             }
             yPosition += h
         }
 
         drawTableHeader()
-        drawCheckRow("1. אתר ההתקנה", "HEADER")
-        drawCheckRow("1.1 - יש שילוט בטיחות ומחסום יציב בפני רכבים", form.checkSiteSignage)
-        drawCheckRow("1.2 - אתר ההתקנה תקין (שלמות כיסוי וניקיון)", form.checkSiteClean)
+        drawCheckRow("1.", "אתר ההתקנה", "HEADER")
+        drawCheckRow("1.1", "יש שילוט בטיחות ומחסום יציב בפני רכבים", form.checkSiteSignage)
+        drawCheckRow("1.2", "אתר ההתקנה תקין (שלמות כיסוי וניקיון)", form.checkSiteClean)
 
-        drawCheckRow("2. המכלים (בדיקה חזותית)", "HEADER")
-        drawCheckRow("2.1 - למכל יש לוחית זיהוי קריאה", form.checkTankPlate)
-        drawCheckRow("2.2 - ברכת האביזרים/המכסה תקין", form.checkTankCover)
-        drawCheckRow("2.3 - האביזרים שלמים ונקיים", form.checkTankFittings)
-        drawCheckRow("2.4 - יש סידור לגישה בטוחה לאביזרי המכל", form.checkSafeAccess)
-        drawCheckRow("2.5 - חיבורים ומוצאים גבוהים ממפלס המים", form.checkFittingsHeight)
-        drawCheckRow("2.6 - נשמרים מרחקי הבטיחות (טבלה 2)", form.checkSafetyDistances)
-        drawCheckRow("2.7 - נשמרים מרחקי בטיחות לציוד חשמלי", form.checkElecDistances)
-        drawCheckRow("2.8 - פתח צינור מילוי מתאים לדרישות", form.checkFillPipe)
+        drawCheckRow("2.", "המכלים (בדיקה חזותית)", "HEADER")
+        drawCheckRow("2.1", "למכל יש לוחית זיהוי קריאה", form.checkTankPlate)
+        drawCheckRow("2.2", "ברכת האביזרים/המכסה תקין", form.checkTankCover)
+        drawCheckRow("2.3", "האביזרים שלמים ונקיים", form.checkTankFittings)
+        drawCheckRow("2.4", "יש סידור לגישה בטוחה לאביזרי המכל", form.checkSafeAccess)
+        drawCheckRow("2.5", "חיבורים ומוצאים גבוהים ממפלס המים", form.checkFittingsHeight)
+        drawCheckRow("2.6", "נשמרים מרחקי הבטיחות (טבלה 2)", form.checkSafetyDistances)
+        drawCheckRow("2.7", "נשמרים מרחקי בטיחות לציוד חשמלי", form.checkElecDistances)
+        drawCheckRow("2.8", "פתח צינור מילוי מתאים לדרישות", form.checkFillPipe)
 
-        drawCheckRow("3. מערכת הצינורות המשותפת", "HEADER")
-        drawCheckRow("3.1 - שסתום לרעידת אדמה בקו לחץ ביניים", form.checkEarthquakeValve)
-        drawCheckRow("3.2 - השסתום מפולס והתקנתו תקינה", form.checkValveLevel)
-        drawCheckRow("3.3 - ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", form.checkMainValve)
-        drawCheckRow("3.4 - שסתומי פריקה מחוברים לאוויר חוץ", form.checkDischargeValve)
-        drawCheckRow("3.5 - לחץ הגז בצנרת פנים אינו גדול מ-1.4 בר", form.checkPressure1_4)
-        drawCheckRow("3.6 - אמצעים להגבלת לחץ בווסתים ללא שסתום פריקה", form.checkPipingSecured)
-        drawCheckRow("3.7 - כל מוצא שאינו בשימוש קבוע סגור בפקק/ברז תקין", form.checkOutletsPlugged)
+        drawCheckRow("3.", "מערכת הצינורות המשותפת", "HEADER")
+        drawCheckRow("3.1", "שסתום לרעידת אדמה בקו לחץ ביניים", form.checkEarthquakeValve)
+        drawCheckRow("3.2", "השסתום מפולס והתקנתו תקינה", form.checkValveLevel)
+        drawCheckRow("3.3", "ברז ניתוק ראשי נגיש ומשולט בכניסה לבניין", form.checkMainValve)
+        drawCheckRow("3.4", "שסתומי פריקה מחוברים לאוויר חוץ", form.checkDischargeValve)
+        drawCheckRow("3.5", "לחץ הגז בצנרת פנים אינו גדול מ-1.4 בר", form.checkPressure1_4)
+        drawCheckRow("3.6", "אמצעים להגבלת לחץ בווסתים ללא שסתום פריקה", form.checkPipingSecured)
+        drawCheckRow("3.7", "כל מוצא שאינו בשימוש קבוע סגור בפקק/ברז תקין", form.checkOutletsPlugged)
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
@@ -1356,6 +1390,7 @@ object PdfGenerator {
         if (form.failedReasonsJson.isNotEmpty() && form.failedReasonsJson != "{}") {
             yPosition += 25f
             if (yPosition > 700f) {
+                drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
                 pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -1372,9 +1407,7 @@ object PdfGenerator {
                 val json = JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
-
                     val boxTop = yPosition
-                    var boxBottom = yPosition + 50f
                     val boxRight = 550f
                     val boxLeft = 10f
 
@@ -1383,41 +1416,34 @@ object PdfGenerator {
                     var currentLine = ""
                     for (word in words) {
                         val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                        if (paint.measureText(testLine) > (boxRight - boxLeft - 20f)) {
+                        if (paint.measureText(testLine) > (boxRight - boxLeft - 80f)) {
                             innerLines.add(currentLine)
                             currentLine = word
-                        } else {
-                            currentLine = testLine
-                        }
+                        } else { currentLine = testLine }
                     }
-                    if (currentLine.isNotEmpty()) {
-                        innerLines.add(currentLine)
-                    }
+                    if (currentLine.isNotEmpty()) { innerLines.add(currentLine) }
 
-                    val textHeightNeeded = innerLines.size * 18f + 35f
-                    if (textHeightNeeded > 50f) {
-                        boxBottom = yPosition + textHeightNeeded
-                    }
+                    val textHeightNeeded = innerLines.size * 18f + 25f
 
-                    if (boxBottom > 780f) {
+                    if (yPosition + textHeightNeeded > 780f) {
+                        drawFooterLine(canvas)
                         pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
-                        boxBottom = yPosition + textHeightNeeded
                     }
 
-                    val rect = RectF(boxLeft, boxTop, boxRight, boxBottom)
+                    val boxBottom = yPosition + textHeightNeeded
+                    val rect = RectF(boxLeft, yPosition, boxRight, boxBottom)
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.parseColor("#FAFAFA"); style = Paint.Style.FILL })
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.RED; style = Paint.Style.STROKE; strokeWidth = 1.5f })
 
-                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f }
-                    canvas.drawText("סעיף $key:", boxRight - 10f, boxTop + 18f, labelPaint)
+                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
+                    canvas.drawText("סעיף $key:", boxRight - 10f, yPosition + 18f, labelPaint)
 
-                    var textY = boxTop + 35f
+                    var textY = yPosition + 18f
                     for (line in innerLines) {
-                        canvas.drawText(line, boxRight - 10f, textY, paint)
+                        canvas.drawText(line, boxRight - 75f, textY, paint)
                         textY += 18f
                     }
-
                     yPosition = boxBottom + 15f
                 }
             } catch (e: Exception) { e.printStackTrace() }
@@ -1425,6 +1451,7 @@ object PdfGenerator {
 
         yPosition += 20f
         if (yPosition > 700f) {
+            drawFooterLine(canvas)
             pdfDocument.finishPage(page)
             currentPageNum++
             pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -1452,31 +1479,37 @@ object PdfGenerator {
         }
 
         yPosition += 40f
-        if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) { drawFooterLine(canvas); pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
-        canvas.drawText("חתימת מבצע הבדיקה", rightMargin, yPosition, boldPaint)
-        canvas.drawText("חתימת הלקוח", 200f, yPosition, boldPaint)
 
-        yPosition += rowHeight
+        canvas.drawText("חתימת מבצע הבדיקה", 450f, yPosition, boldPaintCenter)
+        canvas.drawText("אישור וחתימת הלקוח", 150f, yPosition, boldPaintCenter)
+        yPosition += 20f
+
         val settingsManager = SettingsManager(context)
         val techName = if (settingsManager.defaultTechnicianName.isNotEmpty()) settingsManager.defaultTechnicianName else "טכנאי גז"
-        canvas.drawText("שם: $techName", rightMargin, yPosition, paint)
+        canvas.drawText("שם: $techName", 450f, yPosition, Paint(paint).apply { textAlign = Paint.Align.CENTER })
+
+        val techLicenseNum = settingsManager.technicianLicenseNumber
+        val techLevel = settingsManager.technicianLevel
+        if (techLicenseNum.isNotEmpty()) {
+            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", 450f, yPosition + 15f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
+        }
 
         val savedSig = settingsManager.savedSignatureUri
         val settingsSigUri = if (!savedSig.isNullOrEmpty()) savedSig else settingsManager.technicianLicenseUri
         if (!settingsSigUri.isNullOrEmpty()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
-                    val boxWidth = 200f; val boxHeight = 110f
+                    val boxWidth = 160f; val boxHeight = 80f
                     val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val boxRatio = boxWidth / boxHeight
                     var drawWidth = boxWidth; var drawHeight = boxHeight
                     if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
-
-                    val left = rightMargin - drawWidth
-                    val top = yPosition + 10f
+                    val left = 450f - (drawWidth / 2f)
+                    val top = yPosition + 25f
                     val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
                     canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
                     bitmap.recycle()
@@ -1484,24 +1517,29 @@ object PdfGenerator {
             } catch (e: Exception) { e.printStackTrace() }
         }
 
-        val techLicenseNum = settingsManager.technicianLicenseNumber
-        val techLevel = settingsManager.technicianLevel
-        if (techLicenseNum.isNotEmpty()) {
-            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", rightMargin - 100f, yPosition + 130f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
-        }
+        val clientBoxRight = 280f
+        val clientBoxLeft = 20f
+        val clientBoxTop = yPosition - 10f
+        val clientBoxBottom = yPosition + 110f
+        canvas.drawRect(clientBoxLeft, clientBoxTop, clientBoxRight, clientBoxBottom, Paint().apply { color = Color.parseColor("#F5F7FA"); style = Paint.Style.FILL })
+        canvas.drawRect(clientBoxLeft, clientBoxTop, clientBoxRight, clientBoxBottom, Paint().apply { color = Color.LTGRAY; style = Paint.Style.STROKE; strokeWidth = 1f })
 
-        val clientConfirmName: String = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
-        canvas.drawText("שם החותם: $clientConfirmName", 200f, yPosition, paint)
+        val clientConfirmName = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
+        canvas.drawText("שם החותם: $clientConfirmName", clientBoxRight - 10f, clientBoxTop + 20f, paint)
+
+        val clientIdStr = "________________"
+        canvas.drawText("ת.ז / ח.פ: $clientIdStr", clientBoxRight - 10f, clientBoxTop + 40f, paint)
 
         if (form.clientSignatureUri.isNotEmpty()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(form.clientSignatureUri))?.let { bitmap ->
-                    canvas.drawBitmap(bitmap, null, RectF(50f, yPosition + 10f, 200f, yPosition + 60f), Paint().apply { isFilterBitmap = true })
+                    canvas.drawBitmap(bitmap, null, RectF(clientBoxLeft + 10f, clientBoxTop + 45f, clientBoxRight - 10f, clientBoxBottom - 5f), Paint().apply { isFilterBitmap = true })
                     bitmap.recycle()
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
 
+        drawFooterLine(canvas)
         pdfDocument.finishPage(page)
 
         val extraUris = mutableListOf<String>()
@@ -1509,19 +1547,22 @@ object PdfGenerator {
 
         if (extraUris.isNotEmpty()) {
             currentPageNum++
-            var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-            var appendixCanvas = appendixPage.canvas
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
             drawPageHeader()
             var imgYPosition = 140f
-            appendixCanvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
+            canvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
             imgYPosition += 40f
 
             for (uriStr in extraUris) {
                 if (imgYPosition > 600f) {
-                    pdfDocument.finishPage(appendixPage)
+                    drawFooterLine(canvas)
+                    pdfDocument.finishPage(page)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-                    appendixCanvas = appendixPage.canvas
+                    pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                    page = pdfDocument.startPage(pageInfo)
+                    canvas = page.canvas
                     drawPageHeader()
                     imgYPosition = 140f
                 }
@@ -1531,13 +1572,14 @@ object PdfGenerator {
                         val targetWidth = 400
                         val targetHeight = (targetWidth / aspectRatio).toInt()
                         val xPos = (595f - targetWidth) / 2f
-                        appendixCanvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
+                        canvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
                         bitmap.recycle()
                         imgYPosition += targetHeight + 20f
                     }
                 } catch (e: Exception) { e.printStackTrace() }
             }
-            pdfDocument.finishPage(appendixPage)
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
         }
 
         return try {
@@ -1570,7 +1612,7 @@ object PdfGenerator {
         var yPosition = 120f
         var tableRowIndex = 0
 
-        val xLines = floatArrayOf(550f, 220f, 150f, 80f, 10f)
+        val xLines = floatArrayOf(550f, 500f, 230f, 160f, 85f, 10f)
 
         fun drawPageHeader() {
             canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
@@ -1597,7 +1639,7 @@ object PdfGenerator {
         yPosition = 160f
 
         val rightMargin = 550f
-        val rowHeight = 22f
+        val rowHeight = 20f
 
         canvas.drawText("תאריך בדיקה: ${form.date}", rightMargin, yPosition, boldPaint)
         yPosition += 25f
@@ -1610,8 +1652,21 @@ object PdfGenerator {
         val displayClient = if (form.clientName.isNotEmpty()) form.clientName else form.businessName
         canvas.drawText("שם לקוח/עסק: $displayClient  |  מספר צרכן: ${form.consumerNumber}  |  ספק הגז: ${form.gasProvider}", rightMargin - 5f, yPosition, paint)
         yPosition += rowHeight
-        canvas.drawText("כתובת: ${form.street} ${form.building}, ${form.city}  |  מיקוד: ${form.zip}  |  ת.ד: ${form.poBox}", rightMargin - 5f, yPosition, paint)
+
+        val addressStr = "${form.street} ${form.building}, ${form.city}"
+        val wordsAddr = addressStr.split(" ")
+        var currAddrLine = "כתובת: "
+        for (word in wordsAddr) {
+            val testLine = "$currAddrLine $word"
+            if (paint.measureText(testLine) > 520f) {
+                canvas.drawText(currAddrLine, rightMargin - 5f, yPosition, paint)
+                yPosition += 16f
+                currAddrLine = word
+            } else { currAddrLine = testLine }
+        }
+        if (currAddrLine.isNotEmpty()) { canvas.drawText(currAddrLine, rightMargin - 5f, yPosition, paint) }
         yPosition += rowHeight
+
         val displayFacility = form.facilityType.ifBlank { "פרטי" }
         canvas.drawText("מספר מונה: ${form.consumerMeterNumber}  |  שנת ייצור מונה: ${form.meterManufactureYear}  |  סוג מתקן: $displayFacility", rightMargin - 5f, yPosition, paint)
 
@@ -1622,16 +1677,17 @@ object PdfGenerator {
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
 
-            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 12f }
-            canvas.drawText("סעיף בדיקה", 385f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("מתאים", 185f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("לא מתאים", 115f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("לא ישים", 45f, yPosition + 17f, tableHeaderPaint)
+            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 11f }
+            canvas.drawText("סעיף", 525f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מהות הבדיקה", 365f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מתאים", 195f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא מתאים", 122.5f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא ישים", 47.5f, yPosition + 17f, tableHeaderPaint)
             yPosition += 25f
         }
 
-        fun drawCheckRow(text: String, state: String) {
-            val maxWidth = 330f
+        fun drawCheckRow(section: String, text: String, state: String) {
+            val maxWidth = 260f
             val words = text.split(" ")
             val lines = mutableListOf<String>()
             var currentLine = ""
@@ -1650,6 +1706,7 @@ object PdfGenerator {
             val h = Math.max(28f, textHeight + 10f)
 
             if (yPosition + h > 780f) {
+                drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
                 pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -1660,87 +1717,79 @@ object PdfGenerator {
                 drawTableHeader()
             }
 
-            if (state == "HEADER" || state == "SUBHEADER") {
-                val bgPaint = if (state == "HEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
-
-                var textY = yPosition + 19f
-                val headerTextPaint = Paint(boldPaint).apply { textSize = 12f }
-                for (line in lines) {
-                    canvas.drawText(line, 540f, textY, headerTextPaint)
-                    textY += 14f
-                }
-                yPosition += h
-                if (state == "HEADER") tableRowIndex = 0
-                return
-            }
-
             val rowColor = if (state == "FAIL") Color.parseColor("#FFEEEE") else if (tableRowIndex % 2 == 0) Color.parseColor("#F9F9F9") else Color.WHITE
-            canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = rowColor; style = Paint.Style.FILL })
-            tableRowIndex++
+            val bgPaint = if (state == "HEADER" || state == "SUBHEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = rowColor; style = Paint.Style.FILL }
 
-            canvas.drawRect(10f, yPosition, 550f, yPosition + h, linePaint)
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
+            if (state != "HEADER" && state != "SUBHEADER") tableRowIndex++
+
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + h, linePaint)
 
+            val secPaint = if (state == "HEADER" || state == "SUBHEADER") Paint(boldPaint).apply { textSize = 11f; textAlign = Paint.Align.CENTER } else Paint(paint).apply { textAlign = Paint.Align.CENTER }
+            canvas.drawText(section, 525f, yPosition + 19f, secPaint)
+
             var textY = yPosition + 19f
+            val txtPaint = if (state == "HEADER" || state == "SUBHEADER") Paint(boldPaint).apply { textSize = 11f } else paint
             for (line in lines) {
-                canvas.drawText(line, 540f, textY, paint)
+                canvas.drawText(line, 495f, textY, txtPaint)
                 textY += 14f
             }
 
-            val centerPass = 185f
-            val centerFail = 115f
-            val centerNA = 45f
-            val iconY = yPosition + (h / 2) + 5f
+            if (state != "HEADER" && state != "SUBHEADER") {
+                val centerPass = 195f
+                val centerFail = 122.5f
+                val centerNA = 47.5f
+                val iconY = yPosition + (h / 2) + 5f
 
-            when (state) {
-                "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
-                "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
-                "NA" -> canvas.drawText("-", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                when (state) {
+                    "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
+                    "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
+                    "NA" -> canvas.drawText("/", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                }
             }
             yPosition += h
         }
 
         drawTableHeader()
-        drawCheckRow("1. קווי צינורות", "HEADER")
-        drawCheckRow("1.1 - קיים ברז ניתוק נגיש ליחידת הצריכה (דירה או בית עסק) מזוהה בשם הצרכן או במספר הדירה", form.check1_1)
-        drawCheckRow("1.2 - המונה מקובע", form.check1_2)
-        drawCheckRow("1.3 - פרק הזמן ממועד ייצור המונה אינו גדול מ-18 שנה, ובהתקנה במגורים - סך הנפח המצטבר אינו גדול מ-2000 מ\"ק (מונה שאינו עומד בתנאים יוחלף)", form.check1_3)
-        drawCheckRow("1.4 - בשסתומי פריקה המורכבים בווסת או לאחריו, והנמצאים בתוך הבניין, מוצא שסתום הפריקה מחובר אל אוויר החוץ, וקצה הצינור מרוחק 1 מ' מכל פתח בבניין שמתחתיו", form.check1_5)
-        drawCheckRow("1.5 (⊕) - בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן, ואם הם מותקנים בתוך מבנה- יש אמצעים המגבילים את פתח האוויר", form.check1_6)
-        drawCheckRow("1.6 - יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check1_7)
-        drawCheckRow("1.7 - הצנרת ומרכיביה מקובעים", form.check1_8)
-        drawCheckRow("1.8 (⊕) - כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק או באבזר ניתוק מהיר או בשסתום חד-כיווני, ונמנע שחרור גפ\"מ לאוויר", form.check1_9)
+        drawCheckRow("1.", "קווי צינורות", "HEADER")
+        drawCheckRow("1.1", "קיים ברז ניתוק נגיש ליחידת הצריכה מזוהה בשם הצרכן או במספר הדירה", form.check1_1)
+        drawCheckRow("1.2", "המונה מקובע", form.check1_2)
+        drawCheckRow("1.3", "פרק הזמן ממועד ייצור המונה אינו גדול מ-18 שנה, ובהתקנה במגורים - סך הנפח המצטבר אינו גדול מ-2000 מ\"ק (מונה שאינו עומד בתנאים יוחלף)", form.check1_3)
+        drawCheckRow("1.4", "בשסתומי פריקה המורכבים בווסת או לאחריו, והנמצאים בתוך הבניין, מוצא שסתום הפריקה מחובר אל אוויר החוץ, וקצה הצינור מרוחק 1 מ' מכל פתח בבניין שמתחתיו", form.check1_5)
+        drawCheckRow("1.5", "בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן", form.check1_6)
+        drawCheckRow("1.6", "יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check1_7)
+        drawCheckRow("1.7", "הצנרת ומרכיביה מקובעים", form.check1_8)
+        drawCheckRow("1.8", "כל מוצא של מתקן שאינו מחובר באופן קבוע למכשיר סגור בפקק ונמנע שחרור גפ\"מ", form.check1_9)
 
-        drawCheckRow("2. חיבור המכשירים", "HEADER")
-        if (form.devicesList.isNotBlank()) drawCheckRow("2.1 - פרט את המכשירים צורכי הגפ\"מ המחוברים למתקן בזמן הבדיקה: ${form.devicesList}", "SUBHEADER")
-        drawCheckRow("שלמות המכשירים בבחינה חזותית:", "SUBHEADER")
-        drawCheckRow("2.2 - מכשירים קבועים מחוברים בצינור קשיח", form.check2_2)
-        drawCheckRow("2.3 - הוחלף צינור אלסטומרי לחיבור מכשיר בצינור תקני, למעט צינור גמיש מפלדה לא מחלידה וצינור אלסטומרי שקוטרו הפנימי גדול מ-8 מ\"מ עם קצוות מתוברגים, שיוחלפו רק לפי הצורך בעקבות הבחינה החזותית. קצוות הזרנוק המחוברים לניפלים מחוזקים בחבקים", form.check2_3)
-        drawCheckRow("2.4 - אורך של הצינורות האלסטומריים אינו גדול מ-3 מ', למעט זרנוק ממין שכינויו 18 בהתקנות תעשייתיות וחקלאיות", form.check2_5)
+        drawCheckRow("2.", "חיבור המכשירים", "HEADER")
+        if (form.devicesList.isNotBlank()) drawCheckRow("2.1", "פרט את המכשירים צורכי הגפ\"מ המחוברים למתקן בזמן הבדיקה: ${form.devicesList}", "SUBHEADER")
+        drawCheckRow("", "שלמות המכשירים בבחינה חזותית:", "SUBHEADER")
+        drawCheckRow("2.2", "מכשירים קבועים מחוברים בצינור קשיח", form.check2_2)
+        drawCheckRow("2.3", "הוחלף צינור אלסטומרי לחיבור מכשיר בצינור תקני... קצות הזרנוק מחוזקים בחבקים", form.check2_3)
+        drawCheckRow("2.4", "אורך של הצינורות האלסטומריים אינו גדול מ-3 מ'", form.check2_5)
 
-        drawCheckRow("מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", "SUBHEADER")
-        drawCheckRow("2.5.1 - למכשיר צורך גפ\"מ עם ארובה אטמוספרית, המותקן בתוך דירת מגורים, יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-5", form.check2_6_1)
-        drawCheckRow("2.5.2 - מכשיר חימום מים להסקה עם ארובה אטמוספרית אינו מותקן בחדרי שינה, שירותים או רחצה (לחדרי רחצה ושירותים בתוקף עד 31.12.11)", form.check2_6_2)
-        drawCheckRow("2.5.3 - למכשיר חימום מים להסקה עם ארובה אטמוספרית המותקן בתוך דירת מגורים, יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-5, ולא עברו 3 שנים מיום פרסום גיליון התיקון מס' 1 לת\"י 158 חלק 3", form.check2_6_3)
-        drawCheckRow("2.5.4 - למכשיר חימום מים לצריכה עם ארובה אטמוספרית שהספקו גדול מ-0.5 ק\"ג גז לשעה, המותקן בתוך דירת מגורים, יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-5, ולא עברו 5 שנים מיום פרסום גיליון התיקון מס' 1 לת\"י 158 חלק 3", form.check2_6_4)
-        drawCheckRow("2.5.5 - מכשיר צורך גפ\"מ ללא ארובה אינו מותקן באמבטיה, בשירותים או בחדר שינה, למעט מכשיר בישול ואפייה ובתנאי שמתקיימים תנאי אוורור לפי ת\"י 158 חלק 3 טבלה 2", form.check2_6_5)
+        drawCheckRow("", "מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", "SUBHEADER")
+        drawCheckRow("2.5.1", "למכשיר עם ארובה אטמוספרית המותקן בדירת מגורים, יש תווית אישור שנתית תקפה ד-5", form.check2_6_1)
+        drawCheckRow("2.5.2", "מכשיר חימום מים להסקה אינו מותקן בחדרי שינה, שירותים או רחצה", form.check2_6_2)
+        drawCheckRow("2.5.3", "למכשיר חימום מים להסקה עם ארובה אטמוספרית... לא עברו 3 שנים...", form.check2_6_3)
+        drawCheckRow("2.5.4", "למכשיר חימום מים לצריכה שהספקו גדול מ-0.5... לא עברו 5 שנים...", form.check2_6_4)
+        drawCheckRow("2.5.5", "מכשיר צורך גפ\"מ ללא ארובה אינו מותקן באמבטיה, שירותים או חדר שינה", form.check2_6_5)
 
-        drawCheckRow("תקינות ארובות למכשירים צורכי גפ\"מ:", "SUBHEADER")
-        drawCheckRow("2.6.1 - הארובה שלמה ומחוזקת באופן המונע אפשרות לשינוי ממצב ההתקנה", form.check2_7_1)
-        drawCheckRow("2.6.2 - מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח בבניין", form.check2_7_2)
-        drawCheckRow("2.6.3 - מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח בבניין", form.check2_7_3)
+        drawCheckRow("", "תקינות ארובות למכשירים צורכי גפ\"מ:", "SUBHEADER")
+        drawCheckRow("2.6.1", "הארובה שלמה ומחוזקת באופן המונע אפשרות לשינוי ממצב ההתקנה", form.check2_7_1)
+        drawCheckRow("2.6.2", "מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח בבניין", form.check2_7_2)
+        drawCheckRow("2.6.3", "מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח בבניין", form.check2_7_3)
 
-        drawCheckRow("מכשירים לשימוש ציבורי, מסחרי, חקלאי או תעשייתי:", "SUBHEADER")
-        drawCheckRow("2.7.1 - מכשירים לחימום חלל במקומות ציבוריים מצוידים בהתקן לסגירת זרימת הגז כשהלהבה כבה", form.check2_8_1)
-        drawCheckRow("2.7.2 - במטבחים של מבני ציבור יש פתח אוורור קבוע אל אוויר החוץ או אוורור מאולץ שקיל", form.check2_8_2)
-        drawCheckRow("2.8 - למכשירים המותקנים במקום נמוך יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-6", form.check2_9)
+        drawCheckRow("", "מכשירים לשימוש ציבורי, מסחרי, חקלאי או תעשייתי:", "SUBHEADER")
+        drawCheckRow("2.7.1", "מכשירים לחימום חלל במקומות ציבוריים מצוידים בהתקן לסגירת זרימת הגז כשהלהבה כבה", form.check2_8_1)
+        drawCheckRow("2.7.2", "במטבחים של מבני ציבור יש פתח אוורור קבוע אל אוויר החוץ או אוורור מאולץ שקיל", form.check2_8_2)
+        drawCheckRow("2.8", "למכשירים המותקנים במקום נמוך יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-6", form.check2_9)
 
-        drawCheckRow("3. בדיקת אטימות", "HEADER")
+        drawCheckRow("3.", "בדיקת אטימות", "HEADER")
         val pressureValue = if (form.testPressure.isNotEmpty()) form.testPressure else "___"
-        drawCheckRow("3.1 - בדיקת אטימות המערכת ללחץ השימוש כוללת את הצינורות האלסטומריים (אחרי החלפתם), ונעשית כשברזי המכשירים סגורים. בודקים באמצעות מד לחץ בעל טווח מדידה שאינו גדול מפי 3 מהלחץ הנמדד. בודקים בלחץ הגז השורר בקו. מחזיקים את הלחץ במשך 15 דקות ומוודאים שאין ירידת לחץ. (לחץ בדיקה: $pressureValue mbar)", form.check3_1)
-        drawCheckRow("3.2 - בדיקת וסת הלחץ - תנאי הבדיקה: מקור לחץ פתוח, ברזי המכשירים סגורים ומד-הלחץ בקו מותקן אחרי מוצא הווסת. משך הבדיקה חמש דקות. ודא שהלחץ אינו גדול ב-30% מהלחץ הנומינלי.", form.check3_2)
+        drawCheckRow("3.1", "בדיקת אטימות המערכת ללחץ השימוש... (לחץ בדיקה: $pressureValue mbar)", form.check3_1)
+        drawCheckRow("3.2", "בדיקת וסת הלחץ... ודא שהלחץ אינו גדול ב-30% מהלחץ הנומינלי.", form.check3_2)
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
@@ -1748,6 +1797,7 @@ object PdfGenerator {
         // פירוט ליקויים - אם קיימים בטופס
         if (form.failedReasonsJson.isNotEmpty() && form.failedReasonsJson != "{}") {
             if (yPosition > 700f) {
+                drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
                 pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -1764,9 +1814,7 @@ object PdfGenerator {
                 val json = JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
-
                     val boxTop = yPosition
-                    var boxBottom = yPosition + 50f
                     val boxRight = 550f
                     val boxLeft = 10f
 
@@ -1775,41 +1823,34 @@ object PdfGenerator {
                     var currentLine = ""
                     for (word in words) {
                         val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                        if (paint.measureText(testLine) > (boxRight - boxLeft - 20f)) {
+                        if (paint.measureText(testLine) > (boxRight - boxLeft - 80f)) {
                             innerLines.add(currentLine)
                             currentLine = word
-                        } else {
-                            currentLine = testLine
-                        }
+                        } else { currentLine = testLine }
                     }
-                    if (currentLine.isNotEmpty()) {
-                        innerLines.add(currentLine)
-                    }
+                    if (currentLine.isNotEmpty()) { innerLines.add(currentLine) }
 
-                    val textHeightNeeded = innerLines.size * 18f + 35f
-                    if (textHeightNeeded > 50f) {
-                        boxBottom = yPosition + textHeightNeeded
-                    }
+                    val textHeightNeeded = innerLines.size * 18f + 25f
 
-                    if (boxBottom > 780f) {
+                    if (yPosition + textHeightNeeded > 780f) {
+                        drawFooterLine(canvas)
                         pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
-                        boxBottom = yPosition + textHeightNeeded
                     }
 
-                    val rect = RectF(boxLeft, boxTop, boxRight, boxBottom)
+                    val boxBottom = yPosition + textHeightNeeded
+                    val rect = RectF(boxLeft, yPosition, boxRight, boxBottom)
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.parseColor("#FAFAFA"); style = Paint.Style.FILL })
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.RED; style = Paint.Style.STROKE; strokeWidth = 1.5f })
 
-                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f }
-                    canvas.drawText("סעיף $key:", boxRight - 10f, boxTop + 18f, labelPaint)
+                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
+                    canvas.drawText("סעיף $key:", boxRight - 10f, yPosition + 18f, labelPaint)
 
-                    var textY = boxTop + 35f
+                    var textY = yPosition + 18f
                     for (line in innerLines) {
-                        canvas.drawText(line, boxRight - 10f, textY, paint)
+                        canvas.drawText(line, boxRight - 75f, textY, paint)
                         textY += 18f
                     }
-
                     yPosition = boxBottom + 15f
                 }
             } catch (e: Exception) { e.printStackTrace() }
@@ -1817,6 +1858,7 @@ object PdfGenerator {
 
         yPosition += 20f
         if (yPosition > 700f) {
+            drawFooterLine(canvas)
             pdfDocument.finishPage(page)
             currentPageNum++
             pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -1826,49 +1868,44 @@ object PdfGenerator {
             yPosition = 140f
         }
 
-        canvas.drawText("6. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
+        canvas.drawText("4. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
-        val statusMessage = when {
-            form.isFacilityValid -> "✔ המתקן נמצא תקין בהתאם לדרישות התקן."
-            form.requiresFixes -> "⚠ נמצאו ליקויים. יש לתקן עד תאריך: ${form.fixByDate}"
-            form.isDisconnected -> "✗ אזהרה: הספקת הגז נותקה עקב ליקויים חמורים! סיבה: ${form.disconnectReason}"
-            else -> "טרם הוגדר סטטוס."
-        }
-        val finalStatusPaint = if (form.isFacilityValid) Paint(boldPaint).apply { color = Color.parseColor("#007A00"); textSize=14f } else Paint(boldPaint).apply { color = Color.RED; textSize=14f }
-        canvas.drawText(statusMessage, rightMargin, yPosition, finalStatusPaint)
-
-        if (form.additionalNotes.isNotEmpty()) {
-            yPosition += 25f
-            canvas.drawText("הערות מסכמות: ${form.additionalNotes}", rightMargin, yPosition, paint)
-        }
+        val statusMessage = "הבדיקה בוצעה והושלמה בהתאם למפורט בסעיפי הטופס."
+        canvas.drawText(statusMessage, rightMargin, yPosition, Paint(boldPaint).apply { color = Color.BLACK; textSize=14f })
 
         yPosition += 40f
-        if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) { drawFooterLine(canvas); pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
-        canvas.drawText("חתימת מבצע הבדיקה", rightMargin, yPosition, boldPaint)
-        canvas.drawText("חתימת הלקוח", 200f, yPosition, boldPaint)
 
-        yPosition += rowHeight
+        canvas.drawText("חתימת מבצע הבדיקה", 450f, yPosition, boldPaintCenter)
+        canvas.drawText("אישור וחתימת הלקוח", 150f, yPosition, boldPaintCenter)
+        yPosition += 20f
+
         val settingsManager = SettingsManager(context)
         val techName = if (settingsManager.defaultTechnicianName.isNotEmpty()) settingsManager.defaultTechnicianName else "טכנאי גז"
-        canvas.drawText("שם: $techName", rightMargin, yPosition, paint)
+        canvas.drawText("שם: $techName", 450f, yPosition, Paint(paint).apply { textAlign = Paint.Align.CENTER })
+
+        val techLicenseNum = settingsManager.technicianLicenseNumber
+        val techLevel = settingsManager.technicianLevel
+        if (techLicenseNum.isNotEmpty()) {
+            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", 450f, yPosition + 15f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
+        }
 
         val savedSig = settingsManager.savedSignatureUri
         val settingsSigUri = if (!savedSig.isNullOrEmpty()) savedSig else settingsManager.technicianLicenseUri
         if (!settingsSigUri.isNullOrEmpty()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
-                    val boxWidth = 200f; val boxHeight = 110f
+                    val boxWidth = 160f; val boxHeight = 80f
                     val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val boxRatio = boxWidth / boxHeight
                     var drawWidth = boxWidth; var drawHeight = boxHeight
                     if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
-
-                    val left = rightMargin - drawWidth
-                    val top = yPosition + 10f
+                    val left = 450f - (drawWidth / 2f)
+                    val top = yPosition + 25f
                     val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
                     canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
                     bitmap.recycle()
@@ -1876,45 +1913,54 @@ object PdfGenerator {
             } catch (e: Exception) { e.printStackTrace() }
         }
 
-        val techLicenseNum = settingsManager.technicianLicenseNumber
-        val techLevel = settingsManager.technicianLevel
-        if (techLicenseNum.isNotEmpty()) {
-            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", rightMargin - 100f, yPosition + 130f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
-        }
+        val clientBoxRight = 280f
+        val clientBoxLeft = 20f
+        val clientBoxTop = yPosition - 10f
+        val clientBoxBottom = yPosition + 110f
+        canvas.drawRect(clientBoxLeft, clientBoxTop, clientBoxRight, clientBoxBottom, Paint().apply { color = Color.parseColor("#F5F7FA"); style = Paint.Style.FILL })
+        canvas.drawRect(clientBoxLeft, clientBoxTop, clientBoxRight, clientBoxBottom, Paint().apply { color = Color.LTGRAY; style = Paint.Style.STROKE; strokeWidth = 1f })
 
-        val clientConfirmName: String = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
-        canvas.drawText("שם החותם: $clientConfirmName", 200f, yPosition, paint)
+        val clientConfirmName = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
+        canvas.drawText("שם החותם: $clientConfirmName", clientBoxRight - 10f, clientBoxTop + 20f, paint)
+
+        val clientIdStr = form.consumerNumber.takeIf { it.isNotEmpty() } ?: "________________"
+        canvas.drawText("ת.ז / ח.פ: $clientIdStr", clientBoxRight - 10f, clientBoxTop + 40f, paint)
 
         if (form.clientSignatureUri.isNotEmpty()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(form.clientSignatureUri))?.let { bitmap ->
-                    canvas.drawBitmap(bitmap, null, RectF(50f, yPosition + 10f, 200f, yPosition + 60f), Paint().apply { isFilterBitmap = true })
+                    canvas.drawBitmap(bitmap, null, RectF(clientBoxLeft + 10f, clientBoxTop + 45f, clientBoxRight - 10f, clientBoxBottom - 5f), Paint().apply { isFilterBitmap = true })
                     bitmap.recycle()
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
 
+        drawFooterLine(canvas)
         pdfDocument.finishPage(page)
 
         val extraUris = mutableListOf<String>()
-        if (form.facilityPhotoUri.isNotEmpty()) { extraUris.add(form.facilityPhotoUri) }
-        if (form.extraImagesUris.isNotEmpty()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotEmpty() }) }
+        try {
+            if (form.extraImagesUris.isNotEmpty()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotEmpty() }) }
+        } catch (e: Exception) {}
 
         if (extraUris.isNotEmpty()) {
             currentPageNum++
-            var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-            var appendixCanvas = appendixPage.canvas
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
             drawPageHeader()
             var imgYPosition = 140f
-            appendixCanvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
+            canvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
             imgYPosition += 40f
 
             for (uriStr in extraUris) {
                 if (imgYPosition > 600f) {
-                    pdfDocument.finishPage(appendixPage)
+                    drawFooterLine(canvas)
+                    pdfDocument.finishPage(page)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-                    appendixCanvas = appendixPage.canvas
+                    pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                    page = pdfDocument.startPage(pageInfo)
+                    canvas = page.canvas
                     drawPageHeader()
                     imgYPosition = 140f
                 }
@@ -1924,13 +1970,14 @@ object PdfGenerator {
                         val targetWidth = 400
                         val targetHeight = (targetWidth / aspectRatio).toInt()
                         val xPos = (595f - targetWidth) / 2f
-                        appendixCanvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
+                        canvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
                         bitmap.recycle()
                         imgYPosition += targetHeight + 20f
                     }
                 } catch (e: Exception) { e.printStackTrace() }
             }
-            pdfDocument.finishPage(appendixPage)
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
         }
 
         return try {
@@ -1963,7 +2010,7 @@ object PdfGenerator {
         var yPosition = 120f
         var tableRowIndex = 0
 
-        val xLines = floatArrayOf(550f, 220f, 150f, 80f, 10f)
+        val xLines = floatArrayOf(550f, 500f, 230f, 160f, 85f, 10f)
 
         fun drawPageHeader() {
             canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
@@ -1990,7 +2037,7 @@ object PdfGenerator {
         yPosition = 160f
 
         val rightMargin = 550f
-        val rowHeight = 22f
+        val rowHeight = 20f
 
         canvas.drawText("תאריך בדיקה: ${form.date}", rightMargin, yPosition, boldPaint)
         yPosition += 25f
@@ -2001,9 +2048,24 @@ object PdfGenerator {
         canvas.drawText("פרטי הלקוח והעסק:", rightMargin - 5f, yPosition, boldPaint)
         yPosition += rowHeight
         val displayClient = if (form.businessName.isNotEmpty()) form.businessName else form.clientName
-        canvas.drawText("שם העסק/לקוח: $displayClient  |  ח.פ/ע.מ: ${form.businessId}  |  מהות: ${form.businessType}", rightMargin - 5f, yPosition, paint)
+        canvas.drawText("שם העסק/לקוח: $displayClient  |  ח.פ/ע.מ: ${form.businessId}", rightMargin - 5f, yPosition, paint)
         yPosition += rowHeight
-        canvas.drawText("כתובת: ${form.street} ${form.building}, ${form.city}  |  מספר צרכן: ${form.consumerNumber}  |  ספק הגז: ${form.gasProvider}", rightMargin - 5f, yPosition, paint)
+
+        val addressStr = "${form.street} ${form.building}, ${form.city}"
+        val wordsAddr = addressStr.split(" ")
+        var currAddrLine = "כתובת: "
+        for (word in wordsAddr) {
+            val testLine = "$currAddrLine $word"
+            if (paint.measureText(testLine) > 520f) {
+                canvas.drawText(currAddrLine, rightMargin - 5f, yPosition, paint)
+                yPosition += 16f
+                currAddrLine = word
+            } else { currAddrLine = testLine }
+        }
+        if (currAddrLine.isNotEmpty()) { canvas.drawText(currAddrLine, rightMargin - 5f, yPosition, paint) }
+        yPosition += rowHeight
+
+        canvas.drawText("מספר צרכן: ${form.consumerNumber}  |  ספק הגז: ${form.gasProvider}", rightMargin - 5f, yPosition, paint)
         yPosition += rowHeight
         val displayFacility = form.facilityType.ifBlank { "פרטי" }
         canvas.drawText("איש קשר: ${form.clientName}  |  טלפון: ${form.clientPhone}  |  סוג מתקן: $displayFacility", rightMargin - 5f, yPosition, paint)
@@ -2015,16 +2077,17 @@ object PdfGenerator {
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
 
-            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 12f }
-            canvas.drawText("סעיף בדיקה", 385f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("מתאים", 185f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("לא מתאים", 115f, yPosition + 17f, tableHeaderPaint)
-            canvas.drawText("לא ישים", 45f, yPosition + 17f, tableHeaderPaint)
+            val tableHeaderPaint = Paint(boldPaintCenter).apply { textSize = 11f }
+            canvas.drawText("סעיף", 525f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מהות הבדיקה", 365f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("מתאים", 195f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא מתאים", 122.5f, yPosition + 17f, tableHeaderPaint)
+            canvas.drawText("לא ישים", 47.5f, yPosition + 17f, tableHeaderPaint)
             yPosition += 25f
         }
 
-        fun drawCheckRow(text: String, state: String) {
-            val maxWidth = 330f
+        fun drawCheckRow(section: String, text: String, state: String) {
+            val maxWidth = 260f
             val words = text.split(" ")
             val lines = mutableListOf<String>()
             var currentLine = ""
@@ -2043,6 +2106,7 @@ object PdfGenerator {
             val h = Math.max(28f, textHeight + 10f)
 
             if (yPosition + h > 780f) {
+                drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
                 pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -2053,115 +2117,107 @@ object PdfGenerator {
                 drawTableHeader()
             }
 
-            if (state == "HEADER" || state == "SUBHEADER") {
-                val bgPaint = if (state == "HEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
-                canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
-
-                var textY = yPosition + 19f
-                val headerTextPaint = Paint(boldPaint).apply { textSize = 12f }
-                for (line in lines) {
-                    canvas.drawText(line, 540f, textY, headerTextPaint)
-                    textY += 14f
-                }
-                yPosition += h
-                if (state == "HEADER") tableRowIndex = 0
-                return
-            }
-
             val rowColor = if (state == "FAIL") Color.parseColor("#FFEEEE") else if (tableRowIndex % 2 == 0) Color.parseColor("#F9F9F9") else Color.WHITE
-            canvas.drawRect(10f, yPosition, 550f, yPosition + h, Paint().apply { color = rowColor; style = Paint.Style.FILL })
-            tableRowIndex++
+            val bgPaint = if (state == "HEADER" || state == "SUBHEADER") Paint().apply { color = Color.parseColor("#EEEEEE"); style = Paint.Style.FILL } else Paint().apply { color = rowColor; style = Paint.Style.FILL }
 
-            canvas.drawRect(10f, yPosition, 550f, yPosition + h, linePaint)
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, bgPaint)
+            if (state != "HEADER" && state != "SUBHEADER") tableRowIndex++
+
+            canvas.drawRect(10f, yPosition, 550f, yPosition + h, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + h, linePaint)
 
+            val secPaint = if (state == "HEADER" || state == "SUBHEADER") Paint(boldPaint).apply { textSize = 11f; textAlign = Paint.Align.CENTER } else Paint(paint).apply { textAlign = Paint.Align.CENTER }
+            canvas.drawText(section, 525f, yPosition + 19f, secPaint)
+
             var textY = yPosition + 19f
+            val txtPaint = if (state == "HEADER" || state == "SUBHEADER") Paint(boldPaint).apply { textSize = 11f } else paint
             for (line in lines) {
-                canvas.drawText(line, 540f, textY, paint)
+                canvas.drawText(line, 495f, textY, txtPaint)
                 textY += 14f
             }
 
-            val centerPass = 185f
-            val centerFail = 115f
-            val centerNA = 45f
-            val iconY = yPosition + (h / 2) + 5f
+            if (state != "HEADER" && state != "SUBHEADER") {
+                val centerPass = 195f
+                val centerFail = 122.5f
+                val centerNA = 47.5f
+                val iconY = yPosition + (h / 2) + 5f
 
-            when (state) {
-                "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
-                "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
-                "NA" -> canvas.drawText("-", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                when (state) {
+                    "PASS" -> canvas.drawText("V", centerPass, iconY, Paint(boldPaintCenter).apply { color = Color.parseColor("#007A00"); textSize = 14f })
+                    "FAIL" -> canvas.drawText("X", centerFail, iconY, Paint(boldPaintCenter).apply { color = Color.RED; textSize = 14f })
+                    "NA" -> canvas.drawText("/", centerNA, iconY, Paint(boldPaintCenter).apply { color = Color.GRAY; textSize = 14f })
+                }
             }
             yPosition += h
         }
 
         drawTableHeader()
-        drawCheckRow("1. בחינה חזותית של מאגר גפ\"מ במכלים מיטלטלים", "HEADER")
-        drawCheckRow("1.1.1 - במקום פתוח ומאוורר. לא במפלס נמוך/מגורים", form.check1_1_1)
-        drawCheckRow("1.1.2 - מרחקי בטיחות (⊕) (סעיף מורחב):", "SUBHEADER")
-        drawCheckRow("1.1.2.1 - 0.7 מ' ממקור חום וניצוצות", form.check1_1_2_1)
-        drawCheckRow("1.1.2.2 - 1.7 מ' מאש גלויה", form.check1_1_2_2)
-        drawCheckRow("1.1.2.3 - 0.5 מ' מבורות/תאים סגורים", form.check1_1_2_3)
-        drawCheckRow("1.1.2.4 - 3 מ' מבורות ופתחי ניקוז פתוחים", form.check1_1_2_4)
-        drawCheckRow("1.1.2.5 - 1.2 מ' מפתחי בניין", form.check1_1_2_5)
-        drawCheckRow("1.1.2.6 - 3 מ' מפתחים במפלס נמוך", form.check1_1_2_6)
-        drawCheckRow("1.2 - יש שילוט אזהרה עם הכיתוב סכנה גז מתלקח... וטלפון לחירום", form.check1_2)
-        drawCheckRow("1.3 - הווסת והסעפת מקובעים", form.check1_3)
-        drawCheckRow("1.4 - במתקן התזת מים, מובטחת התזה על כל המכלים במאגר", form.check1_4)
-        drawCheckRow("1.5 - אם המאגר בחדר גז, גם:", "SUBHEADER")
-        drawCheckRow("1.5.1 - בחדר יש עד 20 מכלים", form.check1_5_1)
-        drawCheckRow("1.5.2 - אם יש תאורה - גוף התאורה נמצא בתקרה והמפסק מחוץ לחדר", form.check1_5_2)
-        drawCheckRow("1.5.3 - בחדר הגז לא מוחזקים חומרים דליקים", form.check1_5_3)
-        drawCheckRow("1.6 - אם המאגר במכלאה, גם:", "SUBHEADER")
-        drawCheckRow("1.6.1 - במכלאה יש עד 20 מכלים", form.check1_6_1)
-        drawCheckRow("1.6.2 - המכלאה מגודרת ומאווררת", form.check1_6_2)
-        drawCheckRow("1.7 - המאספים ('רמפות') מותקנים בצורה יציבה ולכל אחד ברז ניתוק", form.check1_7)
+        drawCheckRow("1.", "בחינה חזותית של מאגר גפ\"מ במכלים מיטלטלים", "HEADER")
+        drawCheckRow("1.1.1", "במקום פתוח ומאוורר. לא במפלס נמוך/מגורים", form.check1_1_1)
+        drawCheckRow("1.1.2", "מרחקי בטיחות (⊕) (סעיף מורחב):", "SUBHEADER")
+        drawCheckRow("1.1.2.1", "0.7 מ' ממקור חום וניצוצות", form.check1_1_2_1)
+        drawCheckRow("1.1.2.2", "1.7 מ' מאש גלויה", form.check1_1_2_2)
+        drawCheckRow("1.1.2.3", "0.5 מ' מבורות/תאים סגורים", form.check1_1_2_3)
+        drawCheckRow("1.1.2.4", "3 מ' מבורות ופתחי ניקוז פתוחים", form.check1_1_2_4)
+        drawCheckRow("1.1.2.5", "1.2 מ' מפתחי בניין", form.check1_1_2_5)
+        drawCheckRow("1.1.2.6", "3 מ' מפתחים במפלס נמוך", form.check1_1_2_6)
+        drawCheckRow("1.2", "יש שילוט אזהרה עם הכיתוב סכנה גז מתלקח... וטלפון לחירום", form.check1_2)
+        drawCheckRow("1.3", "הווסת והסעפת מקובעים", form.check1_3)
+        drawCheckRow("1.4", "במתקן התזת מים, מובטחת התזה על כל המכלים במאגר", form.check1_4)
+        drawCheckRow("1.5", "אם המאגר בחדר גז, גם:", "SUBHEADER")
+        drawCheckRow("1.5.1", "בחדר יש עד 20 מכלים", form.check1_5_1)
+        drawCheckRow("1.5.2", "אם יש תאורה - גוף התאורה נמצא בתקרה והמפסק מחוץ לחדר", form.check1_5_2)
+        drawCheckRow("1.5.3", "בחדר הגז לא מוחזקים חומרים דליקים", form.check1_5_3)
+        drawCheckRow("1.6", "אם המאגר במכלאה, גם:", "SUBHEADER")
+        drawCheckRow("1.6.1", "במכלאה יש עד 20 מכלים", form.check1_6_1)
+        drawCheckRow("1.6.2", "המכלאה מגודרת ומאווררת", form.check1_6_2)
+        drawCheckRow("1.7", "המאספים ('רמפות') מותקנים בצורה יציבה ולכל אחד ברז ניתוק", form.check1_7)
 
-        drawCheckRow("2. מאגר גפ\"מ במכלים נייחים", "HEADER")
-        drawCheckRow("2.1 - אתר ההתקנה", form.check2_1)
-        drawCheckRow("2.1.1 - יש מחסום בפני התקרבות כלי רכב ושילוט בטיחות", form.check2_1_1)
-        drawCheckRow("2.2 - המכלים (בדיקה חזותית)", form.check2_2)
-        drawCheckRow("2.2.1 - למכל יש לוחית זיהוי קריאה והנתונים תואמים", form.check2_2_1)
+        drawCheckRow("2.", "מאגר גפ\"מ במכלים נייחים", "HEADER")
+        drawCheckRow("2.1", "אתר ההתקנה", form.check2_1)
+        drawCheckRow("2.1.1", "יש מחסום בפני התקרבות כלי רכב ושילוט בטיחות", form.check2_1_1)
+        drawCheckRow("2.2", "המכלים (בדיקה חזותית)", form.check2_2)
+        drawCheckRow("2.2.1", "למכל יש לוחית זיהוי קריאה והנתונים תואמים", form.check2_2_1)
 
-        drawCheckRow("3. מערכת הצינורות", "HEADER")
-        drawCheckRow("3.1 - בבניין מגורים שבו קיימת מערכת בלחץ ביניים, יש שסתום לסגירה בעת רעידת אדמה...", form.check3_1)
-        drawCheckRow("3.2 - אם יש, ודא שהשסתום מפולס, שהחיבורים לא התרופפו...", form.check3_2)
-        drawCheckRow("3.3 - יש ברז ניתוק נגיש ומשולט בקרבת הכניסה לבניין", form.check3_3)
-        drawCheckRow("3.4 - בשסתומי פריקה המורכבים בווסת או לאחריו... מוצא מחובר אל אוויר החוץ", form.check3_4)
-        drawCheckRow("3.5 - לחץ הגז בצנרת הגז הנמצאת בתוך המבנה אינו גדול מ-1.4 בר", form.check3_5)
-        drawCheckRow("3.6 - בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן", form.check3_6)
-        drawCheckRow("3.7 - יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check3_7)
-        drawCheckRow("3.8 - הצנרת ומרכיביה מקובעים", form.check3_8)
-        drawCheckRow("3.9 - כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק...", form.check3_9)
+        drawCheckRow("3.", "מערכת הצינורות", "HEADER")
+        drawCheckRow("3.1", "בבניין מגורים שבו קיימת מערכת בלחץ ביניים, יש שסתום לסגירה בעת רעידת אדמה...", form.check3_1)
+        drawCheckRow("3.2", "אם יש, ודא שהשסתום מפולס, שהחיבורים לא התרופפו...", form.check3_2)
+        drawCheckRow("3.3", "יש ברז ניתוק נגיש ומשולט בקרבת הכניסה לבניין", form.check3_3)
+        drawCheckRow("3.4", "בשסתומי פריקה המורכבים בווסת או לאחריו... מוצא מחובר אל אוויר החוץ", form.check3_4)
+        drawCheckRow("3.5", "לחץ הגז בצנרת הגז הנמצאת בתוך המבנה אינו גדול מ-1.4 בר", form.check3_5)
+        drawCheckRow("3.6", "בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן", form.check3_6)
+        drawCheckRow("3.7", "יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check3_7)
+        drawCheckRow("3.8", "הצנרת ומרכיביה מקובעים", form.check3_8)
+        drawCheckRow("3.9", "כל מוצא של מתקן, שאינו מחובר באופן קבוע למכשיר, סגור בפקק...", form.check3_9)
 
-        drawCheckRow("4. מכשירים", "HEADER")
-        if (form.devicesList.isNotBlank()) drawCheckRow("4.1 - פרט את המכשירים צורכי הגפ\"מ המחוברים למתקן בזמן הבדיקה: ${form.devicesList}", "SUBHEADER")
-        drawCheckRow("שלמות המכשירים בבחינה חזותית:", "SUBHEADER")
-        drawCheckRow("4.2 - מכשירים קבועים מחוברים בצינור קשיח", form.check4_2)
-        drawCheckRow("4.3 - הוחלף צינור אלסטומרי לחיבור מכשיר בצינור תקני... קצות הזרנוק המחוברים לניפלים מחוזקים בחבקים", form.check4_3)
-        drawCheckRow("4.4 - אורך של הצינורות האלסטומריים אינו גדול מ-3 מ'", form.check4_4)
+        drawCheckRow("4.", "מכשירים", "HEADER")
+        if (form.devicesList.isNotBlank()) drawCheckRow("4.1", "פרט את המכשירים צורכי הגפ\"מ המחוברים למתקן בזמן הבדיקה: ${form.devicesList}", "SUBHEADER")
+        drawCheckRow("", "שלמות המכשירים בבחינה חזותית:", "SUBHEADER")
+        drawCheckRow("4.2", "מכשירים קבועים מחוברים בצינור קשיח", form.check4_2)
+        drawCheckRow("4.3", "הוחלף צינור אלסטומרי לחיבור מכשיר בצינור תקני... קצות הזרנוק המחוברים לניפלים מחוזקים בחבקים", form.check4_3)
+        drawCheckRow("4.4", "אורך של הצינורות האלסטומריים אינו גדול מ-3 מ'", form.check4_4)
 
-        drawCheckRow("מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", "SUBHEADER")
-        drawCheckRow("4.5.1 (⊕) - למכשיר צורך גפ\"מ עם ארובה אטמוספרית, המותקן בתוך דירת מגורים, יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-5", form.check4_5_1)
-        drawCheckRow("4.5.2 (⊕) - מכשיר חימום מים להסקה עם ארובה אטמוספרית אינו מותקן בחדר שינה, שירותים או רחצה", form.check4_5_2)
-        drawCheckRow("4.5.3 (⊕) - למכשיר חימום מים להסקה... לא עברו 3 שנים מיום פרסום גיליון התיקון...", form.check4_5_3)
-        drawCheckRow("4.5.4 (⊕) - למכשיר חימום מים לצריכה שהספקו גדול מ-0.5... לא עברו 5 שנים...", form.check4_5_4)
-        drawCheckRow("4.6 (⊕) - מכשיר צורך גפ\"מ ללא ארובה אינו מותקן באמבטיה, בשירותים או בחדר שינה...", form.check4_6)
+        drawCheckRow("", "מכשירים צורכי גפ\"מ עם ארובה אטמוספרית:", "SUBHEADER")
+        drawCheckRow("4.5.1", "למכשיר צורך גפ\"מ עם ארובה אטמוספרית, המותקן בתוך דירת מגורים, יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-5", form.check4_5_1)
+        drawCheckRow("4.5.2", "מכשיר חימום מים להסקה עם ארובה אטמוספרית אינו מותקן בחדר שינה, שירותים או רחצה", form.check4_5_2)
+        drawCheckRow("4.5.3", "למכשיר חימום מים להסקה... לא עברו 3 שנים מיום פרסום גיליון התיקון...", form.check4_5_3)
+        drawCheckRow("4.5.4", "למכשיר חימום מים לצריכה שהספקו גדול מ-0.5... לא עברו 5 שנים...", form.check4_5_4)
+        drawCheckRow("4.6", "מכשיר צורך גפ\"מ ללא ארובה אינו מותקן באמבטיה, בשירותים או בחדר שינה...", form.check4_6)
 
-        drawCheckRow("תקינות ארובות למכשירים צורכי גפ\"מ:", "SUBHEADER")
-        drawCheckRow("4.7.1 - הארובה שלמה ומחוזקת באופן המונע אפשרות לשינוי ממצב ההתקנה", form.check4_7_1)
-        drawCheckRow("4.7.2 - מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח בבניין", form.check4_7_2)
-        drawCheckRow("4.7.3 - מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח בבניין", form.check4_7_3)
+        drawCheckRow("", "תקינות ארובות למכשירים צורכי גפ\"מ:", "SUBHEADER")
+        drawCheckRow("4.7.1", "הארובה שלמה ומחוזקת באופן המונע אפשרות לשינוי ממצב ההתקנה", form.check4_7_1)
+        drawCheckRow("4.7.2", "מוצא ארובה אטמוספרית מרוחק 0.5 מ' מכל פתח בבניין", form.check4_7_2)
+        drawCheckRow("4.7.3", "מוצא ארובה כפולה מרוחק 0.4 מ' מכל פתח בבניין", form.check4_7_3)
 
-        drawCheckRow("מכשירים לשימוש ציבורי, מסחרי, חקלאי או תעשייתי:", "SUBHEADER")
-        drawCheckRow("4.8.1 - מכשירים לחימום חלל במקומות ציבוריים מצוידים בהתקן לסגירת זרימת הגז כשהלהבה כבה", form.check4_8_1)
-        drawCheckRow("4.8.2 - במטבחים של מבני ציבור יש פתח אוורור קבוע אל אוויר החוץ או אוורור מאולץ שקיל", form.check4_8_2)
-        drawCheckRow("4.9 - למכשירים המותקנים במקום נמוך יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-6", form.check4_9)
+        drawCheckRow("", "מכשירים לשימוש ציבורי, מסחרי, חקלאי או תעשייתי:", "SUBHEADER")
+        drawCheckRow("4.8.1", "מכשירים לחימום חלל במקומות ציבוריים מצוידים בהתקן לסגירת זרימת הגז כשהלהבה כבה", form.check4_8_1)
+        drawCheckRow("4.8.2", "במטבחים של מבני ציבור יש פתח אוורור קבוע אל אוויר החוץ או אוורור מאולץ שקיל", form.check4_8_2)
+        drawCheckRow("4.9", "למכשירים המותקנים במקום נמוך יש תווית אישור בדיקה שנתית תקפה לפי טופס ד-6", form.check4_9)
 
-        drawCheckRow("5. בדיקת אטימות", "HEADER")
+        drawCheckRow("5.", "בדיקת אטימות", "HEADER")
         val pressureValue = if (form.testPressure.isNotEmpty()) form.testPressure else "___"
-        drawCheckRow("5.1 (⊕) - בדיקת אטימות המערכת ללחץ השימוש... (לחץ בדיקה: $pressureValue mbar)", form.check5_1)
-        drawCheckRow("5.2 (⊕) - בדיקת וסת הלחץ... ודא שהלחץ אינו גדול מ-30% מהלחץ הנומינלי", form.check5_2)
+        drawCheckRow("5.1", "בדיקת אטימות המערכת ללחץ השימוש... (לחץ בדיקה: $pressureValue mbar)", form.check5_1)
+        drawCheckRow("5.2", "בדיקת וסת הלחץ... ודא שהלחץ אינו גדול מ-30% מהלחץ הנומינלי", form.check5_2)
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
@@ -2169,6 +2225,7 @@ object PdfGenerator {
         // פירוט ליקויים - אם קיימים בטופס
         if (form.failedReasonsJson.isNotEmpty() && form.failedReasonsJson != "{}") {
             if (yPosition > 700f) {
+                drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
                 pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -2185,9 +2242,7 @@ object PdfGenerator {
                 val json = JSONObject(form.failedReasonsJson)
                 json.keys().forEach { key ->
                     val reason = json.getString(key)
-
                     val boxTop = yPosition
-                    var boxBottom = yPosition + 50f
                     val boxRight = 550f
                     val boxLeft = 10f
 
@@ -2196,41 +2251,34 @@ object PdfGenerator {
                     var currentLine = ""
                     for (word in words) {
                         val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                        if (paint.measureText(testLine) > (boxRight - boxLeft - 20f)) {
+                        if (paint.measureText(testLine) > (boxRight - boxLeft - 80f)) {
                             innerLines.add(currentLine)
                             currentLine = word
-                        } else {
-                            currentLine = testLine
-                        }
+                        } else { currentLine = testLine }
                     }
-                    if (currentLine.isNotEmpty()) {
-                        innerLines.add(currentLine)
-                    }
+                    if (currentLine.isNotEmpty()) { innerLines.add(currentLine) }
 
-                    val textHeightNeeded = innerLines.size * 18f + 35f
-                    if (textHeightNeeded > 50f) {
-                        boxBottom = yPosition + textHeightNeeded
-                    }
+                    val textHeightNeeded = innerLines.size * 18f + 25f
 
-                    if (boxBottom > 780f) {
+                    if (yPosition + textHeightNeeded > 780f) {
+                        drawFooterLine(canvas)
                         pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
                         yPosition = 140f
-                        boxBottom = yPosition + textHeightNeeded
                     }
 
-                    val rect = RectF(boxLeft, boxTop, boxRight, boxBottom)
+                    val boxBottom = yPosition + textHeightNeeded
+                    val rect = RectF(boxLeft, yPosition, boxRight, boxBottom)
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.parseColor("#FAFAFA"); style = Paint.Style.FILL })
                     canvas.drawRoundRect(rect, 8f, 8f, Paint().apply { color = Color.RED; style = Paint.Style.STROKE; strokeWidth = 1.5f })
 
-                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f }
-                    canvas.drawText("סעיף $key:", boxRight - 10f, boxTop + 18f, labelPaint)
+                    val labelPaint = Paint(paint).apply { color = Color.RED; textSize = 10f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
+                    canvas.drawText("סעיף $key:", boxRight - 10f, yPosition + 18f, labelPaint)
 
-                    var textY = boxTop + 35f
+                    var textY = yPosition + 18f
                     for (line in innerLines) {
-                        canvas.drawText(line, boxRight - 10f, textY, paint)
+                        canvas.drawText(line, boxRight - 75f, textY, paint)
                         textY += 18f
                     }
-
                     yPosition = boxBottom + 15f
                 }
             } catch (e: Exception) { e.printStackTrace() }
@@ -2238,6 +2286,7 @@ object PdfGenerator {
 
         yPosition += 20f
         if (yPosition > 700f) {
+            drawFooterLine(canvas)
             pdfDocument.finishPage(page)
             currentPageNum++
             pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
@@ -2247,49 +2296,44 @@ object PdfGenerator {
             yPosition = 140f
         }
 
-        canvas.drawText("6. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
+        canvas.drawText("5. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
-        val statusMessage = when {
-            form.isFacilityValid -> "✔ המתקן נמצא תקין בהתאם לדרישות התקן."
-            form.requiresFixes -> "⚠ נמצאו ליקויים. יש לתקן עד תאריך: ${form.fixByDate}"
-            form.isDisconnected -> "✗ אזהרה: הספקת הגז נותקה עקב ליקויים חמורים! סיבה: ${form.disconnectReason}"
-            else -> "טרם הוגדר סטטוס."
-        }
-        val finalStatusPaint = if (form.isFacilityValid) Paint(boldPaint).apply { color = Color.parseColor("#007A00"); textSize=14f } else Paint(boldPaint).apply { color = Color.RED; textSize=14f }
-        canvas.drawText(statusMessage, rightMargin, yPosition, finalStatusPaint)
-
-        if (form.additionalNotes.isNotEmpty()) {
-            yPosition += 25f
-            canvas.drawText("הערות מסכמות: ${form.additionalNotes}", rightMargin, yPosition, paint)
-        }
+        val statusMessage = "הבדיקה בוצעה והושלמה בהתאם למפורט בסעיפי הטופס."
+        canvas.drawText(statusMessage, rightMargin, yPosition, Paint(boldPaint).apply { color = Color.BLACK; textSize=14f })
 
         yPosition += 40f
-        if (yPosition > 600f) { pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) { drawFooterLine(canvas); pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
-        canvas.drawText("חתימת מבצע הבדיקה", rightMargin, yPosition, boldPaint)
-        canvas.drawText("חתימת הלקוח", 200f, yPosition, boldPaint)
 
-        yPosition += rowHeight
+        canvas.drawText("חתימת מבצע הבדיקה", 450f, yPosition, boldPaintCenter)
+        canvas.drawText("אישור וחתימת הלקוח", 150f, yPosition, boldPaintCenter)
+        yPosition += 20f
+
         val settingsManager = SettingsManager(context)
         val techName = if (settingsManager.defaultTechnicianName.isNotEmpty()) settingsManager.defaultTechnicianName else "טכנאי גז"
-        canvas.drawText("שם: $techName", rightMargin, yPosition, paint)
+        canvas.drawText("שם: $techName", 450f, yPosition, Paint(paint).apply { textAlign = Paint.Align.CENTER })
+
+        val techLicenseNum = settingsManager.technicianLicenseNumber
+        val techLevel = settingsManager.technicianLevel
+        if (techLicenseNum.isNotEmpty()) {
+            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", 450f, yPosition + 15f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
+        }
 
         val savedSig = settingsManager.savedSignatureUri
         val settingsSigUri = if (!savedSig.isNullOrEmpty()) savedSig else settingsManager.technicianLicenseUri
         if (!settingsSigUri.isNullOrEmpty()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
-                    val boxWidth = 200f; val boxHeight = 110f
+                    val boxWidth = 160f; val boxHeight = 80f
                     val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
                     val boxRatio = boxWidth / boxHeight
                     var drawWidth = boxWidth; var drawHeight = boxHeight
                     if (imgRatio > boxRatio) { drawWidth = boxWidth; drawHeight = boxWidth / imgRatio } else { drawHeight = boxHeight; drawWidth = boxHeight * imgRatio }
-
-                    val left = rightMargin - drawWidth
-                    val top = yPosition + 10f
+                    val left = 450f - (drawWidth / 2f)
+                    val top = yPosition + 25f
                     val sigPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
                     canvas.drawBitmap(bitmap, null, RectF(left, top, left + drawWidth, top + drawHeight), sigPaint)
                     bitmap.recycle()
@@ -2297,45 +2341,54 @@ object PdfGenerator {
             } catch (e: Exception) { e.printStackTrace() }
         }
 
-        val techLicenseNum = settingsManager.technicianLicenseNumber
-        val techLevel = settingsManager.technicianLevel
-        if (techLicenseNum.isNotEmpty()) {
-            canvas.drawText("רישיון גפ\"מ: $techLicenseNum | $techLevel", rightMargin - 100f, yPosition + 130f, Paint(paint).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
-        }
+        val clientBoxRight = 280f
+        val clientBoxLeft = 20f
+        val clientBoxTop = yPosition - 10f
+        val clientBoxBottom = yPosition + 110f
+        canvas.drawRect(clientBoxLeft, clientBoxTop, clientBoxRight, clientBoxBottom, Paint().apply { color = Color.parseColor("#F5F7FA"); style = Paint.Style.FILL })
+        canvas.drawRect(clientBoxLeft, clientBoxTop, clientBoxRight, clientBoxBottom, Paint().apply { color = Color.LTGRAY; style = Paint.Style.STROKE; strokeWidth = 1f })
 
-        val clientConfirmName: String = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
-        canvas.drawText("שם החותם: $clientConfirmName", 200f, yPosition, paint)
+        val clientConfirmName = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
+        canvas.drawText("שם החותם: $clientConfirmName", clientBoxRight - 10f, clientBoxTop + 20f, paint)
+
+        val clientIdStr = form.businessId.takeIf { it.isNotEmpty() } ?: "________________"
+        canvas.drawText("ת.ז / ח.פ: $clientIdStr", clientBoxRight - 10f, clientBoxTop + 40f, paint)
 
         if (form.clientSignatureUri.isNotEmpty()) {
             try {
                 decodeBitmapWithExifRotation(context, Uri.parse(form.clientSignatureUri))?.let { bitmap ->
-                    canvas.drawBitmap(bitmap, null, RectF(50f, yPosition + 10f, 200f, yPosition + 60f), Paint().apply { isFilterBitmap = true })
+                    canvas.drawBitmap(bitmap, null, RectF(clientBoxLeft + 10f, clientBoxTop + 45f, clientBoxRight - 10f, clientBoxBottom - 5f), Paint().apply { isFilterBitmap = true })
                     bitmap.recycle()
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
 
+        drawFooterLine(canvas)
         pdfDocument.finishPage(page)
 
         val extraUris = mutableListOf<String>()
-        if (form.facilityPhotoUri.isNotEmpty()) { extraUris.add(form.facilityPhotoUri) }
-        if (form.extraImagesUris.isNotEmpty()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotEmpty() }) }
+        try {
+            if (form.extraImagesUris.isNotEmpty()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotEmpty() }) }
+        } catch (e: Exception) {}
 
         if (extraUris.isNotEmpty()) {
             currentPageNum++
-            var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-            var appendixCanvas = appendixPage.canvas
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
             drawPageHeader()
             var imgYPosition = 140f
-            appendixCanvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
+            canvas.drawText("נספחים ותמונות - טופס ${form.sequentialNumber}", 297f, imgYPosition, titlePaint)
             imgYPosition += 40f
 
             for (uriStr in extraUris) {
                 if (imgYPosition > 600f) {
-                    pdfDocument.finishPage(appendixPage)
+                    drawFooterLine(canvas)
+                    pdfDocument.finishPage(page)
                     currentPageNum++
-                    appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
-                    appendixCanvas = appendixPage.canvas
+                    pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                    page = pdfDocument.startPage(pageInfo)
+                    canvas = page.canvas
                     drawPageHeader()
                     imgYPosition = 140f
                 }
@@ -2345,13 +2398,14 @@ object PdfGenerator {
                         val targetWidth = 400
                         val targetHeight = (targetWidth / aspectRatio).toInt()
                         val xPos = (595f - targetWidth) / 2f
-                        appendixCanvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
+                        canvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
                         bitmap.recycle()
                         imgYPosition += targetHeight + 20f
                     }
                 } catch (e: Exception) { e.printStackTrace() }
             }
-            pdfDocument.finishPage(appendixPage)
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
         }
 
         return try {
