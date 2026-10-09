@@ -132,6 +132,7 @@ dependencies {
 
     // ספריה להצפנת נתונים (עבור ה-LoginScreen ו-SettingsManager)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation(libs.androidx.work.runtime.ktx)
 }
 
 configurations.all {

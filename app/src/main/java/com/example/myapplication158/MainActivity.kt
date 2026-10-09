@@ -214,6 +214,13 @@ fun MainNavigation() {
     var currentDisplayMessage by remember { mutableStateOf<SystemMessage?>(null) }
     var isConfirmingMessage by remember { mutableStateOf(false) }
 
+    // --- ניקוי זיכרון אוטומטי במקביל לעליית האפליקציה ---
+    LaunchedEffect(Unit) {
+        scope.launch {
+            com.example.myapplication158.util.StorageCleaner.cleanOldTemporaryFiles(context)
+        }
+    }
+
     LaunchedEffect(profileRefreshTrigger) {
         if (androidId != "UNKNOWN_DEVICE") {
             try {
@@ -268,7 +275,22 @@ fun MainNavigation() {
         } else if (trialFormsCount < 30) {
             trialFormsCount++
             appPrefs.edit().putInt("trial_forms_count", trialFormsCount).apply()
-            scope.launch { try { SupabaseManager.client.postgrest["trials_tracker"].update(mapOf("forms_created" to trialFormsCount)) { filter { eq("device_id", androidId) } } } catch (e: Exception) { e.printStackTrace() } }
+            
+            // --- AI Task: מפעילים את ה-SyncWorker במקום קריאת רשת שעלולה להיכשל במרתף ---
+            val syncWork = androidx.work.OneTimeWorkRequestBuilder<com.example.myapplication158.util.SyncWorker>()
+                .setConstraints(
+                    androidx.work.Constraints.Builder()
+                        .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED) // ידרוש אינטרנט!
+                        .build()
+                )
+                .setInputData(
+                    androidx.work.Data.Builder()
+                        .putInt("forms_created", trialFormsCount)
+                        .build()
+                )
+                .build()
+            androidx.work.WorkManager.getInstance(context).enqueue(syncWork)
+            
             val formsLeft = 30 - trialFormsCount
 
             if (formsLeft in 1..10) { Toast.makeText(context, "שים לב: נותרו לך עוד $formsLeft טפסים בתקופת הניסיון", Toast.LENGTH_LONG).show() }
