@@ -91,7 +91,7 @@ object PdfGenerator {
             val textPaint = Paint().apply { color = Color.BLACK; textSize = 11f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
             val boldPaint = Paint().apply { color = Color.BLACK; textSize = 11f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.RIGHT }
             val titlePaint = Paint().apply { color = Color.BLACK; textSize = 16f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD); textAlign = Paint.Align.CENTER }
-            val legalTextPaint = Paint().apply { color = Color.DKGRAY; textSize = 11f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
+            val legalTextPaint = Paint().apply { color = Color.DKGRAY; textSize = 10f; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL); textAlign = Paint.Align.RIGHT }
             val borderPaint = Paint().apply { color = Color.BLACK; strokeWidth = 2f; style = Paint.Style.STROKE }
 
             canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
@@ -100,23 +100,23 @@ object PdfGenerator {
             canvas.drawText(headerTitle, 297f, 50f, Paint(titlePaint).apply { color = Color.WHITE; textSize = 20f })
             canvas.drawText(headerPhone, 297f, 75f, Paint(titlePaint).apply { color = Color.WHITE; textSize = 14f })
 
-            var y = 120f
+            var y = 115f
             canvas.drawText("כתב הסכמה והסרת אחריות לנזקי תשתית סמויה", 297f, y, titlePaint)
-            y += 30f
+            y += 22f
 
             canvas.drawText("תאריך: ${form.date}", 550f, y, boldPaint)
-            y += 20f
+            y += 16f
             canvas.drawText("שם הלקוח / עסק: ${form.clientName}", 550f, y, textPaint)
-            y += 20f
+            y += 16f
             canvas.drawText("תעודת זהות / ח.פ: ${form.clientId}", 550f, y, textPaint)
-            y += 20f
+            y += 16f
             canvas.drawText("כתובת העבודה: ${form.address}", 550f, y, textPaint)
-            y += 20f
+            y += 16f
             canvas.drawText("טלפון: ${form.phone}", 550f, y, textPaint)
-            y += 30f
+            y += 22f
 
             canvas.drawText("תיאור מפורט של העבודה והסיכונים (קידוח / חציבה / הלחמה):", 550f, y, boldPaint)
-            y += 20f
+            y += 16f
 
             val descWords = form.workDescription.split(" ")
             var currentLine = ""
@@ -124,15 +124,15 @@ object PdfGenerator {
                 val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
                 if (textPaint.measureText(testLine) > 500f) {
                     canvas.drawText(currentLine, 550f, y, textPaint)
-                    y += 15f
+                    y += 14f
                     currentLine = word
                 } else { currentLine = testLine }
             }
-            if (currentLine.isNotEmpty()) { canvas.drawText(currentLine, 550f, y, textPaint); y += 20f }
+            if (currentLine.isNotEmpty()) { canvas.drawText(currentLine, 550f, y, textPaint); y += 18f }
 
-            y += 10f
+            y += 6f
             canvas.drawLine(40f, y, 550f, y, borderPaint)
-            y += 25f
+            y += 18f
 
             val legalText = """
                 1. מהות העבודה והסיכונים
@@ -150,37 +150,37 @@ object PdfGenerator {
 
             val legalLines = legalText.split("\n")
             for (line in legalLines) {
-                if (line.trim().isEmpty()) { y += 10f; continue }
-                if (line.startsWith("1.") || line.startsWith("2.") || line.startsWith("3.") || line.startsWith("4.")) {
+                if (line.trim().isEmpty()) { y += 6f; continue }
+                if (line.trim().startsWith("1.") || line.trim().startsWith("2.") || line.trim().startsWith("3.") || line.trim().startsWith("4.")) {
                     canvas.drawText(line.trim(), 550f, y, boldPaint)
-                    y += 18f
+                    y += 14f
                 } else {
-                    val words = line.split(" ")
+                    val words = line.trim().split(" ")
                     var currLine = ""
                     for (word in words) {
                         val tLine = if (currLine.isEmpty()) word else "$currLine $word"
                         if (legalTextPaint.measureText(tLine) > 500f) {
                             canvas.drawText(currLine, 550f, y, legalTextPaint)
-                            y += 15f
+                            y += 13f
                             currLine = word
                         } else { currLine = tLine }
                     }
-                    if (currLine.isNotEmpty()) { canvas.drawText(currLine, 550f, y, legalTextPaint); y += 15f }
+                    if (currLine.isNotEmpty()) { canvas.drawText(currLine, 550f, y, legalTextPaint); y += 14f }
                 }
             }
 
-            y += 20f
+            y += 10f
             canvas.drawLine(40f, y, 550f, y, borderPaint)
-            y += 30f
+            y += 20f
 
             canvas.drawText("חתימת הלקוח המאשר:", 500f, y, boldPaint)
             canvas.drawText("חתימת הטכנאי המבצע:", 200f, y, boldPaint)
-            y += 15f
+            y += 14f
 
             if (!form.clientSignatureUri.isNullOrEmpty()) {
                 try {
                     decodeBitmapWithExifRotation(context, Uri.parse(form.clientSignatureUri))?.let { bitmap ->
-                        canvas.drawBitmap(bitmap, null, RectF(350f, y, 500f, y + 80f), Paint().apply { isFilterBitmap = true })
+                        canvas.drawBitmap(bitmap, null, RectF(350f, y, 500f, y + 70f), Paint().apply { isFilterBitmap = true })
                         bitmap.recycle()
                     }
                 } catch (e: Exception) { e.printStackTrace() }
@@ -191,7 +191,7 @@ object PdfGenerator {
             if (!settingsSigUri.isNullOrEmpty()) {
                 try {
                     decodeBitmapWithExifRotation(context, Uri.parse(settingsSigUri))?.let { bitmap ->
-                        val boxWidth = 150f; val boxHeight = 80f
+                        val boxWidth = 140f; val boxHeight = 70f
                         val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
                         val boxRatio = boxWidth / boxHeight
                         var drawWidth = boxWidth; var drawHeight = boxHeight
@@ -202,10 +202,13 @@ object PdfGenerator {
                 } catch (e: Exception) { e.printStackTrace() }
             }
 
+            y += 75f
+            canvas.drawText("ת.ז / ח.פ: ${form.clientId}", 500f, y, textPaint)
+
             drawFooterLine(canvas)
             pdfDocument.finishPage(page)
 
-            val extraUris = listOfNotNull(form.image1Uri, form.image2Uri, form.image3Uri)
+            val extraUris = listOfNotNull(form.image1Uri, form.image2Uri, form.image3Uri).filter { it.isNotBlank() }
             if (extraUris.isNotEmpty()) {
                 var appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, 2).create())
                 var appendixCanvas = appendixPage.canvas
@@ -215,7 +218,7 @@ object PdfGenerator {
                 appendixCanvas.drawText("נספח - תיעוד שטח לפני עבודה", 297f, 50f, titlePaint)
 
                 for (uriStr in extraUris) {
-                    if (imgYPosition > 600f) {
+                    if (imgYPosition > 580f) {
                         drawFooterLine(appendixCanvas)
                         pdfDocument.finishPage(appendixPage)
                         appendixPage = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, 3).create())
@@ -226,12 +229,12 @@ object PdfGenerator {
                     try {
                         decodeBitmapWithExifRotation(context, Uri.parse(uriStr))?.let { bitmap ->
                             val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
-                            val targetWidth = 350
-                            val targetHeight = (targetWidth / aspectRatio).toInt()
+                            val targetWidth = 320
+                            val targetHeight = (targetWidth / aspectRatio).toInt().coerceAtMost(220)
                             val xPos = (595f - targetWidth) / 2f
                             appendixCanvas.drawBitmap(bitmap, null, RectF(xPos, imgYPosition, xPos + targetWidth, imgYPosition + targetHeight), Paint().apply { isFilterBitmap = true })
                             bitmap.recycle()
-                            imgYPosition += targetHeight + 20f
+                            imgYPosition += targetHeight + 30f
                         }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
@@ -294,7 +297,7 @@ object PdfGenerator {
 
             var totalCustomer = 0.0; var totalTech = 0.0; var totalProfit = 0.0
             forms.forEachIndexed { index, form ->
-                if (y > 780f) {
+                if (y > 750f) {
                     drawFooterLine(canvas)
                     pdfDocument.finishPage(page)
                     currentPageNum++
@@ -405,7 +408,21 @@ object PdfGenerator {
 
             var y = 125f
 
-            fun drawSectionTitle(title: String) { canvas.drawText(title, 550f, y, sectionTitlePaint); y += 15f }
+            fun drawSectionTitle(title: String) {
+                if (y > 700f) {
+                    drawFooter(canvas)
+                    pdfDocument.finishPage(page)
+                    currentPageNum++
+                    page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create())
+                    canvas = page.canvas
+                    canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
+                    canvas.drawText(headerTitle, 297f, 45f, headerPaint)
+                    canvas.drawText(headerPhone, 297f, 60f, subHeaderPaint)
+                    y = 90f
+                }
+                canvas.drawText(title, 550f, y, sectionTitlePaint);
+                y += 15f
+            }
 
             fun drawCheckbox(checked: Boolean, text: String, rx: Float, ry: Float, customColor: Int? = null, isBold: Boolean = false) {
                 val originalLineColor = linePaint.color
@@ -587,7 +604,7 @@ object PdfGenerator {
                         if (word.isEmpty()) continue
                         val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
                         if (remarksPaint.measureText(testLine) > maxRemarksWidth) {
-                            if (remarksY > 780f) {
+                            if (remarksY > 700f) {
                                 drawFooter(canvas)
                                 pdfDocument.finishPage(activePage)
                                 currentPageNum++
@@ -606,7 +623,7 @@ object PdfGenerator {
                         } else { currentLine = testLine }
                     }
                     if (currentLine.isNotEmpty()) {
-                        if (remarksY > 780f) {
+                        if (remarksY > 700f) {
                             drawFooter(canvas)
                             pdfDocument.finishPage(activePage)
                             currentPageNum++
@@ -626,7 +643,7 @@ object PdfGenerator {
             }
 
             var section8Y = remarksY + 12f
-            if (section8Y > 630f) {
+            if (section8Y > 600f) {
                 drawFooter(canvas)
                 pdfDocument.finishPage(activePage)
                 currentPageNum++
@@ -862,6 +879,16 @@ object PdfGenerator {
         yPosition += 30f
 
         fun drawTableHeader() {
+            if (yPosition > 730f) {
+                drawFooterLine(canvas)
+                pdfDocument.finishPage(page)
+                currentPageNum++
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                drawPageHeader()
+                yPosition = 160f
+            }
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, Paint().apply { color = Color.parseColor("#E0E0E0"); style = Paint.Style.FILL })
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
@@ -894,7 +921,7 @@ object PdfGenerator {
             val textHeight = lines.size * 14f
             val h = Math.max(28f, textHeight + 10f)
 
-            if (yPosition + h > 780f) {
+            if (yPosition + h > 720f) {
                 drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
@@ -902,7 +929,7 @@ object PdfGenerator {
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
-                yPosition = 140f
+                yPosition = 160f
                 drawTableHeader()
             }
 
@@ -973,6 +1000,17 @@ object PdfGenerator {
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
 
+        if (yPosition > 700f) {
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
+            currentPageNum++
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
+            drawPageHeader()
+            yPosition = 160f
+        }
+
         canvas.drawText("3. בדיקות אטימות ולחץ", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
@@ -986,7 +1024,7 @@ object PdfGenerator {
 
         if (form.failedReasonsJson.isNotBlank() && form.failedReasonsJson != "{}") {
             yPosition += 25f
-            if (yPosition > 700f) {
+            if (yPosition > 650f) {
                 drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
@@ -994,7 +1032,7 @@ object PdfGenerator {
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
-                yPosition = 140f
+                yPosition = 160f
             }
 
             canvas.drawText("הערות ליקויים (פירוט סעיפים לא תקינים):", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 14f; color = Color.RED })
@@ -1022,10 +1060,10 @@ object PdfGenerator {
 
                     val textHeightNeeded = innerLines.size * 18f + 25f
 
-                    if (yPosition + textHeightNeeded > 780f) {
+                    if (yPosition + textHeightNeeded > 650f) {
                         drawFooterLine(canvas)
                         pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
-                        yPosition = 140f
+                        yPosition = 160f
                     }
 
                     val boxBottom = yPosition + textHeightNeeded
@@ -1047,7 +1085,7 @@ object PdfGenerator {
         }
 
         yPosition += 20f
-        if (yPosition > 700f) {
+        if (yPosition > 650f) {
             drawFooterLine(canvas)
             pdfDocument.finishPage(page)
             currentPageNum++
@@ -1055,7 +1093,7 @@ object PdfGenerator {
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
-            yPosition = 140f
+            yPosition = 160f
         }
 
         canvas.drawText("4. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
@@ -1076,7 +1114,16 @@ object PdfGenerator {
         }
 
         yPosition += 40f
-        if (yPosition > 600f) { drawFooterLine(canvas); pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) {
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
+            currentPageNum++
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
+            drawPageHeader()
+            yPosition = 160f
+        }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
@@ -1214,7 +1261,7 @@ object PdfGenerator {
         fun drawPageHeader() {
             canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
 
-            val headerBgPaint = Paint().apply { color = Color.parseColor("#1976D2"); style = Paint.Style.FILL } // כחול לד-2
+            val headerBgPaint = Paint().apply { color = Color.parseColor("#1976D2"); style = Paint.Style.FILL }
             canvas.drawRect(0f, 0f, 595f, 90f, headerBgPaint)
 
             val settingsManager = SettingsManager(context)
@@ -1271,6 +1318,16 @@ object PdfGenerator {
         yPosition += 30f
 
         fun drawTableHeader() {
+            if (yPosition > 730f) {
+                drawFooterLine(canvas)
+                pdfDocument.finishPage(page)
+                currentPageNum++
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                drawPageHeader()
+                yPosition = 160f
+            }
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, Paint().apply { color = Color.parseColor("#E0E0E0"); style = Paint.Style.FILL })
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
@@ -1303,7 +1360,7 @@ object PdfGenerator {
             val textHeight = lines.size * 14f
             val h = Math.max(28f, textHeight + 10f)
 
-            if (yPosition + h > 780f) {
+            if (yPosition + h > 720f) {
                 drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
@@ -1311,7 +1368,7 @@ object PdfGenerator {
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
-                yPosition = 140f
+                yPosition = 160f
                 drawTableHeader()
             }
 
@@ -1376,6 +1433,17 @@ object PdfGenerator {
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
 
+        if (yPosition > 700f) {
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
+            currentPageNum++
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
+            drawPageHeader()
+            yPosition = 160f
+        }
+
         canvas.drawText("4. בדיקות אטימות ולחץ", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
@@ -1389,7 +1457,7 @@ object PdfGenerator {
 
         if (form.failedReasonsJson.isNotEmpty() && form.failedReasonsJson != "{}") {
             yPosition += 25f
-            if (yPosition > 700f) {
+            if (yPosition > 650f) {
                 drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
@@ -1397,7 +1465,7 @@ object PdfGenerator {
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
-                yPosition = 140f
+                yPosition = 160f
             }
 
             canvas.drawText("הערות ליקויים (פירוט סעיפים לא תקינים):", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 14f; color = Color.RED })
@@ -1425,10 +1493,10 @@ object PdfGenerator {
 
                     val textHeightNeeded = innerLines.size * 18f + 25f
 
-                    if (yPosition + textHeightNeeded > 780f) {
+                    if (yPosition + textHeightNeeded > 650f) {
                         drawFooterLine(canvas)
                         pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
-                        yPosition = 140f
+                        yPosition = 160f
                     }
 
                     val boxBottom = yPosition + textHeightNeeded
@@ -1450,7 +1518,7 @@ object PdfGenerator {
         }
 
         yPosition += 20f
-        if (yPosition > 700f) {
+        if (yPosition > 650f) {
             drawFooterLine(canvas)
             pdfDocument.finishPage(page)
             currentPageNum++
@@ -1458,7 +1526,7 @@ object PdfGenerator {
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
-            yPosition = 140f
+            yPosition = 160f
         }
 
         canvas.drawText("5. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
@@ -1479,7 +1547,16 @@ object PdfGenerator {
         }
 
         yPosition += 40f
-        if (yPosition > 600f) { drawFooterLine(canvas); pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) {
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
+            currentPageNum++
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
+            drawPageHeader()
+            yPosition = 160f
+        }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
@@ -1527,7 +1604,7 @@ object PdfGenerator {
         val clientConfirmName = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
         canvas.drawText("שם החותם: $clientConfirmName", clientBoxRight - 10f, clientBoxTop + 20f, paint)
 
-        val clientIdStr = "________________"
+        val clientIdStr = form.businessId.takeIf { it.isNotEmpty() } ?: "________________"
         canvas.drawText("ת.ז / ח.פ: $clientIdStr", clientBoxRight - 10f, clientBoxTop + 40f, paint)
 
         if (form.clientSignatureUri.isNotEmpty()) {
@@ -1543,7 +1620,9 @@ object PdfGenerator {
         pdfDocument.finishPage(page)
 
         val extraUris = mutableListOf<String>()
-        if (form.extraImagesUris.isNotEmpty()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotEmpty() }) }
+        try {
+            if (form.extraImagesUris.isNotEmpty()) { extraUris.addAll(form.extraImagesUris.split(",").filter { it.isNotEmpty() }) }
+        } catch (e: Exception) {}
 
         if (extraUris.isNotEmpty()) {
             currentPageNum++
@@ -1617,7 +1696,7 @@ object PdfGenerator {
         fun drawPageHeader() {
             canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
 
-            val headerBgPaint = Paint().apply { color = Color.parseColor("#FF9800"); style = Paint.Style.FILL } // כתום לד-3
+            val headerBgPaint = Paint().apply { color = Color.parseColor("#FF9800"); style = Paint.Style.FILL }
             canvas.drawRect(0f, 0f, 595f, 90f, headerBgPaint)
 
             val settingsManager = SettingsManager(context)
@@ -1673,6 +1752,16 @@ object PdfGenerator {
         yPosition += 30f
 
         fun drawTableHeader() {
+            if (yPosition > 730f) {
+                drawFooterLine(canvas)
+                pdfDocument.finishPage(page)
+                currentPageNum++
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                drawPageHeader()
+                yPosition = 160f
+            }
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, Paint().apply { color = Color.parseColor("#E0E0E0"); style = Paint.Style.FILL })
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
@@ -1705,7 +1794,7 @@ object PdfGenerator {
             val textHeight = lines.size * 14f
             val h = Math.max(28f, textHeight + 10f)
 
-            if (yPosition + h > 780f) {
+            if (yPosition + h > 720f) {
                 drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
@@ -1713,7 +1802,7 @@ object PdfGenerator {
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
-                yPosition = 140f
+                yPosition = 160f
                 drawTableHeader()
             }
 
@@ -1755,7 +1844,7 @@ object PdfGenerator {
         drawCheckRow("1.", "קווי צינורות", "HEADER")
         drawCheckRow("1.1", "קיים ברז ניתוק נגיש ליחידת הצריכה מזוהה בשם הצרכן או במספר הדירה", form.check1_1)
         drawCheckRow("1.2", "המונה מקובע", form.check1_2)
-        drawCheckRow("1.3", "פרק הזמן ממועד ייצור המונה אינו גדול מ-18 שנה, ובהתקנה במגורים - סך הנפח המצטבר אינו גדול מ-2000 מ\"ק (מונה שאינו עומד בתנאים יוחלף)", form.check1_3)
+        drawCheckRow("1.3", "פרק הזמן ממועד ייצור המונה אינו גדול מ-18 שנה, ובהתקנה במגורים - סך הנפח המצטבר אינו גדול מ-2000 מ\"ק", form.check1_3)
         drawCheckRow("1.4", "בשסתומי פריקה המורכבים בווסת או לאחריו, והנמצאים בתוך הבניין, מוצא שסתום הפריקה מחובר אל אוויר החוץ, וקצה הצינור מרוחק 1 מ' מכל פתח בבניין שמתחתיו", form.check1_5)
         drawCheckRow("1.5", "בווסתים ללא שסתום פריקה יש אמצעים המגבילים את הלחץ לצרכן", form.check1_6)
         drawCheckRow("1.6", "יש ברז ניתוק בקרבת כל מכשיר צורך גפ\"מ", form.check1_7)
@@ -1794,9 +1883,8 @@ object PdfGenerator {
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
 
-        // פירוט ליקויים - אם קיימים בטופס
-        if (form.failedReasonsJson.isNotEmpty() && form.failedReasonsJson != "{}") {
-            if (yPosition > 700f) {
+        if (form.failedReasonsJson.isNotBlank() && form.failedReasonsJson != "{}") {
+            if (yPosition > 650f) {
                 drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
@@ -1804,7 +1892,7 @@ object PdfGenerator {
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
-                yPosition = 140f
+                yPosition = 160f
             }
 
             canvas.drawText("הערות ליקויים (פירוט סעיפים לא תקינים):", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 14f; color = Color.RED })
@@ -1832,10 +1920,10 @@ object PdfGenerator {
 
                     val textHeightNeeded = innerLines.size * 18f + 25f
 
-                    if (yPosition + textHeightNeeded > 780f) {
+                    if (yPosition + textHeightNeeded > 650f) {
                         drawFooterLine(canvas)
                         pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
-                        yPosition = 140f
+                        yPosition = 160f
                     }
 
                     val boxBottom = yPosition + textHeightNeeded
@@ -1857,7 +1945,7 @@ object PdfGenerator {
         }
 
         yPosition += 20f
-        if (yPosition > 700f) {
+        if (yPosition > 650f) {
             drawFooterLine(canvas)
             pdfDocument.finishPage(page)
             currentPageNum++
@@ -1865,17 +1953,37 @@ object PdfGenerator {
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
-            yPosition = 140f
+            yPosition = 160f
         }
 
-        canvas.drawText("4. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
+        canvas.drawText("5. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
-        val statusMessage = "הבדיקה בוצעה והושלמה בהתאם למפורט בסעיפי הטופס."
-        canvas.drawText(statusMessage, rightMargin, yPosition, Paint(boldPaint).apply { color = Color.BLACK; textSize=14f })
+        val statusMessage = when {
+            form.isDisconnected -> "אזהרה: הספקת הגז נותקה עקב ליקויים חמורים! סיבה: ${form.disconnectReason}"
+            form.requiresFixes -> "נמצאו ליקויים. יש לתקן עד תאריך: ${form.fixByDate}"
+            form.isFacilityValid -> "המתקן נמצא תקין בהתאם לדרישות התקן."
+            else -> "טרם הוגדר סטטוס."
+        }
+        val finalStatusPaint = if (form.isFacilityValid && !form.requiresFixes && !form.isDisconnected) Paint(boldPaint).apply { color = Color.parseColor("#007A00"); textSize=14f } else Paint(boldPaint).apply { color = Color.RED; textSize=14f }
+        canvas.drawText(statusMessage, rightMargin, yPosition, finalStatusPaint)
+
+        if (form.additionalNotes.isNotBlank()) {
+            yPosition += 25f
+            canvas.drawText("הערות מסכמות: ${form.additionalNotes}", rightMargin, yPosition, paint)
+        }
 
         yPosition += 40f
-        if (yPosition > 600f) { drawFooterLine(canvas); pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) {
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
+            currentPageNum++
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
+            drawPageHeader()
+            yPosition = 160f
+        }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
@@ -2015,7 +2123,7 @@ object PdfGenerator {
         fun drawPageHeader() {
             canvas.drawRect(20f, 20f, 575f, 822f, borderPaint)
 
-            val headerBgPaint = Paint().apply { color = Color.parseColor("#673AB7"); style = Paint.Style.FILL } // סגול לד-4
+            val headerBgPaint = Paint().apply { color = Color.parseColor("#673AB7"); style = Paint.Style.FILL }
             canvas.drawRect(0f, 0f, 595f, 90f, headerBgPaint)
 
             val settingsManager = SettingsManager(context)
@@ -2073,6 +2181,16 @@ object PdfGenerator {
         yPosition += 30f
 
         fun drawTableHeader() {
+            if (yPosition > 730f) {
+                drawFooterLine(canvas)
+                pdfDocument.finishPage(page)
+                currentPageNum++
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                drawPageHeader()
+                yPosition = 160f
+            }
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, Paint().apply { color = Color.parseColor("#E0E0E0"); style = Paint.Style.FILL })
             canvas.drawRect(10f, yPosition, 550f, yPosition + 25f, borderPaint)
             for (x in xLines) canvas.drawLine(x, yPosition, x, yPosition + 25f, borderPaint)
@@ -2105,7 +2223,7 @@ object PdfGenerator {
             val textHeight = lines.size * 14f
             val h = Math.max(28f, textHeight + 10f)
 
-            if (yPosition + h > 780f) {
+            if (yPosition + h > 720f) {
                 drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
@@ -2113,7 +2231,7 @@ object PdfGenerator {
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
-                yPosition = 140f
+                yPosition = 160f
                 drawTableHeader()
             }
 
@@ -2217,14 +2335,13 @@ object PdfGenerator {
         drawCheckRow("5.", "בדיקת אטימות", "HEADER")
         val pressureValue = if (form.testPressure.isNotEmpty()) form.testPressure else "___"
         drawCheckRow("5.1", "בדיקת אטימות המערכת ללחץ השימוש... (לחץ בדיקה: $pressureValue mbar)", form.check5_1)
-        drawCheckRow("5.2", "בדיקת וסת הלחץ... ודא שהלחץ אינו גדול מ-30% מהלחץ הנומינלי", form.check5_2)
+        drawCheckRow("5.2", "בדיקת וסת הלחץ... ודא שהלחץ אינו גדול ב-30% מהלחץ הנומינלי", form.check5_2)
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 25f
 
-        // פירוט ליקויים - אם קיימים בטופס
         if (form.failedReasonsJson.isNotEmpty() && form.failedReasonsJson != "{}") {
-            if (yPosition > 700f) {
+            if (yPosition > 650f) {
                 drawFooterLine(canvas)
                 pdfDocument.finishPage(page)
                 currentPageNum++
@@ -2232,7 +2349,7 @@ object PdfGenerator {
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
                 drawPageHeader()
-                yPosition = 140f
+                yPosition = 160f
             }
 
             canvas.drawText("הערות ליקויים (פירוט סעיפים לא תקינים):", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 14f; color = Color.RED })
@@ -2260,10 +2377,10 @@ object PdfGenerator {
 
                     val textHeightNeeded = innerLines.size * 18f + 25f
 
-                    if (yPosition + textHeightNeeded > 780f) {
+                    if (yPosition + textHeightNeeded > 650f) {
                         drawFooterLine(canvas)
                         pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader();
-                        yPosition = 140f
+                        yPosition = 160f
                     }
 
                     val boxBottom = yPosition + textHeightNeeded
@@ -2285,7 +2402,7 @@ object PdfGenerator {
         }
 
         yPosition += 20f
-        if (yPosition > 700f) {
+        if (yPosition > 650f) {
             drawFooterLine(canvas)
             pdfDocument.finishPage(page)
             currentPageNum++
@@ -2293,17 +2410,37 @@ object PdfGenerator {
             page = pdfDocument.startPage(pageInfo)
             canvas = page.canvas
             drawPageHeader()
-            yPosition = 140f
+            yPosition = 160f
         }
 
         canvas.drawText("5. סיכום מבצע הבדיקה", rightMargin, yPosition, Paint(boldPaint).apply { textSize = 13f; isUnderlineText = true })
         yPosition += 20f
 
-        val statusMessage = "הבדיקה בוצעה והושלמה בהתאם למפורט בסעיפי הטופס."
-        canvas.drawText(statusMessage, rightMargin, yPosition, Paint(boldPaint).apply { color = Color.BLACK; textSize=14f })
+        val statusMessage = when {
+            form.isDisconnected -> "אזהרה: הספקת הגז נותקה עקב ליקויים חמורים! סיבה: ${form.disconnectReason}"
+            form.requiresFixes -> "נמצאו ליקויים. יש לתקן עד תאריך: ${form.fixByDate}"
+            form.isFacilityValid -> "המתקן נמצא תקין בהתאם לדרישות התקן."
+            else -> "טרם הוגדר סטטוס."
+        }
+        val finalStatusPaint = if (form.isFacilityValid && !form.requiresFixes && !form.isDisconnected) Paint(boldPaint).apply { color = Color.parseColor("#007A00"); textSize=14f } else Paint(boldPaint).apply { color = Color.RED; textSize=14f }
+        canvas.drawText(statusMessage, rightMargin, yPosition, finalStatusPaint)
+
+        if (form.additionalNotes.isNotBlank()) {
+            yPosition += 25f
+            canvas.drawText("הערות מסכמות: ${form.additionalNotes}", rightMargin, yPosition, paint)
+        }
 
         yPosition += 40f
-        if (yPosition > 600f) { drawFooterLine(canvas); pdfDocument.finishPage(page); currentPageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; drawPageHeader(); yPosition = 140f }
+        if (yPosition > 600f) {
+            drawFooterLine(canvas)
+            pdfDocument.finishPage(page)
+            currentPageNum++
+            pageInfo = PdfDocument.PageInfo.Builder(595, 842, currentPageNum).create()
+            page = pdfDocument.startPage(pageInfo)
+            canvas = page.canvas
+            drawPageHeader()
+            yPosition = 160f
+        }
 
         canvas.drawLine(10f, yPosition, 550f, yPosition, borderPaint)
         yPosition += 20f
@@ -2351,7 +2488,7 @@ object PdfGenerator {
         val clientConfirmName = if (form.clientNameConfirm.isNotEmpty()) form.clientNameConfirm else if (form.clientName.isNotEmpty()) form.clientName else "לקוח"
         canvas.drawText("שם החותם: $clientConfirmName", clientBoxRight - 10f, clientBoxTop + 20f, paint)
 
-        val clientIdStr = form.businessId.takeIf { it.isNotEmpty() } ?: "________________"
+        val clientIdStr = form.consumerNumber.takeIf { it.isNotEmpty() } ?: "________________"
         canvas.drawText("ת.ז / ח.פ: $clientIdStr", clientBoxRight - 10f, clientBoxTop + 40f, paint)
 
         if (form.clientSignatureUri.isNotEmpty()) {
@@ -2421,7 +2558,6 @@ object PdfGenerator {
         }
     }
 
-    // הפונקציה החדשה למיזוג מספר קובצי PDF לקובץ אחד
     fun mergePdfFiles(context: Context, pdfFiles: List<File>): File? {
         val mergedPdf = PdfDocument()
         var totalPages = 0

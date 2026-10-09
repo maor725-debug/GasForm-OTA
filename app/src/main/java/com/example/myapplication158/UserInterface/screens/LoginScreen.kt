@@ -1,6 +1,7 @@
 package com.example.myapplication158.UserInterface.screens
 
 import android.content.Context
+import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,12 +14,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -35,15 +38,14 @@ import io.github.jan.supabase.postgrest.postgrest
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit) {
     val context = LocalContext.current
+    val androidId = remember { Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE" }
 
-    // יצירת מפתח אבטחה ל-EncryptedSharedPreferences
     val masterKey = remember {
         MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
     }
 
-    // הפעלת EncryptedSharedPreferences במקום ה-SharedPreferences הרגיל
     val encryptedPrefs = remember {
         EncryptedSharedPreferences.create(
             context,
@@ -54,7 +56,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         )
     }
 
-    var isSignUpMode by remember { mutableStateOf(false) } // שולט אם אנחנו בהתחברות או הרשמה
+    var isSignUpMode by remember { mutableStateOf(false) }
 
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
@@ -65,6 +67,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     var passwordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     val performAction: () -> Unit = {
@@ -74,9 +77,9 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             scope.launch {
                 isLoading = true
                 errorMessage = null
+                successMessage = null
                 try {
                     if (isSignUpMode) {
-                        // תהליך הרשמה
                         SupabaseManager.client.auth.signUpWith(Email) {
                             this.email = email.trim()
                             this.password = password
@@ -84,10 +87,12 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
                         val user = SupabaseManager.client.auth.currentUserOrNull()
                         if (user != null) {
-                            // מעדכנים את השמות בטבלה
+                            val emailConfirmedAt = user.emailConfirmedAt
+
                             val profileUpdate = ProfileUpdate(
                                 first_name = firstName.trim(),
-                                last_name = lastName.trim()
+                                last_name = lastName.trim(),
+                                device_id = androidId
                             )
                             SupabaseManager.client.postgrest["profiles"]
                                 .update(profileUpdate) { filter { eq("id", user.id) } }
@@ -106,7 +111,14 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                 } else {
                                     encryptedPrefs.edit().clear().apply()
                                 }
-                                onLoginSuccess()
+
+                                if (emailConfirmedAt == null) {
+                                    successMessage = "נרשמת בהצלחה! שלחנו לך מייל לאימות. אנא לחץ על הקישור במייל (ובדוק גם בדואר זבל) ולאחר מכן התחבר."
+                                    SupabaseManager.client.auth.signOut()
+                                    isSignUpMode = false
+                                } else {
+                                    onLoginSuccess()
+                                }
                             } else {
                                 errorMessage = "הרישיון שלך אינו פעיל. פנה להנהלה."
                             }
@@ -114,7 +126,6 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                             errorMessage = "שגיאה ביצירת המשתמש."
                         }
                     } else {
-                        // תהליך התחברות רגיל
                         SupabaseManager.client.auth.signInWith(Email) {
                             this.email = email.trim()
                             this.password = password
@@ -127,27 +138,41 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                 .decodeSingleOrNull<UserProfile>()
 
                             if (profile?.status == "active") {
-                                if (rememberMe) {
-                                    encryptedPrefs.edit()
-                                        .putBoolean("remember_me", true)
-                                        .putString("email", email.trim())
-                                        .putString("password", password)
-                                        .apply()
+                                val registeredDeviceId = profile.device_id
+
+                                if (registeredDeviceId.isNullOrBlank()) {
+                                    SupabaseManager.client.postgrest["profiles"]
+                                        .update(com.example.myapplication158.util.DeviceUpdate(device_id = androidId)) { filter { eq("id", user.id) } }
+
+                                    if (rememberMe) {
+                                        encryptedPrefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).putString("password", password).apply()
+                                    } else {
+                                        encryptedPrefs.edit().clear().apply()
+                                    }
+                                    onLoginSuccess()
+                                } else if (registeredDeviceId == androidId) {
+                                    if (rememberMe) {
+                                        encryptedPrefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).putString("password", password).apply()
+                                    } else {
+                                        encryptedPrefs.edit().clear().apply()
+                                    }
+                                    onLoginSuccess()
                                 } else {
-                                    encryptedPrefs.edit().clear().apply()
+                                    SupabaseManager.client.auth.signOut()
+                                    errorMessage = "חשבון זה משויך למכשיר אחר. המערכת תומכת במכשיר אחד בלבד. אנא פנה להנהלה לשחרור המכשיר הקודם."
                                 }
-                                onLoginSuccess()
                             } else {
+                                SupabaseManager.client.auth.signOut()
                                 errorMessage = "הרישיון שלך אינו פעיל. פנה להנהלה."
                             }
                         } else {
-                            errorMessage = "שגיאה בזיהוי המשתמש. נסה שנית."
+                            errorMessage = "שגיאה בזיהוי המשתמש. בדוק את האימייל והסיסמה."
                         }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    errorMessage = if (isSignUpMode) "שגיאה בהרשמה: ייתכן שהאימייל תפוס או סיסמה קצרה מדי."
-                    else "שגיאת התחברות: פרטים שגויים או שגיאת רשת."
+                    errorMessage = if (isSignUpMode) "שגיאה בהרשמה: ייתכן שהאימייל תפוס, הסיסמה קצרה מדי, או שיש לאמת את המייל קודם."
+                    else "שגיאת התחברות: פרטים שגויים או שגיאת רשת. (האם אימתת את המייל שלך?)"
                 } finally {
                     isLoading = false
                 }
@@ -164,7 +189,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()) // מאפשר גלילה אם המסך קטן מדי לשדות החדשים
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -275,14 +300,30 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         TextButton(
             onClick = {
                 isSignUpMode = !isSignUpMode
-                errorMessage = null // מנקה שגיאות כשעוברים מסך
+                errorMessage = null
+                successMessage = null
             }
         ) {
             Text(if (isSignUpMode) "יש לך כבר חשבון? התחבר כאן" else "אין לך חשבון? הירשם עכשיו")
         }
 
+        successMessage?.let {
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+            ) {
+                Text(
+                    text = it,
+                    color = Color(0xFF2E7D32),
+                    modifier = Modifier.padding(16.dp),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
         errorMessage?.let {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
             ) {
@@ -290,7 +331,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     text = it,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.padding(16.dp),
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
             }
         }

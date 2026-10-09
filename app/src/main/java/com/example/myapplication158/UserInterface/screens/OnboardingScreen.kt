@@ -56,6 +56,9 @@ fun OnboardingScreen(
     var technicianLicenseExpiry by remember { mutableStateOf(settingsManager.technicianLicenseExpiry) }
     var technicianLevel by remember { mutableStateOf(settingsManager.technicianLevel.ifEmpty { "רמה 1" }) }
 
+    // AI Task 3: Added City field state
+    var technicianCity by remember { mutableStateOf(settingsManager.technicianCity) }
+
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
 
@@ -68,13 +71,12 @@ fun OnboardingScreen(
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
 
-    // בדיקת הרשאת התראות לאנדרואיד 13+
     var notificationsGranted by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
             } else {
-                true // באנדרואיד ישן יותר אין צורך לבקש
+                true
             }
         )
     }
@@ -105,9 +107,9 @@ fun OnboardingScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                StepBadge(stepNumber = 1, title = "פרטיות והרשאות", isActive = currentStep == 1, isDone = currentStep > 1)
+                StepBadge(stepNumber = 1, title = "פרטיות", isActive = currentStep == 1, isDone = currentStep > 1)
                 HorizontalDivider(modifier = Modifier.weight(1f).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                StepBadge(stepNumber = 2, title = "פרופיל ורישיון", isActive = currentStep == 2, isDone = currentStep > 2)
+                StepBadge(stepNumber = 2, title = "עסק וטכנאי", isActive = currentStep == 2, isDone = currentStep > 2)
                 HorizontalDivider(modifier = Modifier.weight(1f).padding(horizontal = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 StepBadge(stepNumber = 3, title = "סיום", isActive = currentStep == 3, isDone = currentStep > 3)
             }
@@ -203,6 +205,10 @@ fun OnboardingScreen(
                         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(text = "פרטי טכנאי ורישיון גפ\"מ", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(value = technicianName, onValueChange = { technicianName = it }, label = { Text("שם מלא של הטכנאי") }, leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+
+                            // AI Task 3: Added City UI Field
+                            OutlinedTextField(value = technicianCity, onValueChange = { technicianCity = it }, label = { Text("עיר מגורים (חובה)") }, leadingIcon = { Icon(Icons.Default.LocationCity, contentDescription = null) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+
                             OutlinedTextField(value = technicianLicenseNumber, onValueChange = { technicianLicenseNumber = it }, label = { Text("מספר רישיון טכנאי גז") }, leadingIcon = { Icon(Icons.Default.CreditCard, contentDescription = null) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), singleLine = true)
                             OutlinedTextField(value = technicianLicenseExpiry, onValueChange = {}, readOnly = true, label = { Text("תוקף הרישיון (לחץ לבחירה)") }, leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) }, interactionSource = dateInteractionSource, modifier = Modifier.fillMaxWidth())
 
@@ -249,14 +255,16 @@ fun OnboardingScreen(
                         onClick = {
                             if (currentStep == 2) {
                                 val formNum = startingFormNumberStr.toIntOrNull() ?: 0
-                                if (contractorHeader.isBlank() || technicianName.isBlank() || technicianLicenseNumber.isBlank() || technicianLicenseExpiry.isBlank()) {
-                                    Toast.makeText(context, "אנא הזן את כל שדות החובה של העסק והרישיון", Toast.LENGTH_SHORT).show()
+                                // AI Task 3: Added technicianCity validation
+                                if (contractorHeader.isBlank() || technicianName.isBlank() || technicianLicenseNumber.isBlank() || technicianLicenseExpiry.isBlank() || technicianCity.isBlank()) {
+                                    Toast.makeText(context, "אנא הזן את כל שדות החובה של העסק והרישיון (כולל עיר)", Toast.LENGTH_SHORT).show()
                                 } else if (formNum <= 0) {
                                     Toast.makeText(context, "אנא הזן מספר טופס התחלתי תקין (1 ומעלה)", Toast.LENGTH_SHORT).show()
                                 } else {
                                     settingsManager.contractorHeader = contractorHeader
                                     settingsManager.contractorPhone = contractorPhone
                                     settingsManager.defaultTechnicianName = technicianName
+                                    settingsManager.technicianCity = technicianCity // AI Task 3: Save to SettingsManager
                                     settingsManager.technicianLicenseNumber = technicianLicenseNumber
                                     settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
                                     settingsManager.technicianLevel = technicianLevel

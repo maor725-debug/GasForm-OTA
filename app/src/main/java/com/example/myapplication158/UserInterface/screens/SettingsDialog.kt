@@ -2,14 +2,15 @@ package com.example.myapplication158.UserInterface.screens
 
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -30,32 +31,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.documentfile.provider.DocumentFile
+import com.example.myapplication158.TechnicianProfile
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.SignaturePad
 import com.example.myapplication158.util.SettingsManager
 import com.example.myapplication158.util.SupabaseManager
-import com.example.myapplication158.util.UserProfile
-import com.example.myapplication158.util.ProfileUpdate
-import com.example.myapplication158.TechnicianProfile
-import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import android.provider.Settings
 
 @Suppress("UNUSED_PARAMETER")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,13 +125,14 @@ fun SettingsDialog(
     var technicianLicenseNumber by remember { mutableStateOf(settingsManager.technicianLicenseNumber) }
     var technicianLicenseExpiry by remember { mutableStateOf(settingsManager.technicianLicenseExpiry) }
     var technicianLevel by remember { mutableStateOf(settingsManager.technicianLevel) }
+    var technicianCity by remember { mutableStateOf(settingsManager.technicianCity) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
     val dateInteractionSource = remember { MutableInteractionSource() }
     if (dateInteractionSource.collectIsPressedAsState().value) { showDatePicker = true }
 
-    var isSyncing by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
 
     var customStorageTreeUri by remember { mutableStateOf(settingsManager.customStorageTreeUri) }
     var customStorageFolderName by remember { mutableStateOf(settingsManager.customStorageFolderName) }
@@ -409,7 +403,7 @@ fun SettingsDialog(
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text("ניהול רישיון טכנאי גפ\"מ", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
                                         }
-                                        Text("כאן תוכל לעדכן את מספר הרישיון ותוקפו. העדכון יסונכרן אוטומטית לשרת. אם נחסמת, שמירה מוצלחת תשחרר אותך מיידית.", fontSize = 12.sp, color = textGray)
+                                        Text("כאן תוכל לעדכן את פרטי הרישיון ועיר המגורים. העדכון יישמר בשרת באופן אוטומטי בעת לחיצה על לחצן השמירה למטה.", fontSize = 12.sp, color = textGray)
 
                                         Spacer(modifier = Modifier.height(4.dp))
 
@@ -418,6 +412,15 @@ fun SettingsDialog(
                                             onValueChange = { technicianLicenseNumber = it },
                                             label = { Text("מספר רישיון טכנאי גז") },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true,
+                                            colors = textFieldColors
+                                        )
+
+                                        OutlinedTextField(
+                                            value = technicianCity,
+                                            onValueChange = { technicianCity = it },
+                                            label = { Text("עיר מגורים") },
                                             modifier = Modifier.fillMaxWidth(),
                                             singleLine = true,
                                             colors = textFieldColors
@@ -443,83 +446,6 @@ fun SettingsDialog(
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 RadioButton(selected = technicianLevel == "רמה 2", onClick = { technicianLevel = "רמה 2" })
                                                 Text("רמה 2", fontSize = 14.sp, color = textWhite)
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        Button(
-                                            onClick = {
-                                                if (technicianLicenseNumber.isBlank() || technicianLicenseExpiry.isBlank()) {
-                                                    Toast.makeText(context, "נא למלא מספר רישיון ותוקף", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    isSyncing = true
-                                                    scope.launch {
-                                                        try {
-                                                            val currentProfile = SupabaseManager.client.postgrest["technicians_profiles"]
-                                                                .select { filter { eq("device_id", androidId) } }
-                                                                .decodeSingleOrNull<TechnicianProfile>()
-
-                                                            val wasBlocked = currentProfile?.is_blocked == true
-                                                            val adminReason = currentProfile?.block_reason ?: "ללא סיבה"
-                                                            val oldLog = currentProfile?.correction_log ?: ""
-
-                                                            val oldLic = settingsManager.technicianLicenseNumber
-                                                            val oldExp = settingsManager.technicianLicenseExpiry
-                                                            val oldLvl = settingsManager.technicianLevel
-
-                                                            var newLog = oldLog
-                                                            if (wasBlocked) {
-                                                                val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
-                                                                var changes = ""
-                                                                if (oldLic != technicianLicenseNumber) changes += "[רישיון שונה מ-$oldLic ל-$technicianLicenseNumber] "
-                                                                if (oldExp != technicianLicenseExpiry) changes += "[תוקף שונה מ-$oldExp ל-$technicianLicenseExpiry] "
-                                                                if (oldLvl != technicianLevel) changes += "[רמה שונתה מ-$oldLvl ל-$technicianLevel] "
-                                                                if (changes.isBlank()) changes = "[שמירה ללא שינוי נתונים]"
-
-                                                                val logEntry = "\n--- $timestamp ---\nנחסם בגין: $adminReason\nתיקון שבוצע: $changes\n"
-                                                                newLog += logEntry
-                                                            }
-
-                                                            val profile = TechnicianProfile(
-                                                                device_id = androidId,
-                                                                full_name = defaultTechnicianName,
-                                                                license_number = technicianLicenseNumber,
-                                                                license_expiry = technicianLicenseExpiry,
-                                                                technician_level = technicianLevel,
-                                                                is_blocked = false,
-                                                                block_reason = if (wasBlocked) "" else currentProfile?.block_reason,
-                                                                correction_log = newLog.trim()
-                                                            )
-                                                            SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile)
-
-                                                            settingsManager.technicianLicenseNumber = technicianLicenseNumber
-                                                            settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
-                                                            settingsManager.technicianLevel = technicianLevel
-
-                                                            Toast.makeText(context, "✓ סונכרן לשרת! אם היית חסום - המערכת שוחררה כעת.", Toast.LENGTH_LONG).show()
-
-                                                            onDismissRequest()
-                                                            onDismiss()
-                                                        } catch (e: Exception) {
-                                                            e.printStackTrace()
-                                                            Toast.makeText(context, "שגיאת רשת: לא ניתן לסנכרן מול השרת כעת.", Toast.LENGTH_LONG).show()
-                                                        } finally {
-                                                            isSyncing = false
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-                                            enabled = !isSyncing
-                                        ) {
-                                            if (isSyncing) {
-                                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
-                                            } else {
-                                                Icon(Icons.Default.CloudSync, null, modifier = Modifier.size(18.dp))
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text("סנכרן רישיון מול השרת", fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -589,13 +515,14 @@ fun SettingsDialog(
                     Button(
                         onClick = {
                             val hasFolder = !settingsManager.customStorageTreeUri.isNullOrBlank()
-                            val hasContractorName = settingsManager.contractorHeader.isNotBlank()
-                            val hasContractorPhone = settingsManager.contractorPhone.isNotBlank()
-                            val hasTechName = settingsManager.defaultTechnicianName.isNotBlank()
-                            val hasFormNumber = settingsManager.currentFormNumber > 0
-                            val hasLicensePhoto = !settingsManager.technicianLicenseUri.isNullOrBlank()
+                            val hasContractorName = contractorHeader.isNotBlank()
+                            val hasContractorPhone = contractorPhone.isNotBlank()
+                            val hasTechName = defaultTechnicianName.isNotBlank()
+                            val hasFormNumber = (currentFormNumberInput.toIntOrNull() ?: 0) > 0
+                            val hasLicensePhoto = savedLicenseUri.isNotBlank()
+                            val hasLicenseDetails = technicianLicenseNumber.isNotBlank() && technicianLicenseExpiry.isNotBlank() && technicianCity.isNotBlank()
 
-                            val isAllValid = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasLicensePhoto
+                            val isAllValid = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasLicensePhoto && hasLicenseDetails
 
                             if (!isAllValid) {
                                 val missing = mutableListOf<String>()
@@ -605,33 +532,87 @@ fun SettingsDialog(
                                 if (!hasTechName) missing.add("• שם טכנאי (בלשונית קבלן)")
                                 if (!hasFormNumber) missing.add("• מספר טופס התחלתי (בלשונית קבלן)")
                                 if (!hasLicensePhoto) missing.add("• תמונת חתימה וחותמת (בלשונית קבלן)")
+                                if (!hasLicenseDetails) missing.add("• מספר רישיון, תוקף ועיר (בלשונית רישיון)")
                                 Toast.makeText(context, "חובה להגדיר את השדות הבאים להתחלת עבודה:\n" + missing.joinToString("\n"), Toast.LENGTH_LONG).show()
                             } else {
-                                Toast.makeText(context, "ההגדרות נשמרו בהצלחה", Toast.LENGTH_SHORT).show()
-                                onDismissRequest()
-                                onDismiss()
+                                isSaving = true
+                                scope.launch {
+                                    try {
+                                        val currentProfile = SupabaseManager.client.postgrest["technicians_profiles"]
+                                            .select { filter { eq("device_id", androidId) } }
+                                            .decodeSingleOrNull<TechnicianProfile>()
+
+                                        val wasBlocked = currentProfile?.is_blocked == true
+                                        val adminReason = currentProfile?.block_reason ?: "ללא סיבה"
+                                        val oldLog = currentProfile?.correction_log ?: ""
+
+                                        val oldLic = settingsManager.technicianLicenseNumber
+                                        val oldExp = settingsManager.technicianLicenseExpiry
+                                        val oldLvl = settingsManager.technicianLevel
+                                        val oldCity = settingsManager.technicianCity
+
+                                        var newLog = oldLog
+                                        if (wasBlocked) {
+                                            val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+                                            var changes = ""
+                                            if (oldLic != technicianLicenseNumber) changes += "[רישיון שונה] "
+                                            if (oldExp != technicianLicenseExpiry) changes += "[תוקף שונה] "
+                                            if (oldLvl != technicianLevel) changes += "[רמה שונתה] "
+                                            if (oldCity != technicianCity) changes += "[עיר שונתה] "
+                                            if (changes.isBlank()) changes = "[שמירה ללא שינוי נתונים]"
+
+                                            val logEntry = "\n--- $timestamp ---\nנחסם בגין: $adminReason\nתיקון שבוצע: $changes\n"
+                                            newLog += logEntry
+                                        }
+
+                                        val profile = TechnicianProfile(
+                                            device_id = androidId,
+                                            full_name = defaultTechnicianName,
+                                            license_number = technicianLicenseNumber,
+                                            license_expiry = technicianLicenseExpiry,
+                                            technician_level = technicianLevel,
+                                            city = technicianCity,
+                                            is_blocked = false,
+                                            block_reason = if (wasBlocked) "" else currentProfile?.block_reason,
+                                            correction_log = newLog.trim()
+                                        )
+                                        SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile)
+
+                                        settingsManager.contractorHeader = contractorHeader
+                                        settingsManager.contractorPhone = contractorPhone
+                                        settingsManager.defaultTechnicianName = defaultTechnicianName
+                                        settingsManager.technicianLicenseNumber = technicianLicenseNumber
+                                        settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
+                                        settingsManager.technicianLevel = technicianLevel
+                                        settingsManager.technicianCity = technicianCity
+
+                                        Toast.makeText(context, "ההגדרות נשמרו וסונכרנו בהצלחה", Toast.LENGTH_SHORT).show()
+                                        onDismissRequest()
+                                        onDismiss()
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                        Toast.makeText(context, "ההגדרות נשמרו מקומית, אך השמירה לענן נכשלה. בדוק חיבור לאינטרנט.", Toast.LENGTH_LONG).show()
+                                        onDismissRequest()
+                                        onDismiss()
+                                    } finally {
+                                        isSaving = false
+                                    }
+                                }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White),
+                        enabled = !isSaving
                     ) {
-                        Icon(Icons.Default.Save, contentDescription = "שמור", modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("שמירת הגדרות וסגירה", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        if (isSaving) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
+                        } else {
+                            Icon(Icons.Default.Save, contentDescription = "שמור", modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("שמירת הגדרות וסגירה", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
                     }
                 }
             }
-        }
-
-        if (showRegistrationDialog) {
-            SettingsAuthDialog(
-                onDismiss = { showRegistrationDialog = false },
-                onSuccess = {
-                    isLicensed = true
-                    appSecurityPrefs.edit().putBoolean("is_licensed_user", true).apply()
-                    showRegistrationDialog = false
-                    Toast.makeText(context, "נרשמת למערכת בהצלחה! ההגבלה הוסרה.", Toast.LENGTH_LONG).show()
-                }
-            )
         }
 
         if (showDatePicker) {
@@ -643,7 +624,6 @@ fun SettingsDialog(
                         datePickerState.selectedDateMillis?.let { millis ->
                             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                             technicianLicenseExpiry = sdf.format(Date(millis))
-                            settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
                         }
                     }) { Text("אישור") }
                 },
@@ -652,229 +632,6 @@ fun SettingsDialog(
                 }
             ) {
                 DatePicker(state = datePickerState)
-            }
-        }
-    }
-}
-
-@Suppress("UnusedPrivateMember", "UNUSED_PARAMETER")
-@Composable
-private fun SupabaseCloudCard(
-    context: Context,
-    cardBg: Color,
-    primaryColor: Color,
-    textWhite: Color,
-    textGray: Color
-) {
-    val supabaseManager = remember { SupabaseManager(context) }
-    var statusText by remember { mutableStateOf<String?>(null) }
-    var isChecking by remember { mutableStateOf(false) }
-
-    Card(colors = CardDefaults.cardColors(containerColor = cardBg), shape = RoundedCornerShape(12.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Security, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("שומר סף ורישיונות Supabase (SaaS)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textWhite)
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text("מודל Zero-Storage: הנתונים והטפסים נשמרים מקומית בבטחה במכשיר בלבד.", fontSize = 11.sp, color = textGray)
-
-            if (statusText != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(statusText!!, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = primaryColor)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = {
-                    isChecking = true
-                    statusText = "בודק חיבור ל-Supabase Cloud..."
-                    supabaseManager.testConnection { _, message ->
-                        isChecking = false
-                        statusText = message
-                    }
-                },
-                enabled = !isChecking,
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White)
-            ) {
-                if (isChecking) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                Text("בדוק חיבור ל-Supabase Cloud ☁️", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SettingsAuthDialog(
-    onDismiss: () -> Unit,
-    onSuccess: () -> Unit
-) {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("login_prefs", Context.MODE_PRIVATE) }
-    var isSignUpMode by remember { mutableStateOf(false) }
-
-    val androidId = remember { android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE" }
-
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf(prefs.getString("email", "") ?: "") }
-    var password by remember { mutableStateOf("") }
-    var rememberMe by remember { mutableStateOf(prefs.getBoolean("remember_me", false)) }
-
-    var passwordVisible by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Card(
-            modifier = Modifier.fillMaxWidth(0.9f).padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(24.dp).verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = if (isSignUpMode) "הרשמה למערכת" else "התחברות למערכת",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-
-                if (isSignUpMode) {
-                    OutlinedTextField(
-                        value = firstName, onValueChange = { firstName = it },
-                        label = { Text("שם פרטי") }, modifier = Modifier.fillMaxWidth(), singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = lastName, onValueChange = { lastName = it },
-                        label = { Text("שם משפחה") }, modifier = Modifier.fillMaxWidth(), singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                OutlinedTextField(
-                    value = email, onValueChange = { email = it },
-                    label = { Text("אימייל") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    textStyle = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = password, onValueChange = { password = it },
-                    label = { Text("סיסמה (לפחות 6 תווים)") },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff, null)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    textStyle = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End
-                ) {
-                    Text("שמור אימייל להתחברות", fontSize = 14.sp)
-                    Checkbox(checked = rememberMe, onCheckedChange = { rememberMe = it })
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (isLoading) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                } else {
-                    Button(
-                        onClick = {
-                            if (email.isBlank() || password.isBlank() || (isSignUpMode && (firstName.isBlank() || lastName.isBlank()))) {
-                                errorMessage = "נא למלא את כל השדות"
-                                return@Button
-                            }
-                            if (password.length < 6) {
-                                errorMessage = "הסיסמה חייבת להכיל לפחות 6 תווים"
-                                return@Button
-                            }
-                            scope.launch {
-                                isLoading = true; errorMessage = null
-                                try {
-                                    if (isSignUpMode) {
-                                        SupabaseManager.client.auth.signUpWith(Email) { this.email = email.trim(); this.password = password }
-                                        val user = SupabaseManager.client.auth.currentUserOrNull()
-                                        if (user != null) {
-                                            SupabaseManager.client.postgrest["profiles"].update(ProfileUpdate(first_name = firstName.trim(), last_name = lastName.trim(), device_id = androidId)) { filter { eq("id", user.id) } }
-                                            val profile = SupabaseManager.client.postgrest["profiles"].select { filter { eq("id", user.id) } }.decodeSingleOrNull<UserProfile>()
-
-                                            if (profile?.status == "active") {
-                                                if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).apply()
-                                                else prefs.edit().clear().apply()
-                                                onSuccess()
-                                            } else errorMessage = "הרישיון אינו פעיל."
-                                        } else errorMessage = "שגיאה ביצירת המשתמש."
-                                    } else {
-                                        SupabaseManager.client.auth.signInWith(Email) { this.email = email.trim(); this.password = password }
-                                        val user = SupabaseManager.client.auth.currentUserOrNull()
-                                        if (user != null) {
-                                            val profile = SupabaseManager.client.postgrest["profiles"].select { filter { eq("id", user.id) } }.decodeSingleOrNull<UserProfile>()
-
-                                            if (profile != null && profile.status == "active") {
-                                                if (profile.device_id.isNullOrEmpty()) {
-                                                    SupabaseManager.client.postgrest["profiles"].update(com.example.myapplication158.util.DeviceUpdate(device_id = androidId)) { filter { eq("id", user.id) } }
-                                                    if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).apply()
-                                                    else prefs.edit().clear().apply()
-                                                    onSuccess()
-                                                } else if (profile.device_id == androidId) {
-                                                    if (rememberMe) prefs.edit().putBoolean("remember_me", true).putString("email", email.trim()).apply()
-                                                    else prefs.edit().clear().apply()
-                                                    onSuccess()
-                                                } else {
-                                                    SupabaseManager.client.auth.signOut()
-                                                    errorMessage = "חשבון זה משויך למכשיר אחר. אנא פנה להנהלה."
-                                                }
-                                            } else {
-                                                errorMessage = "הרישיון שלך אינו פעיל."
-                                            }
-                                        } else errorMessage = "שגיאה בזיהוי המשתמש."
-                                    }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                    errorMessage = "שגיאה: ${e.message ?: "לא ידועה"}"
-                                } finally { isLoading = false }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(if (isSignUpMode) "הרשם" else "התחבר", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                TextButton(onClick = { isSignUpMode = !isSignUpMode; errorMessage = null }) {
-                    Text(if (isSignUpMode) "יש לך כבר חשבון? התחבר" else "אין לך חשבון? הירשם כאן")
-                }
-
-                errorMessage?.let {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                TextButton(onClick = onDismiss) { Text("ביטול", color = Color.Gray) }
             }
         }
     }

@@ -200,6 +200,7 @@ fun FormListScreen(
     }
     val pendingForms = combinedForms.size - approvedForms
 
+
     val filteredForms = combinedForms.filter { item ->
         when (item) {
             is GasForm -> item.clientName.contains(searchQuery, ignoreCase = true) || item.clientCity.contains(searchQuery, ignoreCase = true) || item.date.contains(searchQuery, ignoreCase = true) || item.partnerNumber.contains(searchQuery, ignoreCase = true)
@@ -262,15 +263,16 @@ fun FormListScreen(
                                 }
                             }
 
+                            // ---> תיקון משימה 1: הצגת שם קבלן דינמי במקום טקסט קבוע <---
                             Column(horizontalAlignment = Alignment.End) {
                                 Text("מערכת מילוי טפסים", fontWeight = FontWeight.ExtraBold, color = aiHeaderTextColor, fontSize = 16.sp)
-                                Text("שם קבלן / חברה", color = primaryColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                val headerText = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "שם קבלן / חברה"
+                                Text(headerText, color = primaryColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             },
-            // ---> התוספת הקריטית של קלוד להגנה על תחתית המסך! <---
             modifier = modifier.fillMaxSize().navigationBarsPadding()
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {

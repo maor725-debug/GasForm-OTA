@@ -1,12 +1,12 @@
 package com.example.myapplication158.UserInterface.screens
 
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,9 +27,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.ClientSignaturePad
 import com.example.myapplication158.data.WaiverForm
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -57,6 +59,8 @@ fun WaiverFormEditScreen(
 
     var clientSignatureUri by remember { mutableStateOf(form.clientSignatureUri) }
 
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+
     val saveForm = {
         val updatedForm = WaiverForm(
             id = currentFormId, date = date, clientName = clientName, clientId = clientId,
@@ -75,9 +79,41 @@ fun WaiverFormEditScreen(
         onNavigateBack()
     }
 
-    val image1Launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { image1Uri = it.toString(); saveForm() } }
-    val image2Launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { image2Uri = it.toString(); saveForm() } }
-    val image3Launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { image3Uri = it.toString(); saveForm() } }
+    val galleryMultipleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        if (uris.isNotEmpty()) {
+            val iter = uris.iterator()
+            if (iter.hasNext()) image1Uri = iter.next().toString()
+            if (iter.hasNext()) image2Uri = iter.next().toString()
+            if (iter.hasNext()) image3Uri = iter.next().toString()
+            saveForm()
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success && tempCameraUri != null) {
+            val currentUris = listOfNotNull(image1Uri, image2Uri, image3Uri).filter { it.isNotBlank() }
+            if (currentUris.size < 3) {
+                if (image1Uri.isNullOrBlank()) image1Uri = tempCameraUri.toString()
+                else if (image2Uri.isNullOrBlank()) image2Uri = tempCameraUri.toString()
+                else if (image3Uri.isNullOrBlank()) image3Uri = tempCameraUri.toString()
+                saveForm()
+            } else {
+                Toast.makeText(context, "כבר צורפו 3 תמונות. אי אפשר להוסיף עוד.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun openCamera() {
+        val currentUris = listOfNotNull(image1Uri, image2Uri, image3Uri).filter { it.isNotBlank() }
+        if (currentUris.size >= 3) {
+            Toast.makeText(context, "הגעת למקסימום (3 תמונות)", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val photoFile = File(context.cacheDir, "waiver_photo_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
+        tempCameraUri = uri
+        cameraLauncher.launch(uri)
+    }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
@@ -130,12 +166,40 @@ fun WaiverFormEditScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("תיעוד השטח לפני עבודה", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
-                        Text("העלה עד 3 תמונות של אזור העבודה לפני התחלת החציבה/קידוח כדי למנוע טענות לנזק קודם.", fontSize = 12.sp, color = Color.Gray)
+                        Text("העלה עד 3 תמונות של אזור העבודה לפני התחלת החציבה/קידוח.", fontSize = 12.sp, color = Color.Gray)
 
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { image1Launcher.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (image1Uri == null) "תמונה 1" else "✓ צורף") }
-                            Button(onClick = { image2Launcher.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (image2Uri == null) "תמונה 2" else "✓ צורף") }
-                            Button(onClick = { image3Launcher.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (image3Uri == null) "תמונה 3" else "✓ צורף") }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Button(
+                                onClick = { galleryMultipleLauncher.launch("image/*") },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("הוסף מגלריה", fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = { openCamera() },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("צילום מהשטח", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        val validImagesCount = listOfNotNull(image1Uri, image2Uri, image3Uri).filter { it.isNotBlank() }.size
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("צורפו $validImagesCount תמונות (מתוך 3)", color = Color.DarkGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            if (validImagesCount > 0) {
+                                TextButton(onClick = { image1Uri = null; image2Uri = null; image3Uri = null; saveForm() }) {
+                                    Text("נקה תמונות", color = Color.Red, fontSize = 12.sp)
+                                }
+                            }
                         }
                     }
                 }
@@ -171,7 +235,6 @@ fun WaiverFormEditScreen(
 
                         Text("בקש מהלקוח לחתום על המסך לאישור. חתימתך כטכנאי תצורף למסמך באופן אוטומטי בהתאם להגדרות המערכת.", fontSize = 12.sp, color = Color.Gray)
 
-                        // קריאה לרכיב הציור במקום הרכיב הישן שפותח את הגלריה!
                         ClientSignaturePad(
                             initialSignatureUri = clientSignatureUri ?: "",
                             clientId = clientId,
@@ -183,7 +246,59 @@ fun WaiverFormEditScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // סידור הלחצנים התחתונים בדיוק כמו בשאר הטפסים!
+                Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val primaryColor = MaterialTheme.colorScheme.primary
+                    val successGreen = Color(0xFF4CAF50)
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                val finalForm = WaiverForm(
+                                    id = currentFormId, date = date, clientName = clientName, clientId = clientId,
+                                    address = address, phone = phone, workDescription = workDescription,
+                                    image1Uri = image1Uri, image2Uri = image2Uri, image3Uri = image3Uri,
+                                    clientPhotoUri = null, clientSignatureUri = clientSignatureUri,
+                                    technicianSignatureUri = null, savedPdfFilePath = form.savedPdfFilePath,
+                                    isSavedToTarget = form.isSavedToTarget, savedTargetLocation = form.savedTargetLocation
+                                )
+                                viewModel.autoSaveWaiverForm(finalForm)
+                                viewModel.previewWaiverPdf(context, finalForm)
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor), shape = RoundedCornerShape(10.dp)
+                        ) { Text("תצוגה מקדימה", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+
+                        Button(
+                            onClick = {
+                                saveForm()
+                                Toast.makeText(context, "נשמר כטיוטה בזיכרון", Toast.LENGTH_SHORT).show()
+                                onNavigateBack()
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = successGreen), shape = RoundedCornerShape(10.dp)
+                        ) { Text("שמור כטיוטה", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                    }
+                    Button(
+                        onClick = {
+                            if (clientName.isBlank() || phone.isBlank()) {
+                                Toast.makeText(context, "שגיאה: חובה למלא שם איש קשר וטלפון.", Toast.LENGTH_LONG).show()
+                            } else {
+                                val finalForm = WaiverForm(
+                                    id = currentFormId, date = date, clientName = clientName, clientId = clientId,
+                                    address = address, phone = phone, workDescription = workDescription,
+                                    image1Uri = image1Uri, image2Uri = image2Uri, image3Uri = image3Uri,
+                                    clientPhotoUri = null, clientSignatureUri = clientSignatureUri,
+                                    technicianSignatureUri = null, savedPdfFilePath = form.savedPdfFilePath,
+                                    isSavedToTarget = true, savedTargetLocation = "Completed"
+                                )
+                                viewModel.shareWaiverPdf(context, finalForm) { onNavigateBack() }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor), shape = RoundedCornerShape(10.dp)
+                    ) { Text("שתף וסיים", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                }
             }
         }
     }

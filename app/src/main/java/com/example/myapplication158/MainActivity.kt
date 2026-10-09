@@ -63,8 +63,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
+// AI Task 3: Added 'city' property to TechnicianProfile
 @Serializable
-data class TechnicianProfile(val device_id: String, val full_name: String, val license_number: String, val license_expiry: String, val technician_level: String, val is_blocked: Boolean = false, val block_reason: String? = null, val correction_log: String? = null)
+data class TechnicianProfile(
+    val device_id: String,
+    val full_name: String,
+    val license_number: String,
+    val license_expiry: String,
+    val technician_level: String,
+    val city: String? = null,
+    val is_blocked: Boolean = false,
+    val block_reason: String? = null,
+    val correction_log: String? = null
+)
 
 @Serializable
 data class SystemMessage(val id: String, val title: String, val content: String, val target_device_id: String? = null, val created_at: String? = null)
@@ -177,7 +188,7 @@ sealed class Screen {
     data class EditD2(val form: GasFormD2) : Screen()
     data class EditD3(val form: GasFormD3) : Screen()
     data class EditD4(val form: GasFormD4) : Screen()
-    data class EditWaiver(val form: WaiverForm) : Screen() // נתיב חדש לטופס הויתור
+    data class EditWaiver(val form: WaiverForm) : Screen()
 }
 
 @Composable
@@ -226,7 +237,7 @@ fun MainNavigation() {
                     if (currentDisplayMessage == null && newUnread.isNotEmpty()) { currentDisplayMessage = newUnread.first() }
                 }
             } catch (e: Exception) { e.printStackTrace() }
-            delay(60 * 60 * 1000L)
+            delay(60 * 1000L)
         }
     }
 
@@ -259,6 +270,7 @@ fun MainNavigation() {
             appPrefs.edit().putInt("trial_forms_count", trialFormsCount).apply()
             scope.launch { try { SupabaseManager.client.postgrest["trials_tracker"].update(mapOf("forms_created" to trialFormsCount)) { filter { eq("device_id", androidId) } } } catch (e: Exception) { e.printStackTrace() } }
             val formsLeft = 30 - trialFormsCount
+
             if (formsLeft in 1..10) { Toast.makeText(context, "שים לב: נותרו לך עוד $formsLeft טפסים בתקופת הניסיון", Toast.LENGTH_LONG).show() }
             createAction()
         } else {
@@ -292,7 +304,8 @@ fun MainNavigation() {
             when (screen) {
                 is Screen.Welcome -> { WelcomeScreen(onNavigateNext = { hasSeenWelcome = true; appPrefs.edit().putBoolean("has_seen_welcome", true).apply(); currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List }) }
                 is Screen.Login -> { LoginScreen(onLoginSuccess = { isLicensed = true; appPrefs.edit().putBoolean("is_licensed_user", true).apply(); currentScreen = if (!isOnboardingComplete) Screen.Onboarding else Screen.List }) }
-                is Screen.Onboarding -> { OnboardingScreen(onCompleteOnboarding = { scope.launch { try { val profile = TechnicianProfile(device_id = androidId, full_name = settingsManager.defaultTechnicianName, license_number = settingsManager.technicianLicenseNumber, license_expiry = settingsManager.technicianLicenseExpiry, technician_level = settingsManager.technicianLevel, is_blocked = false); SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile) } catch (e: Exception) { e.printStackTrace() } }; currentScreen = Screen.List }) }
+                // AI Task 3: Map city field from SettingsManager on profile upsert
+                is Screen.Onboarding -> { OnboardingScreen(onCompleteOnboarding = { scope.launch { try { val profile = TechnicianProfile(device_id = androidId, full_name = settingsManager.defaultTechnicianName, license_number = settingsManager.technicianLicenseNumber, license_expiry = settingsManager.technicianLicenseExpiry, technician_level = settingsManager.technicianLevel, city = settingsManager.technicianCity, is_blocked = false); SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile) } catch (e: Exception) { e.printStackTrace() } }; currentScreen = Screen.List }) }
                 is Screen.List -> {
                     FormListScreen(
                         viewModel = viewModel,
@@ -303,7 +316,7 @@ fun MainNavigation() {
                         onEditD2Form = { form -> currentScreen = Screen.EditD2(form) },
                         onEditD3Form = { form -> currentScreen = Screen.EditD3(form) },
                         onEditD4Form = { form -> currentScreen = Screen.EditD4(form) },
-                        onEditWaiverForm = { form -> currentScreen = Screen.EditWaiver(form) } // קריאה למסך הוויתור
+                        onEditWaiverForm = { form -> currentScreen = Screen.EditWaiver(form) }
                     )
                 }
                 is Screen.Edit -> { FormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
@@ -311,7 +324,7 @@ fun MainNavigation() {
                 is Screen.EditD2 -> { PeriodicFormEditScreenD2(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
                 is Screen.EditD3 -> { PeriodicFormEditScreenD3(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
                 is Screen.EditD4 -> { PeriodicFormEditScreenD4(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
-                is Screen.EditWaiver -> { WaiverFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) } // הצגת מסך הוויתור
+                is Screen.EditWaiver -> { WaiverFormEditScreen(viewModel = viewModel, form = screen.form, onNavigateBack = { currentScreen = Screen.List }) }
             }
         }
     }
@@ -358,7 +371,6 @@ fun MainNavigation() {
                         }
                     }
 
-                    // כפתור חדש לטופס הסרת אחריות - שונה לשחור לבן לפי הבקשה!
                     Button(
                         onClick = { showFormTypeDialog = false; handleNewFormAttempt { currentScreen = Screen.EditWaiver(WaiverForm()) } },
                         colors = ButtonDefaults.buttonColors(

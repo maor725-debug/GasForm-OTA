@@ -105,6 +105,11 @@ class SettingsManager(context: Context) {
         get() = prefs.getString(KEY_TECHNICIAN_LEVEL, "רמה 2") ?: "רמה 2"
         set(value) = prefs.edit().putString(KEY_TECHNICIAN_LEVEL, value).apply()
 
+    // AI Task 3: Added City field storage
+    var technicianCity: String
+        get() = prefs.getString(KEY_TECHNICIAN_CITY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_TECHNICIAN_CITY, value).apply()
+
     var contractorHeader: String
         get() = prefs.getString(KEY_CONTRACTOR_HEADER, "") ?: ""
         set(value) = prefs.edit().putString(KEY_CONTRACTOR_HEADER, value).apply()
@@ -202,6 +207,9 @@ class SettingsManager(context: Context) {
         private const val KEY_TECHNICIAN_LICENSE_NUMBER = "technician_license_number"
         private const val KEY_TECHNICIAN_LICENSE_EXPIRY = "technician_license_expiry"
         private const val KEY_TECHNICIAN_LEVEL = "technician_level"
+
+        // AI Task 3: Key for City
+        private const val KEY_TECHNICIAN_CITY = "technician_city"
 
         private const val KEY_CONTRACTOR_HEADER = "contractor_header"
         private const val KEY_CONTRACTOR_PHONE = "contractor_phone"
