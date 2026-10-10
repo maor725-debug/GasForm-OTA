@@ -149,7 +149,7 @@ fun WaiverFormEditScreen(
                             Text("פרטי לקוח ועבודה", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
 
-                        HorizontalDivider(color = Color.LightGray)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         OutlinedTextField(value = date, onValueChange = { date = it; saveForm() }, label = { Text("תאריך") }, modifier = Modifier.fillMaxWidth(), readOnly = true)
                         OutlinedTextField(value = clientName, onValueChange = { clientName = it; saveForm() }, label = { Text("שם הלקוח / חברה (חובה)") }, modifier = Modifier.fillMaxWidth())
@@ -194,22 +194,28 @@ fun WaiverFormEditScreen(
 
                         val validImagesCount = listOfNotNull(image1Uri, image2Uri, image3Uri).filter { it.isNotBlank() }.size
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("צורפו $validImagesCount תמונות (מתוך 3)", color = Color.DarkGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("צורפו $validImagesCount תמונות (מתוך 3)", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             if (validImagesCount > 0) {
                                 TextButton(onClick = { image1Uri = null; image2Uri = null; image3Uri = null; saveForm() }) {
-                                    Text("נקה תמונות", color = Color.Red, fontSize = 12.sp)
+                                    Text("נקה תמונות", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                                 }
                             }
                         }
                     }
                 }
 
-                Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)), border = BorderStroke(1.dp, Color(0xFFFF9800))) {
+                // AI Task 4: Dark mode friendly card color mapping
+                val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+                val warningCardBg = if (isDark) Color(0xFF4E342E) else Color(0xFFFFF3E0)
+                val warningBorder = if (isDark) Color(0xFFFFB74D) else Color(0xFFFF9800)
+                val warningIconColor = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
+                
+                Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = warningCardBg), border = BorderStroke(1.dp, warningBorder)) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFE65100))
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = warningIconColor)
                             Spacer(Modifier.width(8.dp))
-                            Text("הסרת אחריות לנזקי תשתית סמויה", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFFE65100))
+                            Text("הסרת אחריות לנזקי תשתית סמויה", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = warningIconColor)
                         }
                         Text(
                             text = "1. מהות העבודה והסיכונים\n" +
@@ -233,7 +239,7 @@ fun WaiverFormEditScreen(
                             Text("אימות וחתימת לקוח", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
 
-                        Text("בקש מהלקוח לחתום על המסך לאישור. חתימתך כטכנאי תצורף למסמך באופן אוטומטי בהתאם להגדרות המערכת.", fontSize = 12.sp, color = Color.Gray)
+                        Text("בקש מהלקוח לחתום על המסך לאישור. חתימתך כטכנאי תצורף למסמך באופן אוטומטי בהתאם להגדרות המערכת.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                         ClientSignaturePad(
                             initialSignatureUri = clientSignatureUri ?: "",
