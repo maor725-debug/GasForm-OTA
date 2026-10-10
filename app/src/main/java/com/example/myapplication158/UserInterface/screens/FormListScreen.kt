@@ -249,7 +249,7 @@ fun FormListScreen(
                 } else {
                     Surface(color = aiHeaderBg, modifier = Modifier.fillMaxWidth(), shadowElevation = 2.dp) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp).padding(top = 4.dp), // Added extra top padding for edge-to-edge
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {

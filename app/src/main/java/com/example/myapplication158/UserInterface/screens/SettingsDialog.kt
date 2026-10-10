@@ -525,79 +525,50 @@ fun SettingsDialog(
                             val isAllValid = hasFolder && hasContractorName && hasContractorPhone && hasTechName && hasFormNumber && hasLicensePhoto && hasLicenseDetails
 
                             if (!isAllValid) {
-                                val missing = mutableListOf<String>()
-                                if (!hasFolder) missing.add("• תיקיית שמירה לדוחות (בלשונית אחסון)")
-                                if (!hasContractorName) missing.add("• שם קבלן / חברה (בלשונית קבלן)")
-                                if (!hasContractorPhone) missing.add("• מספר טלפון נייד (בלשונית קבלן)")
-                                if (!hasTechName) missing.add("• שם טכנאי (בלשונית קבלן)")
-                                if (!hasFormNumber) missing.add("• מספר טופס התחלתי (בלשונית קבלן)")
-                                if (!hasLicensePhoto) missing.add("• תמונת חתימה וחותמת (בלשונית קבלן)")
-                                if (!hasLicenseDetails) missing.add("• מספר רישיון, תוקף ועיר (בלשונית רישיון)")
-                                Toast.makeText(context, "חובה להגדיר את השדות הבאים להתחלת עבודה:\n" + missing.joinToString("\n"), Toast.LENGTH_LONG).show()
-                            } else {
-                                isSaving = true
-                                scope.launch {
-                                    try {
-                                        val currentProfile = SupabaseManager.client.postgrest["technicians_profiles"]
-                                            .select { filter { eq("device_id", androidId) } }
-                                            .decodeSingleOrNull<TechnicianProfile>()
-
-                                        val wasBlocked = currentProfile?.is_blocked == true
-                                        val adminReason = currentProfile?.block_reason ?: "ללא סיבה"
-                                        val oldLog = currentProfile?.correction_log ?: ""
-
-                                        val oldLic = settingsManager.technicianLicenseNumber
-                                        val oldExp = settingsManager.technicianLicenseExpiry
-                                        val oldLvl = settingsManager.technicianLevel
-                                        val oldCity = settingsManager.technicianCity
-
-                                        var newLog = oldLog
-                                        if (wasBlocked) {
-                                            val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
-                                            var changes = ""
-                                            if (oldLic != technicianLicenseNumber) changes += "[רישיון שונה] "
-                                            if (oldExp != technicianLicenseExpiry) changes += "[תוקף שונה] "
-                                            if (oldLvl != technicianLevel) changes += "[רמה שונתה] "
-                                            if (oldCity != technicianCity) changes += "[עיר שונתה] "
-                                            if (changes.isBlank()) changes = "[שמירה ללא שינוי נתונים]"
-
-                                            val logEntry = "\n--- $timestamp ---\nנחסם בגין: $adminReason\nתיקון שבוצע: $changes\n"
-                                            newLog += logEntry
-                                        }
-
-                                        val profile = TechnicianProfile(
-                                            device_id = androidId,
-                                            full_name = defaultTechnicianName,
-                                            license_number = technicianLicenseNumber,
-                                            license_expiry = technicianLicenseExpiry,
-                                            technician_level = technicianLevel,
-                                            city = technicianCity,
-                                            is_blocked = false,
-                                            block_reason = if (wasBlocked) "" else currentProfile?.block_reason,
-                                            correction_log = newLog.trim()
-                                        )
-                                        SupabaseManager.client.postgrest["technicians_profiles"].upsert(profile)
-
-                                        settingsManager.contractorHeader = contractorHeader
-                                        settingsManager.contractorPhone = contractorPhone
-                                        settingsManager.defaultTechnicianName = defaultTechnicianName
-                                        settingsManager.technicianLicenseNumber = technicianLicenseNumber
-                                        settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
-                                        settingsManager.technicianLevel = technicianLevel
-                                        settingsManager.technicianCity = technicianCity
-
-                                        Toast.makeText(context, "ההגדרות נשמרו וסונכרנו בהצלחה", Toast.LENGTH_SHORT).show()
-                                        onDismissRequest()
-                                        onDismiss()
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                        Toast.makeText(context, "ההגדרות נשמרו מקומית, אך השמירה לענן נכשלה. בדוק חיבור לאינטרנט.", Toast.LENGTH_LONG).show()
-                                        onDismissRequest()
-                                        onDismiss()
-                                    } finally {
-                                        isSaving = false
-                                    }
+                                // קפיצה אוטומטית ללשונית הראשונה שחסר בה מידע כדי להקל על המשתמש
+                                if (!hasFolder) {
+                                    selectedCategoryIndex = 1 // Storage Tab
+                                } else if (!hasContractorName || !hasContractorPhone || !hasTechName || !hasFormNumber || !hasLicensePhoto) {
+                                    selectedCategoryIndex = 2 // Contractor Tab
+                                } else if (!hasLicenseDetails) {
+                                    selectedCategoryIndex = 3 // License Tab
                                 }
+                                
+                                Toast.makeText(context, "שגיאה: חסרים פרטי חובה. המערכת העבירה אותך ללשונית החסרה.", Toast.LENGTH_LONG).show()
+                            } else {
+                                // 1. קודם כל שומרים לזיכרון המקומי באופן ודאי ומהיר!
+                                settingsManager.contractorHeader = contractorHeader
+                                settingsManager.contractorPhone = contractorPhone
+                                settingsManager.defaultTechnicianName = defaultTechnicianName
+                                settingsManager.technicianLicenseNumber = technicianLicenseNumber
+                                settingsManager.technicianLicenseExpiry = technicianLicenseExpiry
+                                settingsManager.technicianLevel = technicianLevel
+                                settingsManager.technicianCity = technicianCity
+
+                                // 2. משגרים את משימת העדכון לשרת (תתבצע ברקע, גם אם אין אינטרנט עכשיו)
+                                val syncWork = androidx.work.OneTimeWorkRequestBuilder<com.example.myapplication158.util.ProfileSyncWorker>()
+                                    .setConstraints(
+                                        androidx.work.Constraints.Builder()
+                                            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                                            .build()
+                                    )
+                                    .setInputData(
+                                        androidx.work.Data.Builder()
+                                            .putString("full_name", defaultTechnicianName)
+                                            .putString("license_number", technicianLicenseNumber)
+                                            .putString("license_expiry", technicianLicenseExpiry)
+                                            .putString("technician_level", technicianLevel)
+                                            .putString("technician_city", technicianCity)
+                                            .build()
+                                    )
+                                    .build()
+                                androidx.work.WorkManager.getInstance(context).enqueue(syncWork)
+
+                                // 3. סוגרים את המסך ונותנים חיווי חיובי למשתמש מיד
+                                Toast.makeText(context, "ההגדרות נשמרו בהצלחה", Toast.LENGTH_SHORT).show()
+                                isSaving = false
+                                onDismissRequest()
+                                onDismiss()
                             }
                         },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White),

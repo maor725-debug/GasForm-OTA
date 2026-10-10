@@ -73,6 +73,9 @@ fun WaiverFormEditScreen(
         )
         viewModel.autoSaveWaiverForm(updatedForm) { newId -> currentFormId = newId }
     }
+    
+    // מניעת לחיצות כפולות (Debounce)
+    var isSubmitting by remember { mutableStateOf(false) }
 
     BackHandler {
         saveForm()
@@ -209,6 +212,7 @@ fun WaiverFormEditScreen(
                 val warningCardBg = if (isDark) Color(0xFF4E342E) else Color(0xFFFFF3E0)
                 val warningBorder = if (isDark) Color(0xFFFFB74D) else Color(0xFFFF9800)
                 val warningIconColor = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
+                val warningTextColor = if (isDark) Color(0xFFFFF3E0) else Color.DarkGray
                 
                 Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = warningCardBg), border = BorderStroke(1.dp, warningBorder)) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -226,7 +230,10 @@ fun WaiverFormEditScreen(
                                     "לאור האמור לעיל, אני פוטר בזאת את הטכנאי המבצע, מנהליו או מי מטעמו, מכל אחריות משפטית או כספית בגין נזק ישיר או עקיף שייגרם לתשתיות הסמויות כתוצאה מביצוע העבודה שהזמנתי.\n\n" +
                                     "4. נשיאה בהוצאות\n" +
                                     "במידה וייגרם נזק לתשתית כלשהי במהלך העבודה, אני מתחייב לשאת באחריות המלאה ולכסות את כל העלויות הנדרשות לתיקון הנזק מול בעלי המקצוע הרלוונטיים (אינסטלטור, חשמלאי וכד'), ללא כל דרישה, תלונה או תביעה כלפי טכנאי הגז המבצע.",
-                            fontSize = 13.sp, lineHeight = 20.sp, textAlign = TextAlign.Justify
+                            fontSize = 13.sp,
+                            lineHeight = 20.sp,
+                            textAlign = TextAlign.Justify,
+                            color = warningTextColor
                         )
                     }
                 }
@@ -263,6 +270,8 @@ fun WaiverFormEditScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = {
+                                if (isSubmitting) return@Button
+                                isSubmitting = true
                                 val finalForm = WaiverForm(
                                     id = currentFormId, date = date, clientName = clientName, clientId = clientId,
                                     address = address, phone = phone, workDescription = workDescription,
@@ -273,12 +282,15 @@ fun WaiverFormEditScreen(
                                 )
                                 viewModel.autoSaveWaiverForm(finalForm)
                                 viewModel.previewWaiverPdf(context, finalForm)
+                                isSubmitting = false
                             },
                             modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor), shape = RoundedCornerShape(10.dp)
                         ) { Text("תצוגה מקדימה", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
 
                         Button(
                             onClick = {
+                                if (isSubmitting) return@Button
+                                isSubmitting = true
                                 saveForm()
                                 Toast.makeText(context, "נשמר כטיוטה בזיכרון", Toast.LENGTH_SHORT).show()
                                 onNavigateBack()
@@ -288,9 +300,11 @@ fun WaiverFormEditScreen(
                     }
                     Button(
                         onClick = {
+                            if (isSubmitting) return@Button
                             if (clientName.isBlank() || phone.isBlank()) {
                                 Toast.makeText(context, "שגיאה: חובה למלא שם איש קשר וטלפון.", Toast.LENGTH_LONG).show()
                             } else {
+                                isSubmitting = true
                                 val finalForm = WaiverForm(
                                     id = currentFormId, date = date, clientName = clientName, clientId = clientId,
                                     address = address, phone = phone, workDescription = workDescription,
