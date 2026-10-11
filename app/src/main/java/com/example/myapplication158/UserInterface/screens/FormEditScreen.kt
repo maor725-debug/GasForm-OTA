@@ -55,6 +55,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
+import com.example.myapplication158.UserInterface.components.DatePickerField
 import com.example.myapplication158.util.NavigationUtils
 import com.example.myapplication158.UserInterface.components.FormCard
 import com.example.myapplication158.UserInterface.components.CheckboxWithLabel
@@ -346,7 +347,7 @@ fun FormEditScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 FormCard("פרטי הצהרה כלליים", cardBg, borderColor, primaryColor) {
-                    OutlinedTextField(value = date, onValueChange = { date = it; saveToDatabase() }, label = { Text("תאריך") }, modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.CalendarToday, null, tint = textGray) }, colors = textFieldColors)
+                    DatePickerField(value = date, onValueChange = { date = it; saveToDatabase() }, label = "תאריך", modifier = Modifier.fillMaxWidth())
                 }
 
                 FormCard("פרטי הלקוח והמיקום", cardBg, borderColor, primaryColor) {

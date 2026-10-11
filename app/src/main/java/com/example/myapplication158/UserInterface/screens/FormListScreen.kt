@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -297,7 +298,7 @@ fun FormListScreen(
                     item {
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Card(
-                                modifier = Modifier.weight(1f).height(85.dp),
+                                modifier = Modifier.weight(1f).height(75.dp),
                                 colors = CardDefaults.cardColors(containerColor = if(isDark) Color(0xFF3E2723) else Color(0xFFFFF3E0)),
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, Color(0xFFFFB74D).copy(alpha=0.5f))
@@ -307,15 +308,15 @@ fun FormListScreen(
                                     verticalArrangement = Arrangement.Center,
                                     modifier = Modifier.fillMaxSize().padding(vertical = 4.dp)
                                 ) {
-                                    Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.height(2.dp))
-                                    Text("טפסים בהמתנה", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                    Text(pendingForms.toString(), color = Color(0xFFE65100), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                                    Text("טפסים בהמתנה", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                    Text(pendingForms.toString(), color = Color(0xFFE65100), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
 
                             Card(
-                                modifier = Modifier.weight(1f).height(85.dp),
+                                modifier = Modifier.weight(1f).height(75.dp),
                                 colors = CardDefaults.cardColors(containerColor = if(isDark) Color(0xFF1B5E20) else Color(0xFFE8F5E9)),
                                 shape = RoundedCornerShape(12.dp),
                                 border = BorderStroke(1.dp, Color(0xFF81C784).copy(alpha=0.5f))
@@ -325,10 +326,10 @@ fun FormListScreen(
                                     verticalArrangement = Arrangement.Center,
                                     modifier = Modifier.fillMaxSize().padding(vertical = 4.dp)
                                 ) {
-                                    Icon(Icons.Default.CheckCircleOutline, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.CheckCircleOutline, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.height(2.dp))
-                                    Text("טפסים מאושרים", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                    Text(approvedForms.toString(), color = Color(0xFF2E7D32), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                                    Text("טפסים מאושרים", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                    Text(approvedForms.toString(), color = Color(0xFF2E7D32), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
                         }
@@ -342,7 +343,7 @@ fun FormListScreen(
                             elevation = CardDefaults.cardElevation(6.dp)
                         ) {
                             Box(
-                                modifier = Modifier.fillMaxWidth().background(Brush.horizontalGradient(colors = listOf(Color(0xFF0D47A1), Color(0xFF1976D2)))).padding(24.dp)
+                                modifier = Modifier.fillMaxWidth().background(Brush.horizontalGradient(colors = listOf(Color(0xFF0D47A1), Color(0xFF1976D2)))).padding(16.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -351,23 +352,23 @@ fun FormListScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.AutoMirrored.Filled.NoteAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                            Icon(Icons.AutoMirrored.Filled.NoteAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text("טופס חדש", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                                            Text("טופס חדש", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                                         }
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text("התחל למלא טופס בדיקה נורמטיבי\n(ת\"י 158)", color = Color.White.copy(alpha=0.9f), fontSize = 14.sp, lineHeight = 20.sp)
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("טופס בדיקה נורמטיבי (ת\"י 158)", color = Color.White.copy(alpha=0.9f), fontSize = 12.sp, lineHeight = 16.sp)
                                     }
 
                                     Button(
                                         onClick = { onAddNormativeForm() },
                                         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1976D2)),
                                         shape = RoundedCornerShape(24.dp),
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
-                                        Text("התחל", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Text("התחל", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                         Spacer(Modifier.width(4.dp))
-                                        Icon(Icons.Default.ArrowBackIosNew, contentDescription = null, modifier = Modifier.size(12.dp))
+                                        Icon(Icons.Default.ArrowBackIosNew, contentDescription = null, modifier = Modifier.size(10.dp))
                                     }
                                 }
                             }
@@ -607,7 +608,7 @@ private fun WaiverFormListItemAiStyle(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.clientName.takeIf { it.isNotBlank() } ?: "הסרת אחריות חדשה"
-                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(2.dp))
                 val draftText = if (!form.isSavedToTarget) " • טיוטה" else ""
                 Text("הסרת אחריות וחציבה$draftText | ${form.date}", color = aiTextGray, fontSize = 12.sp)
@@ -633,7 +634,7 @@ private fun PeriodicFormListItemAiStyle(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "טופס תקופתי חדש"
-                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(2.dp))
                 val isDraft = !form.isSavedToTarget
                 val draftText = if (isDraft) " • טיוטה" else ""
@@ -660,7 +661,7 @@ private fun D2FormListItemAiStyle(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "דוח ד-2 חדש"
-                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(2.dp))
                 val isDraft = !form.isSavedToTarget
                 val draftText = if (isDraft) " • טיוטה" else ""
@@ -687,7 +688,7 @@ private fun D3FormListItemAiStyle(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "דוח ד-3 חדש"
-                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(2.dp))
                 val isDraft = !form.isSavedToTarget
                 val draftText = if (isDraft) " • טיוטה" else ""
@@ -714,7 +715,7 @@ private fun D4FormListItemAiStyle(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 val title = form.businessName.takeIf { it.isNotBlank() } ?: form.clientName.takeIf { it.isNotBlank() } ?: "דוח ד-4 חדש"
-                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                Text(title, color = aiTextColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(2.dp))
                 val isDraft = !form.isSavedToTarget
                 val draftText = if (isDraft) " • טיוטה" else ""

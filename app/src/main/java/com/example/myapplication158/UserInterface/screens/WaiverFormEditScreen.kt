@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.ClientSignaturePad
+import com.example.myapplication158.UserInterface.components.DatePickerField
 import com.example.myapplication158.data.WaiverForm
 import java.io.File
 import java.text.SimpleDateFormat
@@ -154,7 +155,7 @@ fun WaiverFormEditScreen(
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                        OutlinedTextField(value = date, onValueChange = { date = it; saveForm() }, label = { Text("תאריך") }, modifier = Modifier.fillMaxWidth(), readOnly = true)
+                        DatePickerField(value = date, onValueChange = { date = it; saveForm() }, label = "תאריך", modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(value = clientName, onValueChange = { clientName = it; saveForm() }, label = { Text("שם הלקוח / חברה (חובה)") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(value = address, onValueChange = { address = it; saveForm() }, label = { Text("כתובת העבודה") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(value = phone, onValueChange = { phone = it; saveForm() }, label = { Text("טלפון") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))

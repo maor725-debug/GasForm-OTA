@@ -40,6 +40,7 @@ import coil.compose.AsyncImage
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.FormCard
 import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
+import com.example.myapplication158.UserInterface.components.DatePickerField
 import com.example.myapplication158.data.GasFormD3
 import com.example.myapplication158.util.SettingsManager
 import androidx.activity.result.PickVisualMediaRequest
@@ -486,7 +487,7 @@ fun PeriodicFormEditScreenD3(
                         Text("נמצאו ליקויים לתיקון עד תאריך:", color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
                     }
                     AnimatedVisibility(visible = requiresFixes) {
-                        OutlinedTextField(value = fixByDate, onValueChange = { fixByDate = it; saveToDatabase() }, label = { Text("תאריך יעד לתיקון") }, modifier = Modifier.fillMaxWidth().padding(start = 40.dp, bottom = 8.dp), colors = textFieldColors)
+                        DatePickerField(value = fixByDate, onValueChange = { fixByDate = it; saveToDatabase() }, label = "תאריך יעד לתיקון", modifier = Modifier.fillMaxWidth().padding(start = 40.dp, bottom = 8.dp))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { isFacilityValid = false; requiresFixes = false; isDisconnected = true; saveToDatabase() }) {
                         RadioButton(selected = isDisconnected, onClick = { isFacilityValid = false; requiresFixes = false; isDisconnected = true; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = errorRed))

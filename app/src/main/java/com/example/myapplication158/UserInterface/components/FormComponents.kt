@@ -1,5 +1,6 @@
 package com.example.myapplication158.UserInterface.components
 
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -23,11 +24,53 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.example.myapplication158.data.GasForm
 import com.example.myapplication158.util.PdfGenerator
+import java.util.Calendar
+import java.util.Locale
+
+@Composable
+fun DatePickerField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
+    
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            val formattedDate = String.format(Locale.getDefault(), "%02d/%02d/%04d", dayOfMonth, month + 1, year)
+            onValueChange(formattedDate)
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
+
+    Box(modifier = modifier.clickable { datePickerDialog.show() }) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = false,
+            trailingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = "בחר תאריך") },
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+    }
+}
 
 @Composable
 fun FormListItemAiStyle(
@@ -59,7 +102,16 @@ fun FormListItemAiStyle(
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                Text(text = form.clientName.ifEmpty { "לקוח ללא שם" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = aiTextColor, fontSize = 15.sp)
+                Text(
+                    text = form.clientName.ifEmpty { "לקוח ללא שם" }, 
+                    style = MaterialTheme.typography.titleMedium, 
+                    fontWeight = FontWeight.Bold, 
+                    color = aiTextColor, 
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (!isDraft) {

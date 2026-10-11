@@ -40,6 +40,7 @@ import coil.compose.AsyncImage
 import com.example.myapplication158.UserInterface.GasFormViewModel
 import com.example.myapplication158.UserInterface.components.FormCard
 import com.example.myapplication158.UserInterface.components.TechnicianSignatureTouchPad
+import com.example.myapplication158.UserInterface.components.DatePickerField
 import com.example.myapplication158.data.GasFormD4
 import com.example.myapplication158.util.SettingsManager
 import androidx.activity.result.PickVisualMediaRequest
@@ -422,7 +423,7 @@ fun PeriodicFormEditScreenD4(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = activationDate, onValueChange = { activationDate = it; saveToDatabase() }, label = { Text("תאריך הפעלת מתקן") }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                        DatePickerField(value = activationDate, onValueChange = { activationDate = it; saveToDatabase() }, label = "תאריך הפעלת מתקן", modifier = Modifier.weight(1f))
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("סוג המתקן (חובה לפרט):", color = textWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -573,7 +574,7 @@ fun PeriodicFormEditScreenD4(
                         Text("נמצאו ליקויים לתיקון עד תאריך:", color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
                     }
                     AnimatedVisibility(visible = requiresFixes) {
-                        OutlinedTextField(value = fixByDate, onValueChange = { fixByDate = it; saveToDatabase() }, label = { Text("תאריך יעד לתיקון") }, modifier = Modifier.fillMaxWidth().padding(start = 40.dp, bottom = 8.dp), colors = textFieldColors)
+                        DatePickerField(value = fixByDate, onValueChange = { fixByDate = it; saveToDatabase() }, label = "תאריך יעד לתיקון", modifier = Modifier.fillMaxWidth().padding(start = 40.dp, bottom = 8.dp))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { isFacilityValid = false; requiresFixes = false; isDisconnected = true; saveToDatabase() }) {
                         RadioButton(selected = isDisconnected, onClick = { isFacilityValid = false; requiresFixes = false; isDisconnected = true; saveToDatabase() }, colors = RadioButtonDefaults.colors(selectedColor = errorRed))
