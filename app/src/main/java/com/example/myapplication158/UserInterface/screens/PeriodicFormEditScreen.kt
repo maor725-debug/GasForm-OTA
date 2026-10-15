@@ -326,6 +326,8 @@ fun PeriodicFormEditScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 FormCard("פרטי העסק והמיקום", cardBg, borderColor, primaryColor) {
+                    DatePickerField(value = date, onValueChange = { date = it; saveToDatabase() }, label = "תאריך בדיקה", modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(value = businessName, onValueChange = { businessName = it; saveToDatabase() }, label = { Text("שם העסק/הבניין") }, modifier = Modifier.weight(1f), colors = textFieldColors)
                         OutlinedTextField(value = businessType, onValueChange = { businessType = it; saveToDatabase() }, label = { Text("מהות העסק") }, modifier = Modifier.weight(1f), colors = textFieldColors)

@@ -90,6 +90,8 @@ fun PeriodicFormEditScreenD2(
         focusedContainerColor = cardBg, unfocusedContainerColor = cardBg
     )
 
+    var currentFormId by remember { mutableIntStateOf(initialForm?.id ?: 0) }
+    var date by remember { mutableStateOf(initialForm?.date?.takeIf { it.isNotBlank() } ?: currentDate) }
     var businessName by remember { mutableStateOf(initialForm?.businessName ?: "") }
     var city by remember { mutableStateOf(initialForm?.city ?: "") }
     var street by remember { mutableStateOf(initialForm?.street ?: "") }
@@ -266,6 +268,8 @@ fun PeriodicFormEditScreenD2(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 FormCard("פרטי האתר והמערכת", cardBg, borderColor, primaryColor) {
+                    DatePickerField(value = date, onValueChange = { date = it; saveToDatabase() }, label = "תאריך בדיקה", modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(value = businessName, onValueChange = { businessName = it; saveToDatabase() }, label = { Text("שם העסק/הבניין") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -93,6 +93,7 @@ fun PeriodicFormEditScreenD4(
         focusedContainerColor = cardBg, unfocusedContainerColor = cardBg
     )
 
+    var date by remember { mutableStateOf(initialForm?.date?.takeIf { it.isNotBlank() } ?: currentDate) }
     var consumerNumber by remember { mutableStateOf(initialForm?.consumerNumber ?: "") }
     var gasProvider by remember { mutableStateOf(initialForm?.gasProvider ?: "") }
 
@@ -396,6 +397,8 @@ fun PeriodicFormEditScreenD4(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 FormCard("פרטי בית העסק / הלקוח", cardBg, borderColor, primaryColor) {
+                    DatePickerField(value = date, onValueChange = { date = it; saveToDatabase() }, label = "תאריך בדיקה", modifier = Modifier.fillMaxWidth())
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(value = businessName, onValueChange = { businessName = it; saveToDatabase() }, label = { Text("שם העסק / הלקוח") }, modifier = Modifier.weight(1f), colors = textFieldColors)
                         OutlinedTextField(value = businessId, onValueChange = { businessId = it; saveToDatabase() }, label = { Text("ח.פ/ע.מ/ת.ז") }, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), colors = textFieldColors)
