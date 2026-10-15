@@ -503,7 +503,7 @@ fun FormEditScreen(
                     CheckboxWithLabel("בדיקת אטימות ללחץ שימוש", isTightnessTest, { isTightnessTest = it; saveToDatabase() }, checkboxColors, textWhite, Modifier.fillMaxWidth(), "נערכה בתאריך, לחץ בדיקה mbar, במשך 15 דק'")
                     AnimatedVisibility(visible = isTightnessTest, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                         Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedTextField(value = tightnessDate, onValueChange = { tightnessDate = it; saveToDatabase() }, label = { Text("תאריך אטימות") }, leadingIcon = { Icon(Icons.Default.CalendarToday, null, tint = textGray, modifier = Modifier.size(18.dp)) }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                            DatePickerField(value = tightnessDate, onValueChange = { tightnessDate = it; saveToDatabase() }, label = "תאריך אטימות", modifier = Modifier.weight(1f))
                             OutlinedTextField(value = tightnessPressure, onValueChange = { tightnessPressure = it; saveToDatabase() }, label = { Text("לחץ בדיקה (mbar)") }, modifier = Modifier.weight(1f), colors = textFieldColors, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                         }
                     }
@@ -512,7 +512,7 @@ fun FormEditScreen(
                     CheckboxWithLabel("בדיקת לחץ", isPressureTest, { isPressureTest = it; saveToDatabase() }, checkboxColors, textWhite, Modifier.fillMaxWidth(), "נערכה בתאריך, לחץ בדיקה 0.250 BAR או אחר")
                     AnimatedVisibility(visible = isPressureTest, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                         Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedTextField(value = pressureDate, onValueChange = { pressureDate = it; saveToDatabase() }, label = { Text("תאריך בדיקת לחץ") }, leadingIcon = { Icon(Icons.Default.CalendarToday, null, tint = textGray, modifier = Modifier.size(18.dp)) }, modifier = Modifier.weight(1f), colors = textFieldColors)
+                            DatePickerField(value = pressureDate, onValueChange = { pressureDate = it; saveToDatabase() }, label = "תאריך בדיקת לחץ", modifier = Modifier.weight(1f))
                             OutlinedTextField(value = pressureValue, onValueChange = { pressureValue = it; saveToDatabase() }, label = { Text("לחץ בדיקה (BAR)") }, modifier = Modifier.weight(1f), colors = textFieldColors, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                         }
                     }

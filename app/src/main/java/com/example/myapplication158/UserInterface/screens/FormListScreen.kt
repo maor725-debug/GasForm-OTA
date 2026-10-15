@@ -57,6 +57,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.text.SimpleDateFormat
+import kotlinx.coroutines.delay
 import java.util.Date
 import java.util.Locale
 
@@ -132,6 +133,15 @@ fun FormListScreen(
 
     var showSupportDialog by remember { mutableStateOf(false) }
     var supportCategory by remember { mutableStateOf("דיווח על באג / תקלה") }
+    
+    // --- משתנה להחזקת השעון העליון החי ---
+    var currentTimeString by remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000L) // עדכון כל שנייה, למרות שמוצגות רק דקות - זה ימנע פיגור בתצוגה בעת התחלפות דקה.
+            currentTimeString = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+        }
+    }
     var supportMessage by remember { mutableStateOf("") }
     var isSubmittingSupport by remember { mutableStateOf(false) }
 
@@ -249,26 +259,39 @@ fun FormListScreen(
                     }
                 } else {
                     Surface(color = aiHeaderBg, modifier = Modifier.fillMaxWidth(), shadowElevation = 2.dp) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp).padding(top = 4.dp), // Added extra top padding for edge-to-edge
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { settingsInitialTab = 0; showSettingsDialog = true })
-                                Icon(Icons.Default.LibraryAddCheck, "בחירה למיזוג", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { isSelectionMode = true })
-
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { showSupportDialog = true }) {
-                                    Icon(Icons.Default.SupportAgent, "תמיכה", tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
-                                    Text("תמיכה טכנית", color = Color(0xFF4CAF50), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                }
+                        Column(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            // שורה עליונה: שעון בפינה הימנית
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                Text(
+                                    text = currentTimeString,
+                                    fontWeight = FontWeight.Bold,
+                                    color = aiTextGray,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
+                                )
                             }
+                            
+                            // שורה תחתונה: הגדרות (משמאל) וקבלן (מימין)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Settings, "הגדרות", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { settingsInitialTab = 0; showSettingsDialog = true })
+                                    Icon(Icons.Default.LibraryAddCheck, "בחירה למיזוג", tint = primaryColor, modifier = Modifier.size(24.dp).clickable { isSelectionMode = true })
 
-                            // ---> תיקון משימה 1: הצגת שם קבלן דינמי במקום טקסט קבוע <---
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("מערכת מילוי טפסים", fontWeight = FontWeight.ExtraBold, color = aiHeaderTextColor, fontSize = 16.sp)
-                                val headerText = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "שם קבלן / חברה"
-                                Text(headerText, color = primaryColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { showSupportDialog = true }) {
+                                        Icon(Icons.Default.SupportAgent, "תמיכה", tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
+                                        Text("תמיכה טכנית", color = Color(0xFF4CAF50), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                // הצגת שם הקבלן דינמית וללא כותרת מערכת מילוי טפסים
+                                Column(horizontalAlignment = Alignment.End) {
+                                    val headerText = settingsManager.contractorHeader.takeIf { !it.isNullOrBlank() } ?: "שם קבלן / חברה"
+                                    Text(headerText, color = aiHeaderTextColor, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                }
                             }
                         }
                     }

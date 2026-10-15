@@ -54,20 +54,24 @@ fun DatePickerField(
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    Box(modifier = modifier.clickable { datePickerDialog.show() }) {
+    Box(modifier = modifier) {
         OutlinedTextField(
             value = value,
             onValueChange = {},
             label = { Text(label) },
             modifier = Modifier.fillMaxWidth(),
-            enabled = false,
+            readOnly = true,
             trailingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = "בחר תאריך") },
             colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                disabledBorderColor = MaterialTheme.colorScheme.outline,
-                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
             )
+        )
+        // שכבה שקופה מעל השדה שלוכדת את הלחיצה ומפעילה את לוח השנה
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable { datePickerDialog.show() }
         )
     }
 }

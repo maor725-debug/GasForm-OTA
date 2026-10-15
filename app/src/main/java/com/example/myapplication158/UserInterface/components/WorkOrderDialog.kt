@@ -126,7 +126,6 @@ fun WorkOrderDialog(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { datePickerDialog.show() }
                     ) {
                         OutlinedTextField(
                             value = targetDate,
@@ -137,22 +136,23 @@ fun WorkOrderDialog(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            enabled = false,
+                            readOnly = true,
                             textStyle = LocalTextStyle.current.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
                             colors = OutlinedTextFieldDefaults.colors(
-                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                                disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                disabledTrailingIconColor = MaterialTheme.colorScheme.primary,
-                                disabledContainerColor = Color.Transparent
+                                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
                             )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { datePickerDialog.show() }
                         )
                     }
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { timePickerDialog.show() }
                     ) {
                         OutlinedTextField(
                             value = targetTime,
@@ -163,15 +163,17 @@ fun WorkOrderDialog(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            enabled = false,
+                            readOnly = true,
                             textStyle = LocalTextStyle.current.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
                             colors = OutlinedTextFieldDefaults.colors(
-                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                                disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                disabledTrailingIconColor = MaterialTheme.colorScheme.primary,
-                                disabledContainerColor = Color.Transparent
+                                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
                             )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { timePickerDialog.show() }
                         )
                     }
                 }
