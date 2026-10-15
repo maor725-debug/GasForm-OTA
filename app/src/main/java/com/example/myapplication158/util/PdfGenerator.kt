@@ -75,7 +75,7 @@ object PdfGenerator {
     }
 
     private fun drawFooterLine(canvas: Canvas) {
-        canvas.drawText("מערכת נורמטיבי - פותח ע\"י A.S.I ©", 30f, 818f, Paint().apply { color = Color.GRAY; textSize = 8f; textAlign = Paint.Align.LEFT })
+        canvas.drawText("מערכת נורמטיבי - פותח ע\"י A.S.E ©", 30f, 818f, Paint().apply { color = Color.GRAY; textSize = 8f; textAlign = Paint.Align.LEFT })
     }
 
     fun generateWaiverFormPdf(context: Context, form: WaiverForm): File? {

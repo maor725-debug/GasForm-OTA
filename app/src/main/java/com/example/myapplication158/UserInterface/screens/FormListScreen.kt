@@ -308,10 +308,10 @@ fun FormListScreen(
                                     verticalArrangement = Arrangement.Center,
                                     modifier = Modifier.fillMaxSize().padding(vertical = 4.dp)
                                 ) {
-                                    Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.height(2.dp))
                                     Text("טפסים בהמתנה", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                    Text(pendingForms.toString(), color = Color(0xFFE65100), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                    Text(pendingForms.toString(), color = Color(0xFFE65100), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
 
@@ -326,10 +326,10 @@ fun FormListScreen(
                                     verticalArrangement = Arrangement.Center,
                                     modifier = Modifier.fillMaxSize().padding(vertical = 4.dp)
                                 ) {
-                                    Icon(Icons.Default.CheckCircleOutline, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.CheckCircleOutline, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.height(2.dp))
                                     Text("טפסים מאושרים", color = if(isDark) Color.LightGray else Color.DarkGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                    Text(approvedForms.toString(), color = Color(0xFF2E7D32), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                    Text(approvedForms.toString(), color = Color(0xFF2E7D32), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
                         }
@@ -479,7 +479,7 @@ fun FormListScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                             Text(text = "פותח ע\"י", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "A.S.I", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
+                            Text(text = "A.S.E", fontSize = 12.sp, color = aiTextGray, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
